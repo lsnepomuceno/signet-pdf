@@ -50,8 +50,13 @@ it('ships the package and nothing built for testing it', function () {
     $shipped = distributedFiles();
 
     // Anything outside these is either a development tool or an oversight.
-    $allowed = ['src/', 'config/'];
-    $files = ['composer.json', 'composer.lock', 'LICENSE.md', 'README.md', 'UPGRADE.md'];
+    //
+    // `bin/` ships on purpose: `composer.json` declares `bin/signet`, so a
+    // consumer gets `vendor/bin/signet` and an archive without it would install
+    // a broken symlink. `config/` is gone, because the core reads no
+    // configuration file (docs/spec/invariants.md, rule 11).
+    $allowed = ['src/', 'bin/'];
+    $files = ['composer.json', 'LICENSE.md', 'README.md', 'UPGRADE.md'];
 
     $unexpected = [];
 
@@ -100,9 +105,10 @@ it('still ships the things a consumer needs', function () {
     $shipped = distributedFiles();
 
     expect($shipped)->toContain('composer.json')
-        ->toContain('config/a1-pdf-sign.php')
         ->toContain('LICENSE.md')
-        ->toContain('src/SignetServiceProvider.php')
+        ->toContain('UPGRADE.md')
+        ->toContain('bin/signet')
+        ->toContain('src/Signet.php')
         ->toContain('src/Resources/img/sign-seal.png')
         ->toContain('src/Resources/font/Roboto-Medium.ttf');
 });
