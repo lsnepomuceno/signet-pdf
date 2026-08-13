@@ -12,11 +12,13 @@ use LSNepomuceno\Signet\Exceptions\{MissingBinaryException,
  * The package's single point of shell-out.
  *
  * This is an interface rather than a concrete class, and that is load-bearing.
- * Under Laravel the runner was built on `Illuminate\Process\Factory` so a host
- * application could `Process::fake()` it in its own tests. Nothing outside a
- * framework offers that, so the seam moved here: `Support\SymfonyProcessRunner`
- * is the real implementation, `Testing\FakeProcessRunner` is the substitute,
- * and a host application can bind its own without this package knowing.
+ * Before the split the runner was a concrete class built on the host
+ * framework's process factory, specifically so an application could swap in a
+ * recording double in its own tests. A library outside a framework cannot
+ * assume any such facility exists, so the substitution point moved to the
+ * contract: `Support\SymfonyProcessRunner` is the real implementation,
+ * `Testing\FakeProcessRunner` is the substitute this package ships, and an
+ * application can supply its own without this package knowing.
  *
  * An arch rule asserts that `SymfonyProcessRunner` is the only class in `src/`
  * that touches `Symfony\Component\Process` or the exec family, so every

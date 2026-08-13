@@ -62,7 +62,7 @@ final class FakePdfSigner implements PdfSigner
     /*
      * The assertions live here rather than on a separate fake.
      *
-     * Under Laravel they sat on `A1PdfSignFake`, which swapped container
+     * Before the split they sat on a separate fake, which swapped container
      * bindings and held this signer. There is no container here, so the object
      * a test is handed is the signer itself, and putting the assertions
      * anywhere else would mean inventing a wrapper whose only job is to hold a

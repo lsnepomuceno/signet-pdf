@@ -10,15 +10,15 @@ use LSNepomuceno\Signet\Exceptions\EncryptionException;
 use SensitiveParameter;
 
 /**
- * AES encryption over ext-openssl, in Laravel's envelope format.
+ * AES encryption over ext-openssl, in a fixed interoperable envelope.
  *
  * The format is copied deliberately, not coincidentally. A certificate sealed
  * by `lsnepomuceno/laravel-a1-pdf-sign` has to open here, because an
  * application moving to this package cannot re-encrypt material whose
- * plaintext it no longer holds. The envelope is therefore
- * `base64(json({iv, value, mac, tag}))` with an HMAC-SHA256 over the
- * base64 IV concatenated with the base64 ciphertext, which is what
- * `Illuminate\Encryption\Encrypter` writes.
+ * plaintext it no longer holds. That fixes the envelope as
+ * `base64(json({iv, value, mac, tag}))`, with an HMAC-SHA256 over the base64
+ * IV concatenated with the base64 ciphertext. Nothing about it is chosen here:
+ * it is read off the format that package already writes.
  *
  * Encrypt-then-MAC, and the MAC is checked with `hash_equals()` before the
  * cipher is touched: comparing with `===` leaks the position of the first

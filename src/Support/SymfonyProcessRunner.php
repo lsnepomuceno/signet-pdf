@@ -22,8 +22,8 @@ use Throwable;
  *
  * `Process::fromShellCommandline()` rather than the array constructor: the
  * commands this package builds are already assembled strings, and that is the
- * same path Laravel's factory took, so behaviour is unchanged from the version
- * this was ported from.
+ * same path the process factory used before the split took, so behaviour is
+ * unchanged from the version this was ported from.
  *
  * The guards exist because a non-zero exit is a verdict downstream. See the
  * contract for why that distinction cannot be left to the process layer.
@@ -41,8 +41,8 @@ final readonly class SymfonyProcessRunner implements ProcessRunner
      *          disabled from inside a running process, so the platform
      *          condition this class translates into
      *          `ProcessUnavailableException` cannot be produced in a test any
-     *          other way. It is the same seam Laravel's process factory
-     *          provided before the split. Nothing in `src/` passes it.
+     *          other way. It is the same seam the process factory used before
+     *          the split provided. Nothing in `src/` passes it.
      */
     public function __construct(
         private ?float $timeout = 60.0,

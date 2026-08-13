@@ -10,9 +10,9 @@ use Throwable;
 /**
  * A `ProcessRunner` that runs nothing and records what it was asked to run.
  *
- * This is the replacement for `Process::fake()`. Under Laravel a host
- * application could intercept the package's shell-outs through the framework's
- * process factory; outside one, the seam has to be the contract itself, and
+ * Before the split a host application intercepted the package's shell-outs
+ * through the framework's process factory, which offered a recording double of
+ * its own. Outside a framework the seam has to be the contract itself, and
  * this is the substitute that makes it usable (docs/spec/invariants.md,
  * rule 8).
  *

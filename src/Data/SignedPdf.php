@@ -18,12 +18,13 @@ use Symfony\Component\Uid\Uuid;
  * transport afterwards.
  *
  * **This class carries no HTTP.** It used to expose `download()` and
- * `toResponse()`, returning `Symfony\Component\HttpFoundation` objects built
- * through Laravel's `response()` helper. A signing core that returns HTTP
- * responses has an opinion about how the caller serves files, which is not its
- * business and is the clearest of the boundary rules
- * (docs/decisions/0100-the-core-is-framework-agnostic.md). The Laravel package
- * adds those two methods back, where a response is the natural currency.
+ * `toResponse()`, returning response objects built through the host
+ * framework's response helper. A signing core that returns HTTP responses has
+ * an opinion about how the caller serves files, which is not its business and
+ * is the clearest of the boundary rules
+ * (docs/decisions/0100-the-core-is-framework-agnostic.md).
+ * `lsnepomuceno/laravel-a1-pdf-sign` adds those two methods back, where a
+ * response is the natural currency.
  */
 final readonly class SignedPdf extends BaseData
 {

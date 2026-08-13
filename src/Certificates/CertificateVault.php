@@ -21,8 +21,8 @@ use SensitiveParameter;
  * ciphertext, and open() needs it: losing it means losing the certificate.
  *
  * The encrypter is injectable so a host application can supply its own, and
- * defaults to `Support\OpensslEncrypter`, which writes the same envelope the
- * Laravel package does (see `Contracts\Encrypter`).
+ * defaults to `Support\OpensslEncrypter`, which writes the same envelope
+ * `lsnepomuceno/laravel-a1-pdf-sign` does (see `Contracts\Encrypter`).
  */
 final readonly class CertificateVault
 {

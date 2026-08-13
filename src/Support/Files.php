@@ -10,13 +10,13 @@ use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
 /**
  * The package's filesystem access, in one auditable place.
  *
- * Under Laravel this was the `File` facade. Outside a framework the choice is
- * between scattering bare `file_get_contents()` calls across the package or
- * keeping one helper that fails loudly, and the second is the reason this
- * class already existed: `file_get_contents()` and `File::get()` both return
- * `false` on failure, and passing that straight into a string parameter was
- * the single most common typing defect this package had. Failing here names
- * the file instead.
+ * Before the split this went through the host framework's filesystem helper.
+ * Outside a framework the choice is between scattering bare
+ * `file_get_contents()` calls across the package or keeping one helper that
+ * fails loudly, and the second is the reason this class already existed: the
+ * SPL call and every wrapper over it return `false` on failure, and passing
+ * that straight into a string parameter was the single most common typing
+ * defect this package had. Failing here names the file instead.
  *
  * These are byte operations. Nothing here is multibyte-aware and nothing here
  * should become so: the payloads are PDF and DER (docs/spec/conventions.md).
