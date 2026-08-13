@@ -64,3 +64,18 @@ never exercises.
 - The local development floor sits above what is typically installed on a
   developer machine, which is why `.docker/` reproduces any cell.
 - v1's constraint `">=8.1 <8.5"` actively blocked PHP 8.5; that is fixed.
+
+## Outcome after the extraction: the floor is 8.4.1, not 8.4
+
+A declared floor is a promise that the package installs there, and `>=8.4` was
+not one. `symfony/process` 8.1.0 requires `php >=8.4.1`, so resolving against a
+platform of 8.4.0 fails outright.
+
+Nothing in the matrix could have caught it. CI installs the newest patch of each
+minor, so 8.4 means 8.4.24 there and the lower bound is never the version
+anything resolves against. Dependabot found it, because resolving a dependency
+update is the one job that starts from the declared floor rather than from an
+installed one.
+
+The constraint is now `>=8.4.1 <8.6`. The Laravel package carries the same
+`>=8.4` and the same latent problem; it is worth checking there.

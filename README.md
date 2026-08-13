@@ -3,7 +3,7 @@
 Sign and verify PDF signatures in PHP. PAdES B-B to B-LTA, incremental updates,
 framework agnostic.
 
-[![PHP](https://img.shields.io/badge/php-8.4%20%E2%80%93%208.5-777bb4)](composer.json)
+[![PHP](https://img.shields.io/badge/php-8.4.1%20%E2%80%93%208.5-777bb4)](composer.json)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE.md)
 
 ```bash
@@ -217,7 +217,7 @@ denylist is how the next property added to a data object ends up in a log file.
 
 ## Requirements
 
-PHP 8.4 or 8.5, with `openssl`, `gd`, `mbstring`, `zlib`, `fileinfo` and `json`.
+PHP 8.4.1 or later, up to 8.5, with `openssl`, `gd`, `mbstring`, `zlib`, `fileinfo` and `json`.
 The `openssl` binary on `PATH` is needed only by the legacy certificate reader
 and by signature verification.
 

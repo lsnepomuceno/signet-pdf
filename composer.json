@@ -29,7 +29,7 @@
     "source": "https://github.com/lsnepomuceno/signet-pdf"
   },
   "require": {
-    "php": ">=8.4 <8.6",
+    "php": ">=8.4.1 <8.6",
     "ext-fileinfo": "*",
     "ext-gd": "*",
     "ext-json": "*",
