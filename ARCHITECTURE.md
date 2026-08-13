@@ -13,6 +13,7 @@ one drift in the package this was extracted from.
 | [docs/spec/invariants.md](docs/spec/invariants.md) | Rules that break the product or the project when violated. **Read before touching `src/Signing`, `src/Validation` or the dependency list.** |
 | [docs/spec/public-api.md](docs/spec/public-api.md) | What the package exposes, and what changing it costs. |
 | [docs/spec/quality-policy.md](docs/spec/quality-policy.md) | The gates a change has to pass, and why each sits where it does. |
+| [CHANGELOG.md](CHANGELOG.md) | What each release changed. Ships with the package, beside [UPGRADE.md](UPGRADE.md), because "what changed" and "what does it cost me" are the two questions at `composer update`. |
 | [docs/spec/conventions.md](docs/spec/conventions.md) | How the code is written: check for a Symfony component before writing a helper, and use an enum where a set of values exists. |
 
 ## Decisions: why the design is what it is

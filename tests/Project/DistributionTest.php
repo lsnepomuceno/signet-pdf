@@ -56,7 +56,7 @@ it('ships the package and nothing built for testing it', function () {
     // a broken symlink. `config/` is gone, because the core reads no
     // configuration file (docs/spec/invariants.md, rule 11).
     $allowed = ['src/', 'bin/'];
-    $files = ['composer.json', 'LICENSE.md', 'README.md', 'UPGRADE.md'];
+    $files = ['composer.json', 'CHANGELOG.md', 'LICENSE.md', 'README.md', 'UPGRADE.md'];
 
     $unexpected = [];
 
@@ -104,7 +104,11 @@ it('still ships the things a consumer needs', function () {
     // package with it.
     $shipped = distributedFiles();
 
+    // CHANGELOG.md and UPGRADE.md ship together, and for the same reason: the
+    // two questions at `composer update` are "what changed" and "what does it
+    // cost me", and neither is answerable from `src/`.
     expect($shipped)->toContain('composer.json')
+        ->toContain('CHANGELOG.md')
         ->toContain('LICENSE.md')
         ->toContain('UPGRADE.md')
         ->toContain('bin/signet')

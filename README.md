@@ -26,6 +26,8 @@
   &nbsp;·&nbsp;
   <a href="UPGRADE.md">Upgrading</a>
   &nbsp;·&nbsp;
+  <a href="CHANGELOG.md">Changelog</a>
+  &nbsp;·&nbsp;
   <a href="samples/README.md">Signed samples</a>
 </p>
 
