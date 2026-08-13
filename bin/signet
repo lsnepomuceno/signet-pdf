@@ -22,6 +22,7 @@ use LSNepomuceno\Signet\Console\CheckCommand;
 use LSNepomuceno\Signet\Console\FieldsCommand;
 use LSNepomuceno\Signet\Console\SignCommand;
 use LSNepomuceno\Signet\Console\VerifyCommand;
+use Composer\InstalledVersions;
 use Symfony\Component\Console\Application;
 
 // Installed as a dependency, or being worked on in its own checkout.
@@ -47,7 +48,13 @@ if (! $loaded) {
     return 1;
 }
 
-$application = new Application('signet', '1.0.0-dev');
+// Read from the installed package rather than hard-coded, so `signet --version`
+// cannot drift from the tag the way a literal in a file always eventually does.
+$version = class_exists(InstalledVersions::class) && InstalledVersions::isInstalled('lsnepomuceno/signet-pdf')
+    ? (InstalledVersions::getPrettyVersion('lsnepomuceno/signet-pdf') ?? 'dev')
+    : 'dev';
+
+$application = new Application('signet', $version);
 
 $application->addCommand(new SignCommand());
 $application->addCommand(new VerifyCommand());

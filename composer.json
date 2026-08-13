@@ -36,6 +36,7 @@
     "ext-mbstring": "*",
     "ext-openssl": "*",
     "ext-zlib": "*",
+    "composer-runtime-api": "^2.2",
     "intervention/image": "^3.11",
     "psr/log": "^3.0",
     "symfony/console": "^8",
