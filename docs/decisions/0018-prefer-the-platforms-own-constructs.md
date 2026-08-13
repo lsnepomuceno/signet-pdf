@@ -110,3 +110,31 @@ are natural integers. Those are exempted by name, the way `sha1` is exempted for
 | Allow `Str` in `Signing` and `Validation` with a method allowlist | An allowlist is a rule you have to read to apply. "Not in these two namespaces" is one you can apply from memory |
 | Convert every existing constant to an enum in one sweep | Most of them are lone facts and would become single-case enums, which is ceremony without checking |
 | Rewrite `HttpTransport` here | A behaviour change riding in on a conventions commit, with its tests in the group that needs the network |
+
+## Outcome
+
+This record was inherited at the extraction, and it left three things open. Two
+of them are settled, and the settlement is not what the record predicted.
+
+**`HttpTransport` was rewritten, but not onto the construct named here.** The
+consequence above wanted the TSA, OCSP and CRL calls moved onto the framework's
+HTTP facade, for timeouts, retries and a fake. The framework then went away
+(0100), so the facade was never an option. What the calls actually moved onto is
+`symfony/http-client`: `Signing\Cades\HttpTransport` takes an
+`HttpClientInterface`, defaults to `HttpClient::create()`, and wraps it in
+`RetryableHttpClient` with a `GenericRetryStrategy`.
+
+Every property the record was after survived the substitution, and the last one
+improved. Timeouts and retries are the client's. Substitution is better than a
+facade fake, because it is a constructor argument rather than a static hook: a
+host that has already configured a client, with a proxy or a CA bundle or its
+own instrumentation, passes that one in and this package adds only the retry
+policy on top. The test-time substitute is `Testing\LocalTimestampAuthority`,
+behind `Contracts\SignatureTransport`, which is what gates B-T and above
+offline (0027, 0101).
+
+**The `Str` rule outlived the library it was written against.** The arch rule
+here named a framework helper whose `substr()` and `length()` are multibyte. The
+helper is gone and the hazard is not, so the rule in `tests/Project/ArchTest.php`
+now names `mb_substr()`, `mb_strlen()` and their siblings directly, which is
+what the framework helper delegated to anyway. It covers more than it used to.
