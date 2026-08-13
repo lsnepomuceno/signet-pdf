@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LSNepomuceno\Signet\Console;
 
 use LSNepomuceno\Signet\Data\SignatureDetails;
+use LSNepomuceno\Signet\Enums\ValidationFinding;
 use LSNepomuceno\Signet\Signet;
 use LSNepomuceno\Signet\Validation\TrustStore;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -76,6 +77,10 @@ final class VerifyCommand extends Command
                 'trusted' => $report->isTrusted(),
                 'certified' => $report->isCertified(),
                 'count' => $report->count(),
+                'findings' => array_map(
+                    static fn(ValidationFinding $finding): string => $finding->value,
+                    $report->findings(),
+                ),
                 'signatures' => $signatures,
             ]);
 
@@ -121,6 +126,10 @@ final class VerifyCommand extends Command
             'is_timestamp' => $signature->isTimestamp,
             'signed_at' => $signature->attestedAt(),
             'revocation' => $signature->revocation->value,
+            'findings' => array_map(
+                static fn(ValidationFinding $finding): string => $finding->value,
+                $signature->findings(),
+            ),
         ];
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LSNepomuceno\Signet\Data;
 
 use LSNepomuceno\Signet\Enums\CertificationLevel;
+use LSNepomuceno\Signet\Enums\ValidationFinding;
 
 /**
  * The outcome of inspecting a document's signatures.
@@ -177,6 +178,35 @@ final readonly class SignatureReport extends BaseData
             $this->signatures,
             static fn(SignatureDetails $signature): bool => $signature->isTimestamp,
         ));
+    }
+
+    /**
+     * Every distinct finding across the document, in the order first seen.
+     *
+     * The union rather than a per-signature list, for a caller deciding about
+     * the document as a whole. `$signatures` is still there when it matters
+     * which signature raised what.
+     *
+     * **Timestamps are included here**, unlike in `isValid()`. An archive
+     * timestamp that does not verify is not a signature failing, and it is
+     * absolutely something the reader should be told
+     * (docs/decisions/0106-validation-reports-findings.md).
+     *
+     * @return list<ValidationFinding>
+     */
+    public function findings(): array
+    {
+        $findings = [];
+
+        foreach ($this->signatures as $signature) {
+            foreach ($signature->findings() as $finding) {
+                if (! in_array($finding, $findings, true)) {
+                    $findings[] = $finding;
+                }
+            }
+        }
+
+        return $findings;
     }
 
     /**

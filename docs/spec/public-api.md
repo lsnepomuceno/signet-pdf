@@ -200,7 +200,43 @@ $report->count();
 $report->signers();      // list<Data\Signer>
 $report->timestamps();   // DocTimeStamps, classified separately
 $report->latest();       // ?Data\SignatureDetails
+$report->findings();     // list<Enums\ValidationFinding>, unioned across the document
 ```
+
+### Findings
+
+`isValid()` is one boolean over one question. `findings()` is everything else the
+validator established, as values rather than as prose:
+
+```php
+$signature->findings();                                  // list<Enums\ValidationFinding>
+$signature->has(ValidationFinding::CertificateRevoked);  // bool
+```
+
+| Case | Raised when |
+|---|---|
+| `CmsDoesNotVerify` | the embedded CMS does not verify against the bytes it covers |
+| `DoesNotCoverWholeDocument` | bytes were appended after this signature |
+| `ChainDoesNotReachRoot` | no chain to a self-issued certificate could be built |
+| `NotTrusted` | a trust store was given and the chain does not end in it |
+| `CertificateRevoked` | the document's own OCSP or CRL says so |
+| `RevocationUnknown` | nothing the document carries answers the question |
+| `SignerOutsideValidityWindow` | the certificate was outside its window when it signed |
+| `TimestampDoesNotVerify` | an RFC 3161 token is present and fails |
+| `NoSigningTime` | the CMS carries no signing-time attribute |
+
+**Only `CmsDoesNotVerify` decides validity**, and `decidesValidity()` says so.
+The other eight are facts for an application's own policy, which is why the enum
+carries no severity: how much `NotTrusted` matters is not this package's call
+([0016](../decisions/0016-trust-is-the-applications-policy.md),
+[0106](../decisions/0106-validation-reports-findings.md)).
+
+An empty list is not a recommendation to accept. It means nothing was found to
+say.
+
+`SignatureReport::findings()` includes archive timestamps where `isValid()`
+excludes them. A `/DocTimeStamp` carries no signer so it cannot make a document
+invalid, and one that fails to verify is still what a reader needs told.
 
 Each `Data\SignatureDetails` also carries when it claims to have been signed:
 
