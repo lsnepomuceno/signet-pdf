@@ -45,8 +45,8 @@
     "tecnickcom/tc-lib-pdf-sign": "^1.1"
   },
   "require-dev": {
-    "ergebnis/composer-normalize": "^2.52",
     "ext-tokenizer": "*",
+    "ergebnis/composer-normalize": "^2.52",
     "laravel/pint": "^1.30",
     "pestphp/pest": "^5.0",
     "pestphp/pest-plugin-type-coverage": "^5.0",
