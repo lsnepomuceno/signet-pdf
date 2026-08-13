@@ -181,10 +181,10 @@ final readonly class PdfFilters
      */
     private function inflate(string $data): ?string
     {
-        $decoded = @gzuncompress($data);
+        $decoded = Probe::run(static fn() => gzuncompress($data));
 
         if ($decoded === false) {
-            $decoded = @gzinflate($data);
+            $decoded = Probe::run(static fn() => gzinflate($data));
         }
 
         return $decoded === false ? null : $decoded;
@@ -201,7 +201,7 @@ final readonly class PdfFilters
         }
 
         // An odd final digit is padded with zero, §7.4.2.
-        $decoded = @hex2bin(strlen($hex) % 2 === 1 ? $hex . '0' : $hex);
+        $decoded = Probe::run(static fn() => hex2bin(strlen($hex) % 2 === 1 ? $hex . '0' : $hex));
 
         return $decoded === false ? null : $decoded;
     }

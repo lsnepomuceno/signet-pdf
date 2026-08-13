@@ -7,6 +7,7 @@ namespace LSNepomuceno\Signet\Validation;
 use LSNepomuceno\Signet\Enums\Asn1Tag;
 use LSNepomuceno\Signet\Enums\RevocationStatus;
 use LSNepomuceno\Signet\Support\Pem;
+use LSNepomuceno\Signet\Support\Probe;
 use OpenSSLAsymmetricKey;
 
 /**
@@ -239,7 +240,7 @@ final readonly class RevocationChecker
         $data = $signed->raw($der);
 
         foreach ($certificates as $certificate) {
-            $key = @openssl_pkey_get_public($certificate);
+            $key = Probe::run(static fn() => openssl_pkey_get_public($certificate));
 
             if ($key instanceof OpenSSLAsymmetricKey && openssl_verify($data, $bits, $key, $digest) === 1) {
                 return true;
@@ -347,12 +348,12 @@ final readonly class RevocationChecker
         foreach ($this->asn1->children($der, $certs->contentOffset()) as $certificate) {
             $pem = Pem::fromDer($certificate->raw($der));
 
-            if (@openssl_x509_read($pem) === false) {
+            if (Probe::run(static fn() => openssl_x509_read($pem)) === false) {
                 continue;
             }
 
             foreach ($issuers as $issuer) {
-                if (@openssl_x509_verify($pem, $issuer) === 1) {
+                if (Probe::run(static fn() => openssl_x509_verify($pem, $issuer)) === 1) {
                     $found[] = $pem;
 
                     break;

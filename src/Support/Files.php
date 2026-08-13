@@ -28,7 +28,7 @@ final class Files
      */
     public static function read(string $path): string
     {
-        $contents = @file_get_contents($path);
+        $contents = Probe::run(static fn() => file_get_contents($path));
 
         if ($contents === false) {
             throw new FileNotFoundException($path);
@@ -48,7 +48,7 @@ final class Files
             self::makeDirectory($directory);
         }
 
-        if (@file_put_contents($path, $contents) === false) {
+        if (Probe::run(static fn() => file_put_contents($path, $contents)) === false) {
             throw new ProcessRunTimeException("could not write to {$path}");
         }
     }
@@ -74,7 +74,7 @@ final class Files
             return;
         }
 
-        if (! @mkdir($path, recursive: true) && ! is_dir($path)) {
+        if (! Probe::run(static fn() => mkdir($path, recursive: true)) && ! is_dir($path)) {
             throw new ProcessRunTimeException("could not create directory {$path}");
         }
     }
@@ -88,6 +88,6 @@ final class Files
             return false;
         }
 
-        return @unlink($path);
+        return Probe::run(static fn() => unlink($path));
     }
 }

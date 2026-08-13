@@ -6,6 +6,7 @@ namespace LSNepomuceno\Signet\Validation;
 
 use LSNepomuceno\Signet\Data\Signer;
 use LSNepomuceno\Signet\Support\Pem;
+use LSNepomuceno\Signet\Support\Probe;
 
 /**
  * Reads the certificates embedded in a detached CMS.
@@ -105,7 +106,7 @@ final class Pkcs7Reader
 
             $pem = $this->toPem($candidate);
 
-            if (@openssl_x509_read($pem) === false) {
+            if (Probe::run(static fn() => openssl_x509_read($pem)) === false) {
                 continue;
             }
 

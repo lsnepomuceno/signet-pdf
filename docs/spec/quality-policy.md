@@ -408,3 +408,36 @@ what a person needs blocked.
 
 The judgement it informs stays a judgement. A break is answered in
 [UPGRADE.md](../../UPGRADE.md), in the release notes and in the version number.
+
+---
+
+# A warning is a failure
+
+`phpunit.xml` carries `failOnWarning`, `failOnNotice`, `failOnDeprecation`,
+`failOnPhpunitDeprecation` and `failOnRisky`. Any of them turns a green run red.
+
+**The reason is what the alternative looked like.** The suite reported 109
+warnings and passed. Every one was expected: the CMS reader offers candidate
+byte ranges to `openssl_x509_read()` and keeps what it accepts, the revocation
+checker does the same to find an issuer, and the filter decoder tries zlib
+before raw deflate. Failing is the common path in all three and says something
+useful. But a count that is always non-zero is a count nobody reads, and the
+110th warning, the one nobody expected, would have arrived into a number that
+already looked like that.
+
+**`@` is not enough, and that is not obvious.** The operator suppresses the
+display of a diagnostic and does not stop a custom error handler being invoked
+for it, and PHPUnit installs one that reports it. So the suppressed calls were
+reported anyway, which is where the 109 came from.
+
+`Support\Probe::run()` replaces the handler for the duration of the call, so the
+diagnostic is never raised. It is narrow by construction: one expression, the
+handler restored in a `finally`, and anything the call throws still propagates.
+
+**`tests/Project/ArchTest.php` fails on any `@` in `src/`.** One mechanism
+rather than two, because the operator looks like it does the same job and does
+not. A new probe is therefore a visible decision: it names `Probe::run()`, and
+whoever reviews it can ask whether the failure really is an expected answer.
+
+What this deliberately does not do is silence a diagnostic that means
+something. A warning nobody marked as expected reaches the suite and fails it.

@@ -39,8 +39,26 @@ return (new Configuration())
      * exception, and `tests/Project/DistributionTest.php` already proves the
      * fakes are the only thing in `src/Testing` a consumer receives.
      */
+    /*
+     * PHPUnit is not declared, and should not be: Pest requires it, so it is
+     * always installed and always at the version Pest wants. Declaring it a
+     * second time pins a constraint against that one, which is a conflict
+     * waiting for a minor release.
+     *
+     * `tests/TestCase.php` extends `PHPUnit\Framework\TestCase` and
+     * `src/Testing/FakePdfSigner.php` calls `PHPUnit\Framework\Assert`, which
+     * is how a first-party fake reports a failed expectation. Laravel does the
+     * same in `Illuminate\Support\Testing\Fakes` without requiring PHPUnit
+     * either: the class is only ever reached from a test suite, where the
+     * assertion library is present by definition.
+     *
+     * Shipping a test framework to production to support a testing helper
+     * would be a worse trade than this exception, and
+     * `tests/Project/DistributionTest.php` already proves what a consumer
+     * actually receives.
+     */
     ->ignoreErrorsOnPackageAndPaths(
         'phpunit/phpunit',
-        [__DIR__ . '/src/Testing'],
-        [ErrorType::DEV_DEPENDENCY_IN_PROD],
+        [__DIR__ . '/src/Testing', __DIR__ . '/tests'],
+        [ErrorType::SHADOW_DEPENDENCY],
     );

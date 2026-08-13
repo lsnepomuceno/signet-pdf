@@ -406,6 +406,38 @@ it('names every entry point on the front page', function () {
 });
 
 /**
+ * The error-suppression operator does not appear in `src/`.
+ *
+ * Three places in this package ask a question by trying something and reading
+ * the refusal, and `@` is the language's way of saying so. It is not enough on
+ * its own: a custom error handler is still invoked for a suppressed
+ * diagnostic, and PHPUnit installs one that reports it. The suite carried 109
+ * warnings that way, every one of them expected, which is precisely how a
+ * warning count stops meaning anything and a real one hides among them.
+ *
+ * `Support\Probe::run()` replaces the handler for the duration of the call, so
+ * the diagnostic is not raised at all, and `phpunit.xml` fails the run on any
+ * warning that is. One mechanism rather than two: `@` looks like it does the
+ * same job and does not.
+ *
+ * Tokenised rather than grepped, so an `@` inside a string or a docblock, an
+ * email address in an author tag among them, does not trip the gate.
+ */
+it('suppresses no diagnostic with the @ operator', function () {
+    $found = [];
+
+    foreach (phpFilesUnder(packageRoot() . '/src') as $path => $contents) {
+        foreach (token_get_all($contents) as $token) {
+            if ($token === '@') {
+                $found[] = $path;
+            }
+        }
+    }
+
+    expect(array_values(array_unique($found)))->toBe([]);
+});
+
+/**
  * Every file declares strict types.
  *
  * `docs/spec/conventions.md` makes it mandatory, and `pint.json` writes it, so
@@ -414,10 +446,10 @@ it('names every entry point on the front page', function () {
  * purpose until 2026-08-12, `"declare_strict_types": false`, and none of the
  * 169 files carried the declaration.
  *
- * The arch expectation covers `src/`. It cannot cover `tests/` or `config/`,
- * because arch expectations work on classes and those files declare none:
- * `config/a1-pdf-sign.php` returns an array and the test files are closures.
- * Hence the walk below as well.
+ * The arch expectation covers `src/`. It cannot cover `tests/` or `bin/`,
+ * because arch expectations work on classes and those files declare none: the
+ * CLI entry point is a script and the test files are closures. Hence the walk
+ * below as well.
  */
 arch('src declares strict types')
     ->expect('LSNepomuceno\Signet')

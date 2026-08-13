@@ -54,7 +54,6 @@
     "phpstan/phpstan": "^2.2",
     "phpstan/phpstan-deprecation-rules": "^2.0",
     "phpstan/phpstan-strict-rules": "^2.0",
-    "phpunit/phpunit": "^13.0",
     "shipmonk/composer-dependency-analyser": "^1.8"
   },
   "suggest": {

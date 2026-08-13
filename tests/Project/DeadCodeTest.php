@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use SplFileInfo;
-
 /**
  * Code that is written and never read.
  *

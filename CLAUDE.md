@@ -173,7 +173,7 @@ shell-out. DocTimeStamps are classified separately and excluded from `isValid()`
 - `Io/`: `FileSource`, `StringSource`, `StreamSource`, `FileDestination`,
   `StreamDestination`.
 - `Support/`: `SymfonyProcessRunner` (the only class that spawns a process),
-  `Files`, `TemporaryFile`, `TempDirectory`, `OpensslEncrypter`.
+  `Files`, `TemporaryFile`, `TempDirectory`, `OpensslEncrypter`, `Probe`.
 - `Console/` and `bin/signet`: `sign`, `verify`, `fields` and `check`, over
   `symfony/console`. `verify --json` puts the verdict in the exit status.
 - `Support/SigningLog`: the opt-in audit trail, null by default, whose context
@@ -197,6 +197,12 @@ shell-out. DocTimeStamps are classified separately and excluded from `isValid()`
   `token_get_all()` for a local variable assigned and never read, which PHPStan
   misses. It under-reports on purpose. **Unused public methods are deliberately
   not checked**: the API exists for consumers whose code is not in this repository.
+- **A warning is a failure.** `phpunit.xml` carries `failOnWarning` and the four
+  beside it, so any diagnostic the suite raises turns the run red. A call whose
+  failure is an expected answer goes through `Support\Probe::run()`, which
+  replaces the error handler for that one expression: `@` does **not** do this,
+  because a custom handler is still invoked for a suppressed diagnostic and
+  PHPUnit installs one. `tests/Project/ArchTest.php` fails on any `@` in `src/`.
 - **Mutation testing** covers `src/Certificates`, `src/Signing`, `src/Support`
   and `src/Validation`, nightly rather than on pull requests.
 - **Do not split mutation runs with `--shard`.** It divides the test suite, and

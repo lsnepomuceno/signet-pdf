@@ -63,6 +63,7 @@ These are the narrow exceptions, and each is load-bearing.
 | `openssl_*` | no component wraps it |
 | `pack`, `unpack`, `bin2hex`, `hex2bin`, `gzuncompress` | no component equivalent, and all byte-exact |
 | `hash(..., binary: true)` | a password hasher is a different thing entirely |
+| **never `@`** | it suppresses the display of a diagnostic and not the handler, so PHPUnit reports it anyway. A call whose failure is an expected answer goes through `Support\Probe::run()`, and `tests/Project/ArchTest.php` fails on the operator appearing in `src/` |
 | `symfony/filesystem` | what this package needs is "read these bytes or tell me why not", and the component's answer to a missing file is the same `false` from the SPL underneath. The wrapper would be larger than `Support\Files` |
 
 The first row is the one that matters. If a change swaps a byte-level `substr`

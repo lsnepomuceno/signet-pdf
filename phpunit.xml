@@ -1,15 +1,48 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    A warning is a failure here.
+
+    The suite reported 109 of them and passed, which is the state every
+    reported-but-not-blocking signal ends in: nobody reads a number that never
+    goes red. `failOnWarning` and the three beside it turn each of them into a
+    failed run.
+
+    That is only tolerable because the diagnostics the package raises on purpose
+    are suppressed at the call site with `@`, and the `ignoreSuppressionOf*`
+    attributes are left at `false`, which is what tells PHPUnit to honour that
+    operator rather than report through it. The
+    distinction is the whole point: an expected failure the author marked stays
+    quiet, and anything nobody marked breaks the build.
+
+    Every suppressed call in `src/` is an expected-failure probe, and
+    `tests/Project/ArchTest.php` holds the list so a new one has to be a
+    deliberate addition rather than a way of quietening a warning.
+-->
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" backupGlobals="false" bootstrap="./vendor/autoload.php"
          colors="true" processIsolation="false" stopOnFailure="false"
          xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/13.0/phpunit.xsd" cacheDirectory=".phpunit.cache"
-         backupStaticProperties="false">
+         backupStaticProperties="false"
+         failOnWarning="true"
+         failOnNotice="true"
+         failOnDeprecation="true"
+         failOnPhpunitDeprecation="true"
+         failOnRisky="true"
+         displayDetailsOnTestsThatTriggerWarnings="true"
+         displayDetailsOnTestsThatTriggerNotices="true"
+         displayDetailsOnTestsThatTriggerDeprecations="true">
     <testsuites>
         <testsuite name="LSNepomuceno/Signet Test Suite">
             <directory>./tests/</directory>
         </testsuite>
     </testsuites>
     <!-- Drives both line coverage and Pest's type coverage. -->
-    <source>
+    <source ignoreSuppressionOfPhpWarnings="false"
+            ignoreSuppressionOfPhpNotices="false"
+            ignoreSuppressionOfPhpDeprecations="false"
+            ignoreSuppressionOfWarnings="false"
+            ignoreSuppressionOfNotices="false"
+            ignoreSuppressionOfDeprecations="false"
+            ignoreSuppressionOfErrors="false">
         <include>
             <directory>./src</directory>
         </include>
