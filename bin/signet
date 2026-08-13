@@ -1,0 +1,64 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * The signet command line.
+ *
+ * This exists because the package no longer needs a framework. The Laravel
+ * version offered `php artisan pdf:sign` and `php artisan pdf:validate-signature`,
+ * both reachable only from inside an application; a binary can be called from a
+ * CI pipeline written in anything, from a Makefile, or from a shell on a server
+ * that has no PHP application on it at all.
+ *
+ * `verify --json` is the reason it is worth having: a stable document a build
+ * can decide on, with the verdict also in the exit status.
+ */
+
+namespace LSNepomuceno\Signet;
+
+use LSNepomuceno\Signet\Console\CheckCommand;
+use LSNepomuceno\Signet\Console\FieldsCommand;
+use LSNepomuceno\Signet\Console\SignCommand;
+use LSNepomuceno\Signet\Console\VerifyCommand;
+use Composer\InstalledVersions;
+use Symfony\Component\Console\Application;
+
+// Installed as a dependency, or being worked on in its own checkout.
+$autoloaders = [
+    __DIR__ . '/../../../autoload.php',
+    __DIR__ . '/../vendor/autoload.php',
+];
+
+$loaded = false;
+
+foreach ($autoloaders as $autoloader) {
+    if (file_exists($autoloader)) {
+        require $autoloader;
+        $loaded = true;
+
+        break;
+    }
+}
+
+if (! $loaded) {
+    fwrite(STDERR, "Could not find the Composer autoloader. Run `composer install`.\n");
+
+    return 1;
+}
+
+// Read from the installed package rather than hard-coded, so `signet --version`
+// cannot drift from the tag the way a literal in a file always eventually does.
+$version = class_exists(InstalledVersions::class) && InstalledVersions::isInstalled('lsnepomuceno/signet-pdf')
+    ? (InstalledVersions::getPrettyVersion('lsnepomuceno/signet-pdf') ?? 'dev')
+    : 'dev';
+
+$application = new Application('signet', $version);
+
+$application->addCommand(new SignCommand());
+$application->addCommand(new VerifyCommand());
+$application->addCommand(new FieldsCommand());
+$application->addCommand(new CheckCommand());
+
+$application->run();

@@ -1,0 +1,34 @@
+/vendor/
+/.phpunit.cache/
+/.phpunit.result.cache
+/.idea/
+/.output/
+/node_modules/
+composer.lock
+*.bak
+*Zone.Identifier
+
+# Generated certificates and signed output must never be committed.
+*.pdf
+*.pfx
+*.p12
+# A PEM private key is often unencrypted, so this matters more than the rules
+# above, not less.
+*.pem
+*.crt
+*.key
+
+# Committed on purpose. See samples/README.md.
+!/samples/*.pdf
+!/samples/*.pfx
+!/samples/*.pem
+
+# The fixtures the suite reads, which are documents rather than key material.
+!/tests/Resources/*.pdf
+
+# The revocation fixtures, which are certificates and nothing else: the CA that
+# signed the OCSP responses and CRLs beside them, and the leaf they answer
+# about. No private key is generated into this directory, so the rule above is
+# narrowed here rather than weakened.
+# See docs/decisions/0024-revocation-is-evaluated-not-counted.md.
+!/tests/Resources/revocation/*.pem

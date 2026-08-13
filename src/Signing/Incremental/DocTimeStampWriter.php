@@ -1,0 +1,188 @@
+<?php
+
+declare(strict_types=1);
+
+namespace LSNepomuceno\Signet\Signing\Incremental;
+
+use Com\Tecnick\Pdf\Sign\Output\DocTimeStamp;
+use Com\Tecnick\Pdf\Sign\Timestamp\Client as TimestampClient;
+use Com\Tecnick\Pdf\Sign\Timestamp\Config as TimestampConfig;
+use LSNepomuceno\Signet\Config\SigningConfig;
+use LSNepomuceno\Signet\Contracts\SignatureTransport;
+use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
+use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
+use LSNepomuceno\Signet\Support\Bytes;
+use Throwable;
+
+/**
+ * Appends the archive timestamp that makes a document PAdES B-LTA.
+ *
+ * B-LT proves the certificate was good when it was used. B-LTA proves the
+ * whole file, signature and validation material together, existed at a point
+ * in time attested by an authority, which is what keeps it verifiable once the
+ * signing algorithms themselves age out.
+ *
+ * Unlike a signature timestamp, which covers only the signature bytes, this one
+ * covers the entire file through its own /ByteRange, and it is a bare RFC 3161
+ * token rather than a CAdES structure, hence /SubFilter /ETSI.RFC3161.
+ *
+ * @internal
+ */
+final readonly class DocTimeStampWriter
+{
+    /**
+     * Reserved space for the token, in hex characters. A TSA token is smaller
+     * than a CAdES signature, but the responder's own certificate chain rides
+     * along, so this stays generous.
+     */
+    private const int CONTENTS_HEX_LENGTH = 16384;
+
+    public function __construct(
+        private DocumentReader $reader,
+        private RevisionWriter $writer,
+        private ByteRangeCalculator $byteRange,
+        private SignatureTransport $transport,
+        private SigningConfig $config,
+        private DocTimeStamp $docTimeStamp = new DocTimeStamp(),
+        private SignatureFieldReader $fields = new SignatureFieldReader(new DocumentReader()),
+        // Appended, so the arity a hand-built writer relies on does not move.
+        private SealAppearance $appearance = new SealAppearance(),
+    ) {}
+
+    /**
+     * @throws InvalidPdfFileException
+     * @throws ProcessRunTimeException
+     */
+    public function append(string $pdf): string
+    {
+        $url = $this->config->timestamp->url;
+
+        if ($url === null || $url === '') {
+            throw new ProcessRunTimeException(
+                'an archive timestamp needs a timestamp authority; set SigningConfig::$timestamp->url',
+            );
+        }
+
+        $document = $this->reader->read($pdf);
+
+        $stampNumber = $document->size;
+        $widgetNumber = $stampNumber + 1;
+        $appearanceNumber = $widgetNumber + 1;
+        $pageNumber = $this->reader->findFirstPage($pdf, $document);
+
+        $objects = [
+            $stampNumber => $this->docTimeStamp->valueObject($stampNumber, self::CONTENTS_HEX_LENGTH),
+            $widgetNumber => $this->widget($widgetNumber, $stampNumber, $pageNumber, $appearanceNumber, $pdf, $document),
+            // ISO 19005-1 §6.9 wants every form field to have an appearance
+            // dictionary, and a timestamp is a form field like any other. The
+            // signature widget was given one and this was left without, which
+            // 0025 named as unmeasured and a committed B-LTA sample then showed
+            // outright (docs/decisions/0025-what-signing-does-to-pdf-a.md).
+            $appearanceNumber => $this->appearance->emptyForm($appearanceNumber),
+            $document->root => $this->writer->catalogWithField($pdf, $document, $widgetNumber),
+            $pageNumber => $this->writer->pageWithAnnotation($pdf, $document, $pageNumber, $widgetNumber),
+        ];
+
+        $withRevision = $this->writer->appendObjects($pdf, $document, $objects);
+        // In place: apply() writes a fixed-width span over the document
+        // rather than returning a new one (issue #285).
+        $this->byteRange->apply($withRevision, self::CONTENTS_HEX_LENGTH);
+        $withByteRange = $withRevision;
+
+        return $this->embedToken($withByteRange, $url);
+    }
+
+    /**
+     * @throws InvalidPdfFileException
+     * @throws ProcessRunTimeException
+     */
+    private function embedToken(string $pdf, string $url): string
+    {
+        [$open, $close, $trailing] = $this->byteRange->readLast($pdf);
+        $open = $this->byteRange->lastContentsOffset($pdf);
+
+        $token = $this->requestToken(
+            $this->byteRange->signableSpan($pdf, $open, $close, $trailing),
+            $url,
+        );
+
+        $hex = bin2hex($token);
+
+        if (strlen($hex) > self::CONTENTS_HEX_LENGTH) {
+            throw new InvalidPdfFileException(sprintf(
+                'the %d-byte timestamp token does not fit the %d-byte reserved space',
+                strlen($token),
+                intdiv(self::CONTENTS_HEX_LENGTH, 2),
+            ));
+        }
+
+        Bytes::overwrite($pdf, str_pad($hex, self::CONTENTS_HEX_LENGTH, '0'), $open + 1);
+
+        return $pdf;
+    }
+
+    /**
+     * @throws ProcessRunTimeException
+     */
+    private function requestToken(string $content, string $url): string
+    {
+        $timestamp = $this->config->timestamp;
+
+        $client = new TimestampClient(new TimestampConfig(
+            host: $url,
+            hashAlgorithm: $this->digestAlgorithm(),
+            timeout: max(1, $timestamp->timeout),
+        ));
+
+        try {
+            // requestToken() hashes whatever it is given, so the imprint covers
+            // the file rather than a signature.
+            return $client->requestToken($content, $this->transport->timestamp(
+                $url,
+                $timestamp->username,
+                $timestamp->password,
+            ));
+        } catch (Throwable $exception) {
+            throw new ProcessRunTimeException('archive timestamp failed: ' . $exception->getMessage());
+        }
+    }
+
+    /**
+     * The widget the timestamp occupies. It is never visible, but it still
+     * needs a field so readers list it alongside the signatures.
+     *
+     * The index comes from the form's own /Fields list rather than from
+     * counting "/FT /Sig" in the raw bytes. That scan undercounts a document
+     * whose fields are packed into an object stream, which 2.3 made signable,
+     * and two fields sharing a name is a form readers disagree about
+     * (docs/decisions/0022-the-archive-timestamp-is-a-chain.md).
+     *
+     * @throws InvalidPdfFileException
+     */
+    private function widget(
+        int $number,
+        int $stampNumber,
+        int $pageNumber,
+        int $appearanceNumber,
+        string $pdf,
+        DocumentInfo $document,
+    ): string {
+        $index = count($this->fields->read($pdf, $document)) + 1;
+
+        return "{$number} 0 obj\n"
+            . '<</Type/Annot/Subtype/Widget/FT/Sig'
+            . '/Rect[0 0 0 0]'
+            . "/AP<</N {$appearanceNumber} 0 R>>"
+            . "/T (Timestamp{$index})"
+            . "/V {$stampNumber} 0 R"
+            . "/P {$pageNumber} 0 R"
+            . '/F 132'
+            . '/Ff 0'
+            . ">>\nendobj\n";
+    }
+
+    private function digestAlgorithm(): string
+    {
+        return $this->config->digest->value;
+    }
+}

@@ -1,0 +1,23 @@
+<?php
+
+declare(strict_types=1);
+
+namespace LSNepomuceno\Signet\Exceptions;
+
+use Exception;
+use Stringable;
+
+class CertificateOutputNotFoundException extends Exception implements SignetException, Stringable
+{
+    public function __construct(int $code = 0, ?Exception $previous = null)
+    {
+        $message = 'The certificate output file could not be found, check that the directory permissions are correct.';
+        parent::__construct($message, $code, $previous);
+    }
+
+
+    public function __toString(): string
+    {
+        return __CLASS__ . ": [{$this->getCode()}]: {$this->getMessage()}\n";
+    }
+}

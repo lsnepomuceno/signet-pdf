@@ -1,0 +1,23 @@
+<?php
+
+declare(strict_types=1);
+
+namespace LSNepomuceno\Signet\Exceptions;
+
+use Exception;
+use Stringable;
+
+class ProcessRunTimeException extends Exception implements SignetException, Stringable
+{
+    public function __construct(string $reason, int $code = 0, ?Exception $previous = null)
+    {
+        $reason  = preg_replace('/[\n\r]/m', '. ', $reason);
+        $message = "Process runtime error, reason: \"{$reason}\"";
+        parent::__construct($message, $code, $previous);
+    }
+
+    public function __toString(): string
+    {
+        return __CLASS__ . ": [{$this->getCode()}]: {$this->getMessage()}\n";
+    }
+}
