@@ -25,13 +25,32 @@ final class StreamSource implements PdfSource
 {
     private ?string $contents = null;
 
+    /** @var resource */
+    private mixed $stream;
+
+    /*
+     * The stream is declared `mixed` and checked, rather than left undeclared.
+     *
+     * PHP has no `resource` type, so `private $stream` is the only way to
+     * write it without a declaration, and an undeclared parameter is a hole in
+     * the type coverage gate. `mixed` closes it and buys something real: an
+     * argument that is not a stream fails at construction, with a message
+     * naming the problem, instead of surfacing later as an argument-type error
+     * from somewhere the caller cannot see.
+     */
     /**
      * @param  resource  $stream
+     *
+     * @throws FileNotFoundException When the argument is not an open stream.
      */
-    public function __construct(
-        private $stream,
-        private readonly string $name = 'document.pdf',
-    ) {}
+    public function __construct(mixed $stream, private readonly string $name = 'document.pdf')
+    {
+        if (! is_resource($stream)) {
+            throw new FileNotFoundException($name);
+        }
+
+        $this->stream = $stream;
+    }
 
     /**
      * @throws FileNotFoundException When the stream could not be read.

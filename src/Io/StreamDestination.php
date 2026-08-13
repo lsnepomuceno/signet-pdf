@@ -13,18 +13,39 @@ use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
  * The stream is written and left open: this class did not open it and closing
  * something it does not own would surprise the caller, whose `php://output` or
  * upload handle may still have work to do.
- */
-/*
- * Not `readonly`: a readonly promoted property needs a native type and PHP has
- * no type for a resource, which is the same reason `Io\StreamSource` is a plain
- * final class.
+ *
+ * Not `readonly`: the stream is assigned in the constructor body after being
+ * checked, rather than promoted, and a readonly property cannot be written
+ * from there in a class that also has to expose it as `mixed`.
  */
 final class StreamDestination implements PdfDestination
 {
+    /** @var resource */
+    private mixed $stream;
+
+    /*
+     * The stream is declared `mixed` and checked, rather than left undeclared.
+     *
+     * PHP has no `resource` type, so `private $stream` is the only way to
+     * write it without a declaration, and an undeclared parameter is a hole in
+     * the type coverage gate. `mixed` closes it and buys something real: an
+     * argument that is not a stream fails at construction, with a message
+     * naming the problem, instead of surfacing later as an argument-type error
+     * from somewhere the caller cannot see.
+     */
     /**
      * @param  resource  $stream
+     *
+     * @throws ProcessRunTimeException When the argument is not an open stream.
      */
-    public function __construct(private $stream, private readonly string $label = 'stream') {}
+    public function __construct(mixed $stream, private readonly string $label = 'stream')
+    {
+        if (! is_resource($stream)) {
+            throw new ProcessRunTimeException("the {$label} destination was given something that is not an open stream");
+        }
+
+        $this->stream = $stream;
+    }
 
     /**
      * @throws ProcessRunTimeException

@@ -1,0 +1,12 @@
+{
+  "name": "signet-pdf",
+  "description": "Development tooling for the PHP package. Not published to npm.",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}
