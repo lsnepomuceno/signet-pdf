@@ -6,6 +6,7 @@ namespace LSNepomuceno\Signet\Data;
 
 use LSNepomuceno\Signet\Enums\RevocationStatus;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
+use LSNepomuceno\Signet\Enums\ValidationFinding;
 
 /**
  * One signature found in a document.
@@ -152,6 +153,78 @@ final readonly class SignatureDetails extends BaseData
     public function countsTowardValidity(): bool
     {
         return ! $this->isTimestamp;
+    }
+
+    /**
+     * Everything worth reporting about this signature, as values.
+     *
+     * Derived rather than stored: every one of these was already computed and
+     * had nowhere to live but a boolean and an English sentence. Nothing here
+     * is new information, which is why adding it changed no constructor
+     * (docs/decisions/0106-validation-reports-findings.md).
+     *
+     * **Only `CmsDoesNotVerify` decides validity.** The rest are facts for an
+     * application's own policy, and an empty list is not a promise that the
+     * signature should be accepted, only that this package found nothing to
+     * say (0016).
+     *
+     * @return list<ValidationFinding>
+     */
+    public function findings(): array
+    {
+        $findings = [];
+
+        if (! $this->verified) {
+            $findings[] = ValidationFinding::CmsDoesNotVerify;
+        }
+
+        if (! $this->coversWholeDocument) {
+            $findings[] = ValidationFinding::DoesNotCoverWholeDocument;
+        }
+
+        if (! $this->chainReachesRoot) {
+            $findings[] = ValidationFinding::ChainDoesNotReachRoot;
+        }
+
+        // Null is "nobody was asked", which is not a negative answer.
+        if ($this->isTrusted === false) {
+            $findings[] = ValidationFinding::NotTrusted;
+        }
+
+        if ($this->revocation === RevocationStatus::Revoked) {
+            $findings[] = ValidationFinding::CertificateRevoked;
+        }
+
+        if ($this->revocation === RevocationStatus::Unknown) {
+            $findings[] = ValidationFinding::RevocationUnknown;
+        }
+
+        if ($this->signerWasValidWhenSigned() === false) {
+            $findings[] = ValidationFinding::SignerOutsideValidityWindow;
+        }
+
+        // Carrying no token is the ordinary case at B-B. Carrying one that
+        // fails is not, and only the second is a finding.
+        if ($this->timestampVerified === false) {
+            $findings[] = ValidationFinding::TimestampDoesNotVerify;
+        }
+
+        // A document timestamp has no signing-time attribute by construction:
+        // its time is the authority's genTime, so reporting the absence would
+        // be reporting that a DocTimeStamp is a DocTimeStamp.
+        if ($this->signedAt === null && ! $this->isTimestamp) {
+            $findings[] = ValidationFinding::NoSigningTime;
+        }
+
+        return $findings;
+    }
+
+    /**
+     * Whether this signature carries the given finding.
+     */
+    public function has(ValidationFinding $finding): bool
+    {
+        return in_array($finding, $this->findings(), true);
     }
 
     /**

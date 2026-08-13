@@ -81,4 +81,5 @@ guarantee two records with the same number within a release or two.
 | [0103](0103-encryption-is-the-platforms.md) | Encryption is the platform's, and the envelope is versioned |
 | [0104](0104-the-regional-layer-is-its-own-namespace.md) | The regional layer is its own namespace |
 | [0105](0105-the-seal-page-is-named.md) | The seal's page is named, not sentinelled |
+| [0106](0106-validation-reports-findings.md) | Validation reports findings, and only one of them is a verdict |
 

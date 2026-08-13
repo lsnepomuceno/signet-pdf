@@ -61,6 +61,17 @@ recorded as outstanding rather than decided.
 
 ### Added
 
+- **`Enums\ValidationFinding` and `SignatureDetails::findings()`.** The
+  validator computed a great deal more than `isValid()` reports, and the only
+  ways to reach it were reading a dozen properties or matching on the English in
+  `$error`. Nine cases name the facts it already established, and
+  `decidesValidity()` marks the one that turns `isValid()` false. The other
+  eight are for an application's own policy, which is why the enum carries no
+  severity (0016). `SignatureReport::findings()` unions them across the
+  document, and `signet verify --json` prints them, so a build can gate on a
+  revoked signature specifically rather than on the exit status alone.
+  ([0106](docs/decisions/0106-validation-reports-findings.md))
+
 - `Enums\SealPage::First`, which was previously unsayable. It is the first page
   the page tree declares, which is the lowest-numbered page object only when the
   producer wrote them in order.
