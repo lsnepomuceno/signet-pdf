@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use LSNepomuceno\Signet\Contracts\SignatureValidator;
 use LSNepomuceno\Signet\Data\SealPlacement;
+use LSNepomuceno\Signet\Enums\SealPage;
 use LSNepomuceno\Signet\Exceptions\SealPlacementException;
 use LSNepomuceno\Signet\Signing\Incremental\DocumentReader;
 
@@ -14,14 +15,14 @@ use LSNepomuceno\Signet\Signing\Incremental\DocumentReader;
  * either of them: every seal went onto the first page the cross-reference table
  * happened to mention. See docs/decisions/0017-the-seal-goes-where-it-was-asked-for.md.
  */
-function sealedOn(?int $page = null, bool $onEveryPage = false): string
+function sealedOn(SealPage|int|null $page = null, bool $onEveryPage = false): string
 {
     [$pdf, $pages] = reversedPages();
     [$pfxPath, $password] = debugCertificate();
 
     $placement = new SealPlacement(
         width: 40,
-        page: $page ?? SealPlacement::LAST_PAGE,
+        page: $page ?? SealPage::Last,
         onEveryPage: $onEveryPage,
     );
 
@@ -83,12 +84,12 @@ it('puts the seal on the page that was asked for', function () {
 });
 
 it('puts the seal on the last page when the placement says so', function () {
-    expect(sealedOn(page: SealPlacement::LAST_PAGE))->toContain('/P 3 0 R');
+    expect(sealedOn(page: SealPage::Last))->toContain('/P 3 0 R');
 });
 
 it('defaults to the last page, which is what SealPlacement has always declared', function () {
-    // Not a free choice: SealPlacement::$page defaults to LAST_PAGE, so a caller
-    // who passes no page has already asked for the last one.
+    // Not a free choice: SealPlacement::$page defaults to SealPage::Last, so a
+    // caller who passes no page has already asked for the last one.
     [$pfxPath, $password] = debugCertificate();
     [$pdf] = reversedPages();
 
@@ -198,15 +199,35 @@ it('gives each signature its own page', function () {
 });
 
 it('answers which pages a placement applies to', function () {
-    $last = new SealPlacement(page: SealPlacement::LAST_PAGE);
+    $last = new SealPlacement(page: SealPage::Last);
+    $first = new SealPlacement(page: SealPage::First);
 
     expect($last->appliesTo(3, 3))->toBeTrue()
         ->and($last->appliesTo(1, 3))->toBeFalse()
+        ->and($first->appliesTo(1, 3))->toBeTrue()
+        ->and($first->appliesTo(3, 3))->toBeFalse()
         ->and(new SealPlacement(page: 2)->appliesTo(2, 3))->toBeTrue()
         ->and(new SealPlacement(page: 2)->appliesTo(3, 3))->toBeFalse()
         ->and(new SealPlacement(onEveryPage: true)->appliesTo(2, 3))->toBeTrue()
         // onEveryPage wins over a page that names one of them.
         ->and(new SealPlacement(page: 1, onEveryPage: true)->appliesTo(3, 3))->toBeTrue();
+});
+
+it('resolves a named page against the count, and leaves a numbered one alone', function () {
+    // The named cases are the reason the type is a union: a placement is built
+    // before the page tree is walked, so "last" has no number to be written as.
+    expect(SealPage::First->of(7))->toBe(1)
+        ->and(SealPage::Last->of(7))->toBe(7)
+        ->and(SealPage::Last->of(1))->toBe(1)
+        ->and(new SealPlacement(page: SealPage::Last)->pageIn(4))->toBe(4)
+        ->and(new SealPlacement(page: SealPage::First)->pageIn(4))->toBe(1)
+        ->and(new SealPlacement(page: 2)->pageIn(4))->toBe(2);
+});
+
+it('puts the seal on the first page when the placement names it', function () {
+    // The fixture writes its pages in reverse, so "first" and "lowest object
+    // number" are different answers and only one of them is right.
+    expect(sealedOn(page: SealPage::First))->toContain('/P 5 0 R');
 });
 
 it('names the page count it measured against', function () {

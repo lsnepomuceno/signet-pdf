@@ -4,10 +4,13 @@ What this package exposes, as it is built. Everything here is a promise to
 consumers: adding to it is a minor release, changing it is a major one.
 
 > Written from the code, not from the v2 plan. The plan's §2 described a
-> `TcLibPdfSigner` / `TcpdfSigner` pair, an `Enums\SealPage`, a `Console\`
-> namespace and `approval()` / `certify()` / `ltv()` builder methods. None of
-> them were built. See [the modernisation record](../history/v2-modernization.md).
-> This file supersedes that section.
+> `TcLibPdfSigner` / `TcpdfSigner` pair, a `Console\` namespace and
+> `approval()` / `certify()` / `ltv()` builder methods, none of which were
+> built. It also described an `Enums\SealPage`, which was built, deleted, and
+> is back for reasons the plan did not anticipate
+> ([0105](../decisions/0105-the-seal-page-is-named.md)). See
+> [the modernisation record](../history/v2-modernization.md). This file
+> supersedes that section.
 
 ## Namespace layout
 
@@ -246,7 +249,7 @@ use LSNepomuceno\Signet\Data\SealPlacement;
 
 | | |
 |---|---|
-| `page` | 1-based, in the order the page tree declares. `SealPlacement::LAST_PAGE`, the default, is the last page |
+| `page` | `Enums\SealPage` or a 1-based number, in the order the page tree declares. `SealPage::Last` is the default, and `SealPage::First` names the other end |
 | `onEveryPage` | the seal appears on every page, and wins over `page` |
 | A page the document does not have | `SealPlacementException`, rather than clamping to the nearest one |
 

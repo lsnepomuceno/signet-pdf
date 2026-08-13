@@ -13,6 +13,8 @@ find, and the documentation told callers otherwise:
 > Position, size and page of your choosing
 >
 > `new SealPlacement(x: 155, y: 250, width: 50, page: SealPlacement::LAST_PAGE)`
+>
+> (that constant is now `Enums\SealPage::Last`; see 0105)
 
 That example is from the published 2.x documentation, and running it put the seal
 on page 1. `appliesTo()` was written to answer exactly this question and had no
@@ -44,7 +46,7 @@ number at the end of the file. Object numbers carry no page order at all, so
 
 The scan survives as the fallback behind `findFirstPage()`, for a document whose
 tree cannot be walked. A document with no walkable tree is treated as a document
-of one page, which keeps `LAST_PAGE` and `page: 1` both landing on it and makes
+of one page, which keeps a named page and `page: 1` both landing on it and makes
 `page: 3` say so rather than guess.
 
 The test fixture numbers its pages backwards on purpose. A fixture numbered in
@@ -53,7 +55,7 @@ reading order cannot tell a tree walk apart from the scan it replaced.
 ### The placement is asked page by page
 
 `RevisionWriter` does not read `$placement->page`. It walks the pages and asks
-`appliesTo($n, $count)` for each, so `LAST_PAGE` and `onEveryPage` are decided in
+`appliesTo($n, $count)` for each, so the named page and `onEveryPage` are decided in
 the one class that defines them, and the enum-shaped logic has exactly one home.
 
 ### Out of range raises
@@ -88,7 +90,7 @@ covers.
 ## Consequences
 
 - **The default seal page changes from the first page to the last.**
-  `SealPlacement::$page` has always defaulted to `LAST_PAGE`, so `->seal()` with
+  `SealPlacement::$page` has always defaulted to the last page, so `->seal()` with
   no arguments was already asking for the last page and getting the first. On a
   single-page document nothing moves, which is every fixture in the suite and
   most contracts. On a multi-page document the seal now lands where the DTO has
@@ -113,8 +115,8 @@ covers.
 | | Why not |
 |---|---|
 | Clamp an out-of-range page to the last | The same silence, one step smaller |
-| Resolve the page inside `RevisionWriter` from `$placement->page` | Two places would then define what `LAST_PAGE` means, and `appliesTo()` would stay dead |
-| Keep scanning the cross-reference table, and only add `LAST_PAGE` | It answers "the highest-numbered page object", which is not the last page |
+| Resolve the page inside `RevisionWriter` from `$placement->page` | Two places would then define what the last page means, and `appliesTo()` would stay dead |
+| Keep scanning the cross-reference table, and only add a last-page option | It answers "the highest-numbered page object", which is not the last page |
 | Remove `$page` and `$onEveryPage` as dead API | They are documented, and the documentation is the promise |
 | A second signature field per page for `onEveryPage` | Each would be a separate signature. The caller asked for one signature shown in several places |
 | Copy the image XObject per page | The JPEG once per page, for an appearance that is identical on all of them |
