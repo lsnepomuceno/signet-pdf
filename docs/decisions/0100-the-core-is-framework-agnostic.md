@@ -112,7 +112,7 @@ service locator, which is the thing rule 3 exists to refuse.
 
 ## Consequences
 
-`tests/ArchTest.php` fails on any `Illuminate\`, `Laravel\` or `Orchestra\`
+`tests/Project/ArchTest.php` fails on any `Illuminate\`, `Laravel\` or `Orchestra\`
 symbol in `src/`, as a token walk rather than as an arch expectation. The
 distinction matters: an arch rule can only be pointed at symbols that exist, and
 the entire point is that these do not, so a rule naming

@@ -21,7 +21,7 @@ it('lets every failure be caught as one', function (string $class) {
 })->with(function () {
     $classes = [];
 
-    $files = glob(dirname(__DIR__) . '/src/Exceptions/*.php');
+    $files = glob(dirname(__DIR__, 2) . '/src/Exceptions/*.php');
 
     foreach ($files === false ? [] : $files as $file) {
         $name = 'LSNepomuceno\\Signet\\Exceptions\\' . basename($file, '.php');
@@ -40,7 +40,7 @@ it('finds every exception rather than a list somebody has to remember', function
     // covered the moment it exists. This asserts the directory is actually
     // being read, since a glob that silently returns nothing would make the
     // test above pass with no cases at all.
-    expect(glob(dirname(__DIR__) . '/src/Exceptions/*.php'))->toHaveCount(19);
+    expect(glob(dirname(__DIR__, 2) . '/src/Exceptions/*.php'))->toHaveCount(19);
 });
 
 it('names a wrong password as a wrong password', function () {

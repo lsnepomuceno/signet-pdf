@@ -75,7 +75,7 @@ it('builds the chain of a real signed document', function () {
     // The sample certificate is self-signed, so its chain is one entry that is
     // also the root. Trivial, and worth pinning: it is the shape most documents
     // signed with an A1 certificate in testing will have.
-    $report = signet()->validate(__DIR__ . '/../samples/pades-b-b.pdf');
+    $report = signet()->validate(dirname(__DIR__, 2) . '/samples/pades-b-b.pdf');
     $signature = $report->signatures[0];
 
     expect($signature->chain)->toHaveCount(1)

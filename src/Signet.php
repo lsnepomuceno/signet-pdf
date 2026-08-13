@@ -103,14 +103,24 @@ final class Signet
      * @param  SignatureTransport|null  $transport  Substitute
      *          `Testing\LocalTimestampAuthority` to gate B-T and above offline
      *          (docs/decisions/0027-the-transport-is-a-seam.md).
+     * @param  PdfSigner|null  $signer  Substitute `Testing\FakePdfSigner` to
+     *          let an application test its own signing path without building a
+     *          real CMS for every case that merely passes through.
+     * @param  CertificateReader|null  $certificateReader  Substitute
+     *          `Testing\FakeCertificateReader` to do the same without a
+     *          PKCS#12 bundle in the application's repository.
      */
     public function __construct(
         public readonly SignetConfig $config = new SignetConfig(),
         ?ProcessRunner $processes = null,
         ?SignatureTransport $transport = null,
+        ?PdfSigner $signer = null,
+        ?CertificateReader $certificateReader = null,
     ) {
         $this->processRunner = $processes;
         $this->signatureTransport = $transport;
+        $this->pdfSigner = $signer;
+        $this->certificateReader = $certificateReader;
     }
 
     /**

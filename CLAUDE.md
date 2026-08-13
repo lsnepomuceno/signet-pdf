@@ -21,7 +21,7 @@ every session instead of being a link someone has to decide to follow:
 
 @docs/spec/invariants.md
 
-Documentation is split by lifecycle, and `tests/SpecTest.php` fails when a
+Documentation is split by lifecycle, and `tests/Project/SpecTest.php` fails when a
 reference into it stops resolving:
 
 | Read | For |
@@ -36,9 +36,9 @@ reference into it stops resolving:
 `ARCHITECTURE.md` is the index. When you change behaviour that a decision record
 justifies, update that record's outcome section too.
 
-**Decision numbering:** `0001` to `0034` are inherited from the Laravel package
+**Decision numbering:** `0001` to `0037` are inherited from the Laravel package
 with their original numbers. This package's own start at `0100`, and the gap
-exists because the other repository keeps numbering upwards from `0035`.
+exists because the other repository keeps numbering upwards from `0038`.
 
 ## Commands
 
@@ -61,7 +61,7 @@ composer deps           # unused/shadow dependency report
 composer test:types     # type coverage, gated at 100%
 composer test:mutate    # mutation testing over Certificates, Signing, Support, Validation
 
-vendor/bin/pest tests/SigningTest.php                    # single file
+vendor/bin/pest tests/Signing/SigningTest.php                    # single file
 vendor/bin/pest --filter="writes the CAdES sub-filter"   # single test
 vendor/bin/pest --exclude-group=network                  # skip live TSA tests
 ```
@@ -87,7 +87,14 @@ fail offline. Everything they cover is also gated offline through
 
 Helpers shared across test files must live in `tests/Pest.php`. A helper defined
 inside one test file is invisible to the others under `--parallel`, which fails
-as `Call to undefined function`.
+as `Call to undefined function`. Use `packageRoot()` rather than
+`dirname(__DIR__)`: the suite is grouped into directories, so the depth differs
+per file.
+
+`tests/` mirrors the layout of the package it was extracted from
+(`Project/`, `Signing/`, `Validation/`, `Certificates/`, `Certification/`,
+`Conformance/`, `Timestamps/`, `Support/`), which is what keeps a diff between
+the two repositories readable during a catch-up.
 
 ## Architecture
 
@@ -167,10 +174,17 @@ shell-out. DocTimeStamps are classified separately and excluded from `isValid()`
   `StreamDestination`.
 - `Support/`: `SymfonyProcessRunner` (the only class that spawns a process),
   `Files`, `TemporaryFile`, `TempDirectory`, `OpensslEncrypter`.
-- `Console/` and `bin/signet`: the command line, over `symfony/console`.
+- `Console/` and `bin/signet`: `sign`, `verify`, `fields` and `check`, over
+  `symfony/console`. `verify --json` puts the verdict in the exit status.
+- `Support/SigningLog`: the opt-in audit trail, null by default, whose context
+  is an allowlist rather than a denylist. `psr/log` is the one non-Symfony
+  runtime dependency and 0101 records why.
 - `Testing/`: `DebugCertificate`, `LocalTimestampAuthority`,
-  `LocalRevocationAuthority`, `FakeProcessRunner`. These ship, because consumers
-  need them too.
+  `LocalRevocationAuthority`, `FakeProcessRunner`, `FakePdfSigner` and
+  `FakeCertificateReader`. These ship, because consumers need them too: the two
+  fakes are how an application tests its own signing path without a certificate,
+  and they are substituted through `Signet`'s constructor rather than through a
+  container.
 
 ## Quality gates
 
@@ -179,7 +193,7 @@ shell-out. DocTimeStamps are classified separately and excluded from `isValid()`
 - **PHPStan `level: max`, no baseline.** The gate is "no errors", not "no new
   errors". Only Pest's untypeable fluent API is ignored, scoped to `tests/*`.
 - **Type coverage gated at 100%.**
-- **Dead code is refused.** `tests/DeadCodeTest.php` walks the tree with
+- **Dead code is refused.** `tests/Project/DeadCodeTest.php` walks the tree with
   `token_get_all()` for a local variable assigned and never read, which PHPStan
   misses. It under-reports on purpose. **Unused public methods are deliberately
   not checked**: the API exists for consumers whose code is not in this repository.
@@ -189,7 +203,7 @@ shell-out. DocTimeStamps are classified separately and excluded from `isValid()`
   every mutation needs the whole suite.
 - `composer-dependency-analyser.php` catches unused and shadow dependencies.
 
-`tests/ArchTest.php` enforces structural rules, so read it before adding a class.
+`tests/Project/ArchTest.php` enforces structural rules, so read it before adding a class.
 The one that matters most is `imports no framework`.
 
 ## Commits
@@ -233,12 +247,12 @@ The two that decide whether a piece of code should exist at all are in
 - Modern PHP is expected: typed class constants, `#[\SensitiveParameter]` on
   every password argument, `#[\Override]`, enums instead of class constants.
 - **Every file declares `strict_types=1`.** Enforced twice in
-  `tests/ArchTest.php`: an arch expectation over `src/`, and a file walk for the
+  `tests/Project/ArchTest.php`: an arch expectation over `src/`, and a file walk for the
   files that declare no class.
 - **No parentheses around `new` when chaining.** The floor is PHP 8.4, so
   `new Reader()->parse($der)` is the plain form.
 - **Never cite a file that does not exist, and write it first.**
-  `tests/SpecTest.php` walks every `.php`, `.md` and `.yml` and fails on a path
+  `tests/Project/SpecTest.php` walks every `.php`, `.md` and `.yml` and fails on a path
   that does not resolve. It checks paths, not symbols.
 - `@throws` docblocks are maintained on every method that can throw.
 
@@ -250,9 +264,10 @@ The two that decide whether a piece of code should exist at all are in
 - Do not define `K_PATH_FONTS` globally: tc-lib-pdf and TCPDF 6 read it with
   different formats, and defining it kills TCPDF silently.
 - **Every verification tool is development and CI only, and none may reach
-  production.** veraPDF, qpdf, pyHanko, `pdfsig` and Ghostscript are instruments:
-  nothing in `src/` may invoke one (`tests/ArchTest.php`), and nothing built for
-  testing may ship (`tests/DistributionTest.php` asks `git archive` what a
+  production.** veraPDF, qpdf, pyHanko, `pdfsig`, the Arlington PDF Model's
+  `testgrammar` and Ghostscript are instruments:
+  nothing in `src/` may invoke one (`tests/Project/ArchTest.php`), and nothing built for
+  testing may ship (`tests/Project/DistributionTest.php` asks `git archive` what a
   release contains).
 - **Nothing skips:** `composer test` carries `--fail-on-skipped`, because every
   check has to run somewhere and a skip is how one quietly stops.

@@ -44,6 +44,9 @@ document drifts away from the code it describes.
 | [0032](0032-what-signing-does-to-pdf-ua.md) | What signing does to PDF/UA, measured |
 | [0033](0033-the-seal-honours-page-rotation.md) | The seal honours the page's rotation |
 | [0034](0034-signing-owns-the-document.md) | Signing takes ownership of the document |
+| [0035](0035-the-audit-trail-is-opt-in.md) | The audit trail is opt-in, and its context is an allowlist |
+| [0036](0036-the-signed-artefacts-are-reproducible.md) | The signed artefacts are reproducible, and their coherence is a gate |
+| [0037](0037-what-we-write-against-the-grammar.md) | What we write, against the specification's own grammar |
 
 Nothing is currently proposed and unbuilt. The four that were, 0009, 0010, 0012
 and 0013, all shipped in 2.2, and each carries the measurement that decided its
@@ -61,13 +64,13 @@ here. They are in [the invariants](../spec/invariants.md).
 
 ## Numbering after the split
 
-`0001` to `0034` were inherited from `lsnepomuceno/laravel-a1-pdf-sign`, with
+`0001` to `0037` were inherited from `lsnepomuceno/laravel-a1-pdf-sign`, with
 their original numbers. They are the reasoning behind code that was extracted
 rather than written here, and renumbering them would break every citation in
 that repository and every link anyone has followed.
 
 **This package's own decisions start at `0100`.** The gap is deliberate: the
-Laravel package keeps numbering upwards from `0035`, and a shared range would
+Laravel package keeps numbering upwards from `0038`, and a shared range would
 guarantee two records with the same number within a release or two.
 
 | # | Decision |
@@ -75,3 +78,4 @@ guarantee two records with the same number within a release or two.
 | [0100](0100-the-core-is-framework-agnostic.md) | The core is framework-agnostic, and five rules say what that means |
 | [0101](0101-symfony-is-the-only-vendor.md) | Symfony is the only framework vendor the core depends on |
 | [0102](0102-documents-arrive-as-sources.md) | A document arrives as a source and leaves through a destination |
+

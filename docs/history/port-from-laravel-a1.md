@@ -14,9 +14,15 @@ below is what a catch-up diffs against.
 | | |
 |---|---|
 | Source | `lsnepomuceno/laravel-a1-pdf-sign` |
-| Commit | `ddf02c5612b9625648d9a0ce365c9adf68859ae4` |
-| Which is | merge of #292, `feat(exceptions): give every failure a shared interface` |
-| Dated | 2026-08-12 |
+| Commit | `da84093` |
+| Which is | tag `2.6.0`, "Three wrong answers, and the instruments that found them" |
+| Dated | 2026-08-13 |
+
+The extraction itself was taken from `ddf02c5` (merge of #292,
+`feat(exceptions): give every failure a shared interface`, 2026-08-12), and the
+source repository reached 2.6.0 while it was under way. Everything core-side in
+between has been reconciled, so the baseline above is 2.6.0 and the next diff
+starts there.
 
 `src/`, `tests/`, `samples/` and `docs/` were taken from that tree. Nothing was
 copied from a working directory: the extraction read the committed state, so
@@ -54,31 +60,43 @@ in-flight work on the source branch was deliberately left behind.
 
 ---
 
-## Not caught up yet
+## Reconciled up to 2.6.0
 
-The source repository moved during the extraction, from `ddf02c5` to `4ca9fae`.
-Everything below landed there after the baseline and has **not** been brought
-across. It is the work list for the next synchronisation.
+Everything the source repository added between `ddf02c5` and `2.6.0` has been
+assessed. What came across:
 
-| Commit | What | Verdict |
+| Commit | What | How it landed here |
 |---|---|---|
-| `f3f9883` | `feat(logging)`: an optional audit trail whose context is an allowlist (`Support\SigningLog`, `Enums\SigningEvent`, decision 0035) | **Core.** Wanted. Needs `psr/log`, which is not a Symfony package, so it is a dependency question to settle first |
-| `ea01e52` | `feat(commands)`: `a1-pdf-sign:check`, an environment diagnostic | **Core behaviour, wrapper packaging.** Belongs here as `signet check` |
-| `202dbca` | `feat(testing)`: a fake, so an application can test signing without a certificate | **Split.** `FakeCertificateReader` and `FakePdfSigner` are core; `A1PdfSignFake` fakes a facade and is not |
-| `41f49b4` | `feat(signing)`: read a document from a Laravel disk | **Already answered, better.** `Contracts\PdfSource` is the general form of it |
-| `b8d2d32` | `test(spec)`: resolve every symbol a comment cites, not only every path | **Core.** A strictly better gate than the one ported here |
-| `a7fe4f2` | `chore(deps)`: refuse a known-vulnerable dependency before it is installed | **Core.** Composer configuration |
-| various | `tests/` reorganised into directories (`tests/Project/`, `tests/Signing/`, `tests/Validation/`, `tests/Conformance/`) | **Adopt.** Matching layouts is what keeps future diffs between the two repositories readable |
+| `2be9478` | the ETSI_PAdES developer extension the sub-filter needs below PDF 2.0 | ported verbatim into `RevisionWriter` (0037) |
+| `cf2b18d` | the Arlington PDF Model, checked against the specification's grammar | ported, tool and TSV pinned by the same commit in `.docker/Dockerfile` and CI |
+| `dee402e` | reuse the committed certificate across the artefacts, and gate the coherence | ported, with the regenerated `samples/` |
+| `f3f9883` | the optional audit trail whose context is an allowlist | ported. `psr/log` is the one non-Symfony runtime dependency, agreed for this |
+| `ea01e52` | the environment diagnostic | ported as `signet check`, a subcommand rather than an Artisan command |
+| `202dbca` | a fake, so an application can test signing without a certificate | split: `FakeCertificateReader` and `FakePdfSigner` came, the facade fake did not, and the assertions moved onto the signer |
+| `b8d2d32` | resolve every symbol a comment cites, not only every path | ported, and it immediately caught two stale references in this repository's own documentation |
+| `a7fe4f2` | refuse a known-vulnerable dependency before it is installed | ported as `config.audit` |
+| `c895b92` | `tests/` grouped into directories | adopted, so a diff between the two repositories stays readable |
 
-The test-directory reorganisation is worth taking early and in its own change.
-It is a pure file move, and doing it at the same time as a behavioural
-catch-up is how a moved file gets mistaken for a deleted one.
+What deliberately did not, and why:
+
+| Left there | Why |
+|---|---|
+| `Testing\A1PdfSignFake` | it fakes a facade. Its assertions live on `Testing\FakePdfSigner` here |
+| `Commands\CheckEnvironmentCommand` and the two signing commands | Artisan; `bin/signet` covers the same ground and reaches further |
+| `PendingSignature::pdfFromDisk()` | names one framework's storage abstraction. `Contracts\PdfSource` is the general form of it (0102) |
+| `tests/Signing/DiskTest.php`, `tests/Project/CommandsTest.php`, `tests/Project/ServiceTest.php` | they test the three above |
+
+## Still outstanding
+
+Nothing core-side. The next synchronisation starts from `2.6.0`.
+
 
 ## How to catch up
 
 ```bash
-git -C ../laravel-a1-pdf-sign log --oneline ddf02c5..HEAD
-git -C ../laravel-a1-pdf-sign diff ddf02c5..HEAD -- src tests
+git -C ../laravel-a1-pdf-sign fetch --tags
+git -C ../laravel-a1-pdf-sign log --oneline 2.6.0..HEAD
+git -C ../laravel-a1-pdf-sign diff 2.6.0..HEAD -- src tests
 ```
 
 Then update the baseline at the top of this file to whatever was reconciled,

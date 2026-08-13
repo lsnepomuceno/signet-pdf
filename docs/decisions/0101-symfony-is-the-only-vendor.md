@@ -84,7 +84,8 @@ signature is the kind that breaks on a minor upgrade of something else.
 
 ## Outcome
 
-Two things worth recording, both found by porting rather than by reasoning.
+Three things worth recording. The first two were found by porting rather than
+by reasoning; the third is the exception the rule always allowed for.
 
 **Symfony's retry defaults were wrong for this package, silently.**
 `GenericRetryStrategy::DEFAULT_RETRY_STATUS_CODES` maps 500 to a list of
@@ -100,3 +101,24 @@ which is what makes them apply to any method.
 declaring private ones. A private constant of the same name is a fatal error,
 not a warning, which is a pleasant way to be told to use the framework's
 vocabulary.
+
+### One exception, argued and accepted
+
+`psr/log` is in `require`, and it is the only non-Symfony runtime dependency
+besides `tecnickcom/tc-lib-pdf-sign` and `intervention/image`, both of which
+came with the extraction rather than being chosen here.
+
+It arrived with the audit trail (0035). `Support\SigningLog` takes an optional
+`Psr\Log\LoggerInterface` and does nothing without one, and the alternative was
+either to invent a logging interface of this package's own, which every
+consumer would then have to adapt to, or to take `symfony/http-client`'s
+approach and depend on nothing, which is only possible because that component
+does not log.
+
+The rule survives the exception intact, because the rule was never "Symfony or
+nothing": it was "Symfony where a component fits, and anything else is an
+argument to be had before the code is written". This is that argument, had and
+recorded. A PSR interface package is also the weakest kind of dependency there
+is: `psr/log` is three interfaces, a trait and no implementation, and it is
+already in the tree of almost every application that would install this.
+

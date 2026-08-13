@@ -147,7 +147,7 @@ it('reports nothing at all about any committed sample', function () {
     // ignore warnings on every other sample too, which is how a compromise in
     // one place turns off a gate everywhere. `poc/rebuild-stream-fixtures.php`
     // regenerates them, and the verdict is now the whole verdict.
-    $samples = glob(dirname(__DIR__) . '/samples/*.pdf');
+    $samples = glob(dirname(__DIR__, 2) . '/samples/*.pdf');
 
     foreach ($samples === false ? [] : $samples as $sample) {
         expect(qpdfComplaintsAbout($sample))->toBe([]);

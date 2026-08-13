@@ -22,7 +22,7 @@ use SplFileInfo;
  *   second toolchain beside Pint for one check.
  *
  * So it is written here, which `docs/spec/conventions.md` allows once there is
- * no platform answer, and which `tests/ArchTest.php` and `tests/SpecTest.php`
+ * no platform answer, and which `tests/Project/ArchTest.php` and `tests/Project/SpecTest.php`
  * already do by walking the tree with `token_get_all()`.
  *
  * **It under-reports on purpose.** A gate with no baseline that cries wolf is a
@@ -43,7 +43,7 @@ function deadCodeScannedFiles(): array
 
     foreach (['/src', '/tests'] as $directory) {
         /** @var SplFileInfo $file */
-        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__) . $directory)) as $file) {
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(packageRoot() . $directory)) as $file) {
             if ($file->getExtension() === 'php') {
                 $files[] = $file->getPathname();
             }
@@ -80,7 +80,7 @@ function unusedVariablesIn(string $path): array
         }
 
         foreach (deadCodeUnusedInScope($tokens, $open, $close) as $line => $name) {
-            $found[] = str_replace(dirname(__DIR__) . '/', '', $path) . ":{$line} {$name}";
+            $found[] = str_replace(packageRoot() . '/', '', $path) . ":{$line} {$name}";
         }
     }
 
@@ -165,6 +165,17 @@ function deadCodeUnusedInScope(array $tokens, int $open, int $close): array
             continue;
         }
 
+        // A property declared with a default reads exactly like an assignment,
+        // and a nested class puts one inside the scope being walked:
+        // `public array $lines = [];` was reported once this file's own
+        // recording logger existed. Modifiers introducing a method are left
+        // alone, since the branch above already handles those.
+        if (is_array($token) && in_array($token[0], [T_PUBLIC, T_PRIVATE, T_PROTECTED, T_VAR, T_READONLY], true)) {
+            $index = deadCodeSkipDeclaration($tokens, $index, $close);
+
+            continue;
+        }
+
         if (! is_array($token) || $token[0] !== T_VARIABLE || $token[1] === '$this') {
             continue;
         }
@@ -201,6 +212,39 @@ function deadCodeUnusedInScope(array $tokens, int $open, int $close): array
     }
 
     return $unused;
+}
+
+/**
+ * The end of a property declaration, or the modifier itself when it introduces
+ * a method.
+ *
+ * @param  array<int, array{0: int, 1: string, 2: int}|string>  $tokens
+ */
+function deadCodeSkipDeclaration(array $tokens, int $index, int $close): int
+{
+    for ($next = $index + 1; $next < $close; $next++) {
+        $token = $tokens[$next];
+
+        if (is_array($token) && in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+            continue;
+        }
+
+        // `public function …` and `public static function …`: the function
+        // branch owns those.
+        if (is_array($token) && in_array($token[0], [T_FUNCTION, T_FN, T_STATIC, T_READONLY], true)) {
+            return $index;
+        }
+
+        break;
+    }
+
+    for ($next = $index + 1; $next < $close; $next++) {
+        if ($tokens[$next] === ';') {
+            return $next;
+        }
+    }
+
+    return $index;
 }
 
 /**
@@ -342,8 +386,37 @@ it('leaves alone the shapes that look unused and are not', function () {
     unlink($path);
 });
 
+it('does not read a property default as an assignment', function () {
+    // The shape that showed up the moment a test wrote its own recording
+    // logger: a nested class declaring a property with a default, inside the
+    // function scope being walked.
+    $path = tempFile('.php');
+
+    file_put_contents($path, <<<'PHP'
+        <?php
+        function makesARecorder(): object
+        {
+            return new class
+            {
+                public array $lines = [];
+
+                private string $name = 'unread by anything here';
+
+                public function add(string $line): void
+                {
+                    $this->lines[] = $line;
+                }
+            };
+        }
+        PHP);
+
+    expect(unusedVariablesIn($path))->toBe([]);
+
+    unlink($path);
+});
+
 it('does not read a parameter default as an assignment', function () {
-    // The shape that produced five false positives on tests/ServiceTest.php:
+    // The shape that produced five false positives on tests/Project/ServiceTest.php:
     // an anonymous class inside a closure, whose methods carry defaults. The
     // parameter list belongs to the nested declaration, not to the scope being
     // walked.

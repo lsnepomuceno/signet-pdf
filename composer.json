@@ -37,6 +37,7 @@
     "ext-openssl": "*",
     "ext-zlib": "*",
     "intervention/image": "^3.11",
+    "psr/log": "^3.0",
     "symfony/console": "^8",
     "symfony/http-client": "^8",
     "symfony/http-client-contracts": "^3.6",
@@ -78,6 +79,9 @@
     "allow-plugins": {
       "ergebnis/composer-normalize": true,
       "pestphp/pest-plugin": true
+    },
+    "audit": {
+      "abandoned": "ignore"
     }
   },
   "scripts": {

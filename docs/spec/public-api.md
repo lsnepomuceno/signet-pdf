@@ -16,12 +16,12 @@ be a gratuitous break. Structure below it:
 
 ```
 src/
-├── SignetServiceProvider.php   # binds six contracts, registers two commands
-├── A1PdfSignManager.php                  # the A1PdfSign implementation
-├── Facades/A1PdfSign.php
-├── Contracts/                            # A1PdfSign, CertificateReader, PdfSigner,
-│                                         # SealRenderer, SignatureValidator,
-│                                         # SignatureTransport
+├── Signet.php                            # the entry point: wires the default graph
+├── Config/                               # value objects; the core reads no file
+├── Contracts/                            # CertificateReader, PdfSigner, SealRenderer,
+│                                         # SignatureValidator, SignatureTransport,
+│                                         # ProcessRunner, Encrypter,
+│                                         # PdfSource, PdfDestination
 ├── Data/                                 # final readonly value objects
 ├── Enums/                                # FontSize, ImageDriver, SignatureProfile,
 │                                         # CertificationLevel, RevocationStatus,
@@ -37,30 +37,55 @@ src/
 │   └── Cades/                            # detached CMS, HTTP transport
 ├── Validation/                           # extractor, ASN.1 readers, verifier
 ├── Seal/InterventionSealRenderer.php
-├── Support/                              # Files, ProcessRunner, TemporaryFile,
+├── Io/                                   # sources and destinations for documents
+├── Support/                              # Files, SymfonyProcessRunner, TemporaryFile,
+│                                         # TempDirectory, OpensslEncrypter, SigningLog,
 │                                         # PdfFilters, PngReader, SrgbProfile
-├── Commands/                             # pdf:sign, pdf:validate-signature
+├── Console/                              # sign, verify, fields, check
 ├── Exceptions/                           # one class per failure mode, all sharing
-│                                         # the A1PdfSignException interface
-└── Testing/                              # test-only: certificates, a local timestamp
-                                          # authority and a revocation one
-config/a1-pdf-sign.php
+│                                         # the SignetException interface
+└── Testing/                              # certificates, a local timestamp authority,
+                                          # a revocation one, and the fakes
+bin/signet
 ```
+
+## The contracts a consumer may replace
+
+Five contracts are bound in the service provider, and two of them are
+deliberately swappable by a consuming application:
+
+| | |
+|---|---|
+| `Contracts\SealRenderer` | replace to draw a different seal: a logo, a QR code, any layout |
+| `Contracts\SignatureTransport` | replace to own the TSA, OCSP and CRL calls, which is the SSRF surface (invariant 9) |
+
+**Writing that down makes their signatures public API**, which is the cost and
+is worth paying: they were already published contracts, and a consumer who
+cannot find out they may be replaced has an extension point that does not
+exist.
+
+`SealRenderer::fromImage()` is how artwork produced elsewhere gets in, Blade
+included. The package does not turn HTML into pixels
+([0004](../decisions/0004-in-memory-seal.md)).
 
 ## Exceptions
 
 One class per failure mode (0008), and **every one of them implements
-`Exceptions\A1PdfSignException`**, which extends `Throwable`. That is what lets
+`Exceptions\SignetException`**, which extends `Throwable`. That is what lets
 a consuming application catch the package's failures as a group instead of
-naming sixteen classes or catching `\Exception` and swallowing everything the
-framework throws with them:
+naming nineteen classes or catching `\Exception` and swallowing everything the
+runtime throws with them:
 
 ```php
-$exceptions->report(function (A1PdfSignException $e) { … });
+try {
+    $signet->newSignature()->certificate($pfx, $password)->pdf($path)->sign();
+} catch (SignetException $e) {
+    // Every failure this package raises, and nothing else.
+}
 ```
 
 **The interface is surface**, and adding a class that does not implement it is a
-hole in a promise rather than an oversight. `tests/ExceptionsTest.php` builds its
+hole in a promise rather than an oversight. `tests/Support/ExceptionsTest.php` builds its
 dataset from the directory, so a new exception is covered the moment the file
 exists.
 
@@ -74,9 +99,9 @@ as, so catching the general failure still works.
 `newSignature()` returns a `Signing\PendingSignature`. It is the primary API.
 
 ```php
-use LSNepomuceno\Signet\Facades\A1PdfSign;
+use LSNepomuceno\Signet\Signet;
 
-$signed = A1PdfSign::newSignature()
+$signed = new Signet()->newSignature()
     ->certificate($pfxPath, $password)
     ->pdf($pdfPath)
     ->info(name: 'Lucas', reason: 'Contract')
@@ -89,7 +114,7 @@ Certificate input, one of:
 | Method | Takes |
 |---|---|
 | `certificate($path, $password)` | a PKCS#12 file on disk |
-| `certificateFromUpload($file, $password)` | an `UploadedFile` |
+| `certificateContents($bytes, $password)` | PKCS#12 bytes already in hand |
 | `certificatePem($path, $keyPath, $password)` | PEM, key combined or separate |
 | `certificateFromPem($contents, $key, $password)` | PEM bytes already in hand |
 | `usingCertificate($certificate)` | an already-parsed `Data\Certificate` |
@@ -99,35 +124,46 @@ argument, when the document is encrypted. It is unrelated to the certificate's:
 one opens the file, the other unlocks the key that signs it
 ([0030](../decisions/0030-signing-a-document-that-is-encrypted.md)).
 
-Document input: `pdf($path)` or `pdfContents($bytes, $fileName)`.
+Document input: `pdf($path)`, `pdfContents($bytes, $fileName)`, or `from($source)`
+for anything that is not a local file
+([0102](../decisions/0102-documents-arrive-as-sources.md)).
 
 Everything else is optional: `info()`, `seal()`, `sealFrom()`, `profile()`,
 `timestamp()`, `fieldName()`. `sign()` closes the chain and returns a
 `Data\SignedPdf`.
 
-## The facade
+## The entry point
 
-One-shot entry points, for callers that do not need the builder:
+`Signet` wires the default object graph and offers one-shot entry points for
+callers that do not need the builder:
 
 ```php
-A1PdfSign::signFromFile($pfxPath, $password, $pdfPath);
-A1PdfSign::signFromPem($pemPath, $password, $pdfPath, $keyPath);
-A1PdfSign::signFromUpload($uploadedPfx, $password, $pdfPath);
+$signet = new Signet();
 
-A1PdfSign::encryptCertificate($certificate, $password);
-A1PdfSign::decryptCertificate($hashKey, $encrypted, $password, $isBase64);
+$signet->signFromFile($pfxPath, $password, $pdfPath);
+$signet->signFromPem($pemPath, $password, $pdfPath, $keyPath);
 
-A1PdfSign::validate($pdfPath);      // Data\SignatureReport
-A1PdfSign::signatureFields($pdfPath);
-A1PdfSign::extendArchive($pdfPath); // a further archive timestamp, no certificate
-A1PdfSign::icpBrasil($pfxPath, $password);   // Data\IcpBrasilReport
+$signet->encryptCertificate($pfxPath, $password);
+$signet->decryptCertificate($hashKey, $encrypted, $password, $isBase64);
 
-A1PdfSign::newSignature();          // Signing\PendingSignature
-A1PdfSign::tempPath($tempFile, $fileExt);
+$signet->validate($pdfPath);        // Data\SignatureReport
+$signet->signatureFields($pdfPath);
+$signet->extendArchive($pdfPath);   // a further archive timestamp, no certificate
+$signet->icpBrasil($pfxPath, $password);     // Data\IcpBrasilReport
+
+$signet->newSignature();            // Signing\PendingSignature
+$signet->vault();                   // Certificates\CertificateVault
 ```
 
-Prefer injecting `Contracts\A1PdfSign` where you can: it is what makes the
-package mockable in a consuming application's tests.
+**It is a convenience over the parts, never a layer in front of them.** Nothing
+in `src/` depends on it, every class it builds can be built directly, and an
+application with its own container should register those classes and ignore this
+entirely ([0100](../decisions/0100-the-core-is-framework-agnostic.md)).
+
+Its constructor is also the substitution point: `processes`, `transport`,
+`signer` and `certificateReader` all accept a replacement, which is how
+`Testing\FakePdfSigner` and `Testing\LocalTimestampAuthority` are installed
+without a container.
 
 ## Output
 
@@ -145,7 +181,7 @@ $signed->toResponse();        // Response, renders inline
 Validation is symmetric:
 
 ```php
-$report = A1PdfSign::validate($pdfPath);
+$report = $signet->validate($pdfPath);
 
 $report->isValid();      // every signature verifies against the bytes it covers
 $report->isSigned();
@@ -224,7 +260,7 @@ application names:
 $store = TrustStore::fromFile(storage_path('icp-brasil.pem'));
 // or ::fromPem($bundle), ::fromDirectory($path), ::empty()
 
-$report = A1PdfSign::validate($path, $store);
+$report = $signet->validate($path, $store);
 
 $report->isTrusted();          // ?bool, across every signature
 $report->latest()?->isTrusted; // ?bool, per signature
@@ -253,7 +289,7 @@ from here on, rather than a signer's statement about what the bytes were
 (ISO 32000-1 §12.8.2.2):
 
 ```php
-A1PdfSign::newSignature()
+$signet->newSignature()
     ->certificate($pfx, $password)
     ->pdf($path)
     ->certify('form-filling')   // no-changes | form-filling | annotations
@@ -287,7 +323,7 @@ application is expected to fill the right one rather than append a field beside
 it:
 
 ```php
-foreach (A1PdfSign::signatureFields($template) as $field) {
+foreach ($signet->signatureFields($template) as $field) {
     $field->name;        // 'SignatureManager'
     $field->isSigned;    // false
     $field->pageNumber;  // 3
@@ -295,7 +331,7 @@ foreach (A1PdfSign::signatureFields($template) as $field) {
     $field->isVisible(); // true
 }
 
-A1PdfSign::newSignature()
+$signet->newSignature()
     ->certificate($pfx, $password)
     ->pdf($template)
     ->intoField('SignatureManager')

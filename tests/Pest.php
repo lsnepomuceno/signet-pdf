@@ -74,6 +74,43 @@ function signet(): LSNepomuceno\Signet\Signet
 }
 
 /**
+ * The root of the package.
+ *
+ * Here rather than in the file that first needed it, because several test files
+ * walk the tree and a helper defined inside one is invisible to the others
+ * under --parallel, which fails as `Call to undefined function`. It also
+ * survives tests/ being organised into directories, which `dirname(__DIR__)`
+ * did not.
+ */
+function packageRoot(): string
+{
+    return dirname(__DIR__);
+}
+
+/**
+ * A `Signet` whose signer writes to the given logger.
+ *
+ * The log is opt-in and null by default, so a test that wants to read what was
+ * written has to install one. Binding it in the harness is what makes the
+ * autowired `IncrementalSigner` pick it up, since an explicit binding beats a
+ * constructor default (tests/Harness.php).
+ */
+function signetWithLog(\Psr\Log\LoggerInterface $logger): LSNepomuceno\Signet\Signet
+{
+    harness()->bind(
+        LSNepomuceno\Signet\Support\SigningLog::class,
+        new LSNepomuceno\Signet\Support\SigningLog($logger),
+    );
+
+    return new LSNepomuceno\Signet\Signet(
+        harness()->config(),
+        harness()->make(LSNepomuceno\Signet\Contracts\ProcessRunner::class),
+        harness()->make(LSNepomuceno\Signet\Contracts\SignatureTransport::class),
+        harness()->make(LSNepomuceno\Signet\Contracts\PdfSigner::class),
+    );
+}
+
+/**
  * Deletes files, tolerating ones that are already gone.
  */
 function deleteFiles(string ...$paths): void

@@ -4,7 +4,7 @@ Documentation is split by **lifecycle**, not by topic. Each file below changes
 at a different rate, and mixing them in one document is what let the previous
 one drift in the package this was extracted from.
 
-`tests/SpecTest.php` fails when a reference into any of these stops resolving.
+`tests/Project/SpecTest.php` fails when a reference into any of these stops resolving.
 
 ## Living: must be true of the code today
 

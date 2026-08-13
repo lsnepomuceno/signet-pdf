@@ -14,6 +14,7 @@ use LSNepomuceno\Signet\Data\SignatureInfo;
 use LSNepomuceno\Signet\Data\SignedPdf;
 use LSNepomuceno\Signet\Enums\CertificationLevel;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
+use LSNepomuceno\Signet\Enums\SigningEvent;
 use LSNepomuceno\Signet\Exceptions\CertificationException;
 use LSNepomuceno\Signet\Exceptions\FieldLockException;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
@@ -29,6 +30,7 @@ use LSNepomuceno\Signet\Signing\Incremental\FieldLockReader;
 use LSNepomuceno\Signet\Signing\Incremental\RevisionWriter;
 use LSNepomuceno\Signet\Signing\Incremental\SignatureFieldReader;
 use LSNepomuceno\Signet\Support\Bytes;
+use LSNepomuceno\Signet\Support\SigningLog;
 
 /**
  * Signs by appending a revision, leaving the original bytes untouched.
@@ -70,6 +72,10 @@ final readonly class IncrementalSigner implements PdfSigner
         // Appended, so the arity a hand-built signer relies on does not move
         // (docs/decisions/0021-locking-fields-and-honouring-locks.md).
         private FieldLockReader $locks = new FieldLockReader(new DocumentReader()),
+        // Appended for the same reason, and null by default: a package that
+        // logs unasked fills somebody's disk
+        // (docs/decisions/0035-the-audit-trail-is-opt-in.md).
+        private SigningLog $log = new SigningLog(),
     ) {}
 
     public function sign(
@@ -163,6 +169,13 @@ final readonly class IncrementalSigner implements PdfSigner
         if ($profile->needsArchiveTimestamp()) {
             $signed = $this->archiveTimestamp->append($signed);
         }
+
+        $this->log->record(SigningEvent::SignatureApplied, [
+            'profile' => $profile->value,
+            'field' => $fieldName,
+            'certification' => $certification?->value,
+            'signer' => $certificate->commonName(),
+        ]);
 
         return new SignedPdf($signed);
     }

@@ -26,7 +26,7 @@ from that standard. In practice: keep ISO 32000-1 open, not `vendor/ddn/sapp`.
 use without contaminating the consumer, but it is ruled out: it is a legacy
 project and we would inherit its maintenance.
 
-*Enforced by* `tests/ArchTest.php` (`no trace of SAPP`) and
+*Enforced by* `tests/Project/ArchTest.php` (`no trace of SAPP`) and
 `composer-dependency-analyser.php`.
 
 ---
@@ -86,7 +86,7 @@ window looking *backwards* from the `/ByteRange` found them. pyHanko writes
 `/Contents` first, which puts `/SubFilter` after it. Order inside a dictionary
 carries no meaning, so both are correct and only one was being read.
 
-*Enforced by* `tests/ForeignSignatureTest.php`, which validates a document
+*Enforced by* `tests/Validation/ForeignSignatureTest.php`, which validates a document
 signed by pyHanko rather than by this package.
 
 ---
@@ -147,7 +147,7 @@ reads a non-zero exit as "this signature does not verify", which is correct for
 a real verdict and catastrophic for an environment problem, so a missing binary
 and a disabled `proc_open` raise their own exceptions instead.
 
-*Enforced by* `tests/ArchTest.php` (`only the shell helper opens processes`).
+*Enforced by* `tests/Project/ArchTest.php` (`only the shell helper opens processes`).
 
 ---
 
@@ -189,7 +189,7 @@ Symfony components are the sanctioned replacement for anything a framework used
 to provide, and any other vendor is an argument to be had per case
 (docs/decisions/0101-symfony-is-the-only-vendor.md).
 
-*Enforced by* `tests/ArchTest.php` (`imports no framework`), as a token walk
+*Enforced by* `tests/Project/ArchTest.php` (`imports no framework`), as a token walk
 rather than as an arch expectation. The distinction matters: an arch rule can
 only be pointed at symbols that exist, and the point is that these do not, so a
 rule naming `Illuminate\Support\Facades\File` would match nothing and pass for

@@ -83,7 +83,9 @@ Implement `Contracts\PdfSource` or `Contracts\PdfDestination` for anything else.
 Every profile above `pades-b-b` needs a timestamp authority.
 
 ```php
-use LSNepomuceno\Signet\Config\{SignetConfig, SigningConfig, TimestampConfig};
+use LSNepomuceno\Signet\Config\SignetConfig;
+use LSNepomuceno\Signet\Config\SigningConfig;
+use LSNepomuceno\Signet\Config\TimestampConfig;
 
 $signet = new Signet(new SignetConfig(
     signing: new SigningConfig(

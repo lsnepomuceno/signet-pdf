@@ -9,7 +9,7 @@ it('verifies the archive timestamp of a B-LTA document', function () {
     // samples/pades-b-lta.pdf is committed and carries a real freetsa.org
     // token, so this needs no network. Before this, the report said
     // verified=false for it by construction.
-    $report = signet()->validate(__DIR__ . '/../samples/pades-b-lta.pdf');
+    $report = signet()->validate(dirname(__DIR__, 2) . '/samples/pades-b-lta.pdf');
 
     $timestamps = $report->timestamps();
 
@@ -24,9 +24,9 @@ it('verifies the archive timestamp of a B-LTA document', function () {
 it('refuses a timestamp token that stamps other bytes', function () {
     // The imprint check is the half that matters: without it a token lifted
     // from another document verifies, because its own CMS is perfectly valid.
-    $pdf = Files::read(__DIR__ . '/../samples/pades-b-lta.pdf');
+    $pdf = Files::read(dirname(__DIR__, 2) . '/samples/pades-b-lta.pdf');
 
-    $report = signet()->validate(__DIR__ . '/../samples/pades-b-lta.pdf');
+    $report = signet()->validate(dirname(__DIR__, 2) . '/samples/pades-b-lta.pdf');
     $token = null;
 
     foreach (resolve(LSNepomuceno\Signet\Validation\PdfSignatureExtractor::class)->extract($pdf) as $entry) {
