@@ -57,9 +57,11 @@ it('refuses a ciphertext that was edited', function () {
     }
 
     // The last byte is inside the Poly1305 tag, so this is the cheapest edit
-    // that has to be caught.
+    // that has to be caught. Swapped rather than arithmetically flipped: two
+    // literals are obviously one byte and obviously different, where
+    // `chr(ord(...) ^ 0xFF)` needs the reader and the analyser to prove it.
     $last = strlen($raw) - 1;
-    $raw[$last] = chr(ord($raw[$last]) ^ 0xFF);
+    $raw[$last] = $raw[$last] === "\x00" ? "\x01" : "\x00";
 
     expect(fn() => $encrypter->decryptString(SodiumEncrypter::PREFIX . base64_encode($raw)))
         ->toThrow(EncryptionException::class, 'sealed with a different key, or has been tampered with');
