@@ -337,9 +337,20 @@ $certificate = $signet->decryptCertificate($sealed->hash, $sealed->certificate, 
 **The hash is the key**, so keep it somewhere other than the ciphertext it
 opens. Without it the pair cannot be read back, by you or by anyone else.
 
-`vault()` exposes the same encryption directly. The envelope is byte-compatible
-with Laravel's encrypter, so material sealed by either package opens in the
-other.
+`vault()` exposes the same encryption directly. New material is sealed with
+XChaCha20-Poly1305 through `ext-sodium`, so the package assembles no
+cryptographic construction of its own.
+
+**Anything sealed by an earlier release still opens**, under the key it was
+sealed with: the payload carries its version and `withKey()` picks the reader
+from the key's length. That older envelope is the one
+`lsnepomuceno/laravel-a1-pdf-sign` writes, so material sealed by that package
+opens here too. The reverse no longer holds until it learns the current
+envelope. See
+[0103](docs/decisions/0103-encryption-is-the-platforms.md).
+
+`Contracts\Encrypter` is the seam if you would rather use your own scheme, your
+own key management or your own rotation. It is three methods.
 
 ## ICP-Brasil
 

@@ -35,6 +35,7 @@
     "ext-json": "*",
     "ext-mbstring": "*",
     "ext-openssl": "*",
+    "ext-sodium": "*",
     "ext-zlib": "*",
     "composer-runtime-api": "^2.2",
     "intervention/image": "^3.11",

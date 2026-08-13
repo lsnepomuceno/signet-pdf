@@ -5,6 +5,58 @@ number (`docs/spec/quality-policy.md`).
 
 ---
 
+# Upgrading to 2.0 from 1.x
+
+## `ext-sodium` is required
+
+It ships with PHP and has since 7.2, and it is enabled in every mainstream
+build, so on most systems this changes nothing. A PHP compiled without it will
+now fail at `composer install` rather than at runtime, which is the point of
+declaring it.
+
+```bash
+php -m | grep sodium
+```
+
+## Certificate vault keys are 32 bytes, and older ones still work
+
+`Certificates\CertificateVault` seals new material with XChaCha20-Poly1305
+instead of assembling AES-128-CBC and an HMAC by hand
+(`docs/decisions/0103-encryption-is-the-platforms.md`).
+
+**Nothing has to be re-encrypted.** The payload carries its version and
+`CertificateVault::withKey()` picks the reader from the key's length, so a hash
+stored under 1.x keeps opening what it sealed, indefinitely.
+
+The one thing to check is storage width. `seal()` now returns a 32-byte key
+where it returned 16, so a fixed-width column sized for the old one truncates
+it silently:
+
+```sql
+ALTER TABLE certificates MODIFY certificate_hash VARBINARY(32);
+```
+
+If you keep the key base64-encoded, the encoded length goes from 24 to 44
+characters.
+
+**Material sealed by 2.0 does not open in `lsnepomuceno/laravel-a1-pdf-sign`**
+until that package learns the same envelope. The other direction is unaffected:
+what it writes still opens here, which is the direction a migration needs.
+
+To keep writing the old envelope, pass the encrypter yourself:
+
+```php
+use LSNepomuceno\Signet\Certificates\CertificateVault;
+use LSNepomuceno\Signet\Enums\Cipher;
+use LSNepomuceno\Signet\Support\OpensslEncrypter;
+
+$vault = CertificateVault::using(
+    new OpensslEncrypter($key, Cipher::Aes128Cbc),
+);
+```
+
+---
+
 # Moving from `lsnepomuceno/laravel-a1-pdf-sign`
 
 This package is the core of that one, extracted so it can be used without a
@@ -112,11 +164,13 @@ fallback to `sha256`.
 
 ## Unchanged, deliberately
 
-**Encrypted certificates keep working across both packages.**
-`Support\OpensslEncrypter` writes the same envelope
-`Illuminate\Encryption\Encrypter` does, byte for byte, because an application
-moving between the two cannot re-encrypt material whose plaintext it no longer
-holds (`docs/decisions/0101-symfony-is-the-only-vendor.md`).
+**A certificate encrypted by that package still opens here.**
+`Support\OpensslEncrypter` reads its envelope byte for byte, because an
+application moving between the two cannot re-encrypt material whose plaintext
+it no longer holds (`docs/decisions/0101-symfony-is-the-only-vendor.md`).
+
+Since 2.0 that promise runs one way. New material is sealed with
+XChaCha20-Poly1305 and does not open there yet; see "Upgrading to 2.0" above.
 
 Signed output is unchanged. The bytes this package emits are the bytes the
 Laravel package emitted, which is what `samples/` and the `pdfsig` cross-check
