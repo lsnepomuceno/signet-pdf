@@ -97,6 +97,17 @@ enum ValidationFinding: string
     case NoSigningTime = 'no-signing-time';
 
     /**
+     * The /ByteRange does not describe what a signature's /ByteRange must.
+     *
+     * The array is attacker-controlled and everything downstream derives from
+     * it: which bytes are hashed, and where the CMS is read from. One that
+     * points at a window the signature dictionary never described means the
+     * document was verified over ranges of someone else's choosing, and the
+     * verification succeeding is not reassuring.
+     */
+    case ByteRangeNotSound = 'byte-range-not-sound';
+
+    /**
      * Whether `Data\SignatureReport::isValid()` turns false on this finding.
      *
      * True for exactly one case. The rest are reported so that an application

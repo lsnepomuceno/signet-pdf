@@ -224,6 +224,7 @@ $signature->has(ValidationFinding::CertificateRevoked);  // bool
 | `SignerOutsideValidityWindow` | the certificate was outside its window when it signed |
 | `TimestampDoesNotVerify` | an RFC 3161 token is present and fails |
 | `NoSigningTime` | the CMS carries no signing-time attribute |
+| `ByteRangeNotSound` | the `/ByteRange` does not describe a signature's own `/Contents` |
 
 **Only `CmsDoesNotVerify` decides validity**, and `decidesValidity()` says so.
 The other eight are facts for an application's own policy, which is why the enum

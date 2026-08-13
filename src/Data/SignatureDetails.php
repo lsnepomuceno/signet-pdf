@@ -48,6 +48,13 @@ final readonly class SignatureDetails extends BaseData
      *                                      actually satisfies, from what the
      *                                      document carries rather than what it
      *                                      claims.
+     * @param  bool  $byteRangeSound  Whether the /ByteRange describes what a
+     *                                 signature's must: a delimited gap that is
+     *                                 the value of a /Contents key, with both
+     *                                 ranges inside the file. Defaults true so
+     *                                 that constructing details by hand, which
+     *                                 is what the fakes and most tests do, does
+     *                                 not assert a defect nobody measured.
      * @param  RevocationStatus  $revocation  What the document's own OCSP
      *                                        responses and CRLs say about the
      *                                        signer. Unknown when it carries
@@ -73,6 +80,7 @@ final readonly class SignatureDetails extends BaseData
         public ?string $subFilter = null,
         public ?SignatureProfile $profile = null,
         public RevocationStatus $revocation = RevocationStatus::Unknown,
+        public bool $byteRangeSound = true,
     ) {}
 
     /**
@@ -176,6 +184,10 @@ final readonly class SignatureDetails extends BaseData
 
         if (! $this->verified) {
             $findings[] = ValidationFinding::CmsDoesNotVerify;
+        }
+
+        if (! $this->byteRangeSound) {
+            $findings[] = ValidationFinding::ByteRangeNotSound;
         }
 
         if (! $this->coversWholeDocument) {

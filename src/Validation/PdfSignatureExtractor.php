@@ -17,7 +17,7 @@ final class PdfSignatureExtractor
     public function __construct(private readonly DerReader $der = new DerReader()) {}
 
     /**
-     * @return list<array{byteRange: array{0:int,1:int,2:int}, cms: string, coverageEnd: int, isTimestamp: bool, signedAt: ?int, subFilter: ?string}>
+     * @return list<array{byteRange: array{0:int,1:int,2:int}, cms: string, coverageEnd: int, isTimestamp: bool, signedAt: ?int, subFilter: ?string, byteRangeSound: bool}>
      */
     public function extract(string $pdf): array
     {
@@ -54,10 +54,64 @@ final class PdfSignatureExtractor
                 'isTimestamp' => $this->isDocumentTimestamp($pdf, $match[0][1]),
                 'signedAt' => $this->claimedTime($pdf, $match[0][1]),
                 'subFilter' => $this->subFilter($pdf, $match[0][1]),
+                'byteRangeSound' => $this->byteRangeIsSound($pdf, $open, $close, $trailing),
             ];
         }
 
         return $signatures;
+    }
+
+    /**
+     * Whether the four numbers describe what they claim to describe.
+     *
+     * **The array is attacker-controlled, and everything downstream is derived
+     * from it.** `contents()` reads the CMS out of the gap the array declares
+     * and `coveredBytes()` hashes the two ranges around it, so a `/ByteRange`
+     * that points somewhere else decides what gets verified. Nothing checked
+     * that it pointed at a signature at all.
+     *
+     * Six conditions, each of which a well-formed signature satisfies by
+     * construction (ISO 32000-1 §12.8.1):
+     *
+     * 1. the first range is non-empty, so something precedes the gap;
+     * 2. the gap runs forwards;
+     * 3. the trailing length is not negative;
+     * 4. the second range ends inside the file, rather than claiming bytes
+     *    that are not there;
+     * 5. the gap is delimited, `<` to `>`, which `contents()` assumed and
+     *    never verified;
+     * 6. the gap is the value of a `/Contents` key, rather than any span that
+     *    happens to hold hexadecimal.
+     *
+     * The sixth is the one that closes the hole. Without it the array can name
+     * a window anywhere in the file, and as long as the bytes there parse as
+     * DER the document is verified over ranges its own signature dictionary
+     * never described.
+     *
+     * Reported rather than raised: a document nobody trusts must produce a
+     * finding, not an unhandled error in the caller
+     * (docs/decisions/0107-the-byte-range-is-checked.md).
+     */
+    private function byteRangeIsSound(string $pdf, int $open, int $close, int $trailing): bool
+    {
+        if ($open <= 0 || $close <= $open || $trailing < 0) {
+            return false;
+        }
+
+        if ($close + $trailing > strlen($pdf)) {
+            return false;
+        }
+
+        if (($pdf[$open] ?? '') !== '<' || ($pdf[$close - 1] ?? '') !== '>') {
+            return false;
+        }
+
+        // Invariant 4: `/Contents<` and `/Contents <` are both legal, so the
+        // whitespace is matched rather than assumed. Anchored at the end, so
+        // the key has to be the one immediately preceding this `<`.
+        $preceding = substr($pdf, max(0, $open - 32), min(32, $open));
+
+        return preg_match('/\/Contents\s*$/', $preceding) === 1;
     }
 
     /**

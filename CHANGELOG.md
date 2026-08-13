@@ -72,6 +72,14 @@ recorded as outstanding rather than decided.
   revoked signature specifically rather than on the exit status alone.
   ([0106](docs/decisions/0106-validation-reports-findings.md))
 
+- **`ValidationFinding::ByteRangeNotSound`.** The `/ByteRange` is the one input
+  to validation an attacker writes, and everything downstream derived from it
+  unchecked: which bytes get hashed, and where the CMS is read from. Six
+  conditions are now checked at extraction, the sixth being that the gap is the
+  value of a `/Contents` key rather than any window in the document holding
+  hexadecimal. Nothing changes for a well-formed document.
+  ([0107](docs/decisions/0107-the-byte-range-is-checked.md))
+
 - `Enums\SealPage::First`, which was previously unsayable. It is the first page
   the page tree declares, which is the lowest-numbered page object only when the
   producer wrote them in order.
