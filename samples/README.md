@@ -38,7 +38,7 @@ same subject, same password. It is here so the PEM entry point can be exercised
 against the identity the rest of this directory already uses:
 
 ```php
-A1PdfSign::newSignature()
+new Signet()->newSignature()
     ->certificatePem('samples/certificate.pem', password: $password)
     ->pdf($path)
     ->sign();

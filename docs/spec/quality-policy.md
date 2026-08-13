@@ -184,9 +184,14 @@ fail offline. Exclude them with `--exclude-group=network`.
 
 ## Tests
 
-Orchestra Testbench, not a host application. **`openssl` on `PATH` is not
-required to run the suite**: `Testing\DebugCertificate` generates throwaway
-PKCS#12 and PEM bundles through the ext-openssl functions.
+No framework and no application to boot. `tests/Harness.php` supplies the three
+things the container used to: autowiring, rebinding and mutable configuration,
+in about 35 lines of reflection that ship nowhere
+(docs/decisions/0100-the-core-is-framework-agnostic.md).
+
+**`openssl` on `PATH` is not required to run the suite**:
+`Testing\DebugCertificate` generates throwaway PKCS#12 and PEM bundles through
+the ext-openssl functions.
 
 Helpers shared across test files must live in `tests/Pest.php`. A helper defined
 inside one test file is invisible to the others under `--parallel`, which fails
@@ -396,7 +401,8 @@ That is a deliberate weakening, decided after the check fired on its second real
 pull request. **Every release since 2.0 has added a method or a parameter to a
 published contract**: 2.1 added `signFromPem()`, 2.2 added `signatureFields()`
 and two parameters to `PdfSigner::sign()`, 2.3 added a parameter to
-`SignatureValidator` and `A1PdfSign`. Each shipped as a minor with a "Breaking
+`SignatureValidator` and to the package's entry point. Each shipped as a minor
+with a "Breaking
 for implementers" section, because calling the contracts is unaffected and only
 implementing them is not.
 
