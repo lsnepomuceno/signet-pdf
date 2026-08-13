@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace LSNepomuceno\Signet\Data;
 
-use LSNepomuceno\Signet\Certificates\IcpBrasilReader;
+use LSNepomuceno\Signet\IcpBrasil\Data\Identity;
+use LSNepomuceno\Signet\IcpBrasil\Reader;
 
 /**
  * Who signed, as read from the certificate embedded in the signature.
@@ -14,7 +15,7 @@ final readonly class Signer extends BaseData
     /**
      * @param  array<string, mixed>  $subject
      * @param  array<string, mixed>  $issuer
-     * @param  ?IcpBrasilIdentity  $icpBrasil  Who this is under ICP-Brasil, when
+     * @param  ?Identity  $icpBrasil  Who this is under ICP-Brasil, when
      *                                         the certificate was read from
      *                                         bytes rather than only from a
      *                                         parse. Null means "not looked
@@ -31,7 +32,7 @@ final readonly class Signer extends BaseData
         public ?int $validTo,
         public array $subject = [],
         public array $issuer = [],
-        public ?IcpBrasilIdentity $icpBrasil = null,
+        public ?Identity $icpBrasil = null,
     ) {}
 
     /**
@@ -75,7 +76,7 @@ final readonly class Signer extends BaseData
             validTo: is_int($parsed['validTo_time_t'] ?? null) ? $parsed['validTo_time_t'] : null,
             subject: $subject,
             issuer: $issuer,
-            icpBrasil: $pem === null ? null : new IcpBrasilReader()->read($pem),
+            icpBrasil: $pem === null ? null : new Reader()->read($pem),
         );
     }
 

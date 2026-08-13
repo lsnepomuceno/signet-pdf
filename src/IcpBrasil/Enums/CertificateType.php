@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LSNepomuceno\Signet\Enums;
+namespace LSNepomuceno\Signet\IcpBrasil\Enums;
 
 /**
  * Which ICP-Brasil certificate this is, decided by the fields it carries.
@@ -11,7 +11,7 @@ namespace LSNepomuceno\Signet\Enums;
  * unit: the OU text varies by certification authority, and a document number
  * either is there or is not.
  */
-enum IcpBrasilCertificateType: string
+enum CertificateType: string
 {
     /** e-CPF: a natural person, identified by CPF. */
     case Individual = 'individual';

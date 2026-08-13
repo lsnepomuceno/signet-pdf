@@ -90,6 +90,22 @@ What deliberately did not, and why:
 
 Nothing core-side. The next synchronisation starts from `2.6.0`.
 
+## Where the layouts have deliberately diverged
+
+Until now `src/` and `tests/` mirrored the source repository file for file, so
+a catch-up diff read cleanly. That is no longer true everywhere, and each place
+it stops being true is listed here so the next reconciliation expects it rather
+than treating it as drift.
+
+| Here | There | Why |
+|---|---|---|
+| `src/IcpBrasil/`, eight classes | spread across `Validation\`, `Certificates\`, `Data\`, `Enums\`, `Support\` | the regional layer is bounded and optional, and the layout now says so (0104) |
+| `tests/IcpBrasil/IcpBrasilTest.php` | `tests/Certificates/IcpBrasilTest.php` | follows the classes it covers |
+| `src/Support/SodiumEncrypter.php` | absent | new material is sealed with libsodium; the older envelope stays readable (0103) |
+
+The mapping in 0104 is what a diff of those eight files needs. Everything else
+still lines up.
+
 
 ## How to catch up
 

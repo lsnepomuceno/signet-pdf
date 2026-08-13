@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LSNepomuceno\Signet\Enums;
+namespace LSNepomuceno\Signet\IcpBrasil\Enums;
 
 /**
  * The `otherName` fields an ICP-Brasil certificate carries in its
@@ -18,7 +18,7 @@ namespace LSNepomuceno\Signet\Enums;
  *
  * See docs/decisions/0029-the-identity-a-brazilian-signer-is-known-by.md.
  */
-enum IcpBrasilOtherName: string
+enum OtherName: string
 {
     /** e-CPF, mandatory: birth date, CPF, NIS, RG and the RG's issuer. */
     case HolderData = '2.16.76.1.3.1';

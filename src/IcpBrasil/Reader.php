@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace LSNepomuceno\Signet\Certificates;
+namespace LSNepomuceno\Signet\IcpBrasil;
 
-use LSNepomuceno\Signet\Data\IcpBrasilIdentity;
-use LSNepomuceno\Signet\Enums\IcpBrasilCertificateType;
-use LSNepomuceno\Signet\Enums\IcpBrasilOtherName;
+use LSNepomuceno\Signet\Certificates\SubjectAlternativeNameReader;
+use LSNepomuceno\Signet\IcpBrasil\Data\Identity;
+use LSNepomuceno\Signet\IcpBrasil\Enums\CertificateType;
+use LSNepomuceno\Signet\IcpBrasil\Enums\OtherName;
 
 /**
  * Reads the identity an ICP-Brasil certificate carries.
@@ -23,24 +24,24 @@ use LSNepomuceno\Signet\Enums\IcpBrasilOtherName;
  *
  * @internal
  */
-final readonly class IcpBrasilReader
+final readonly class Reader
 {
     public function __construct(private SubjectAlternativeNameReader $names = new SubjectAlternativeNameReader()) {}
 
     /**
      * @param  string  $certificate  PEM or DER.
      */
-    public function read(string $certificate): IcpBrasilIdentity
+    public function read(string $certificate): Identity
     {
         $found = $this->names->otherNames($certificate);
         $fields = $this->fields($found);
         $type = $this->type($found);
 
-        if ($type === IcpBrasilCertificateType::None) {
-            return IcpBrasilIdentity::none();
+        if ($type === CertificateType::None) {
+            return Identity::none();
         }
 
-        return new IcpBrasilIdentity(
+        return new Identity(
             type: $type,
             cpf: $this->digits($fields['cpf'] ?? null, 11),
             cnpj: $this->digits($fields['cnpj'] ?? null, 14),
@@ -49,7 +50,7 @@ final readonly class IcpBrasilReader
             nationalId: $this->unpadded($fields['nationalId'] ?? null),
             nationalIdIssuer: $this->text($fields['nationalIdIssuer'] ?? null),
             socialSecurity: $this->digits($fields['socialSecurity'] ?? null, 12),
-            responsibleName: $this->text($found[IcpBrasilOtherName::ResponsibleName->value] ?? null),
+            responsibleName: $this->text($found[OtherName::ResponsibleName->value] ?? null),
             voterRegistration: $this->unpadded($fields['voterRegistration'] ?? null),
             voterZone: $this->unpadded($fields['voterZone'] ?? null),
             voterSection: $this->unpadded($fields['voterSection'] ?? null),
@@ -73,7 +74,7 @@ final readonly class IcpBrasilReader
         $fields = [];
 
         foreach ($found as $oid => $value) {
-            $name = IcpBrasilOtherName::tryFrom($oid);
+            $name = OtherName::tryFrom($oid);
             $layout = $name?->layout();
 
             if ($layout === null) {
@@ -106,12 +107,12 @@ final readonly class IcpBrasilReader
      *
      * @param  array<string, string>  $found
      */
-    private function type(array $found): IcpBrasilCertificateType
+    private function type(array $found): CertificateType
     {
         return match (true) {
-            isset($found[IcpBrasilOtherName::CompanyRegistry->value]) => IcpBrasilCertificateType::LegalEntity,
-            isset($found[IcpBrasilOtherName::HolderData->value]) => IcpBrasilCertificateType::Individual,
-            default => IcpBrasilCertificateType::None,
+            isset($found[OtherName::CompanyRegistry->value]) => CertificateType::LegalEntity,
+            isset($found[OtherName::HolderData->value]) => CertificateType::Individual,
+            default => CertificateType::None,
         };
     }
 

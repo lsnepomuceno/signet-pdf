@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LSNepomuceno\Signet\Enums;
+namespace LSNepomuceno\Signet\IcpBrasil\Enums;
 
 /**
  * What a structural check of an ICP-Brasil certificate can find wrong.
@@ -16,7 +16,7 @@ namespace LSNepomuceno\Signet\Enums;
  * question stays where it was
  * ([0016](../../docs/decisions/0016-trust-is-the-applications-policy.md)).
  */
-enum IcpBrasilFinding: string
+enum Finding: string
 {
     case MissingRequiredField = 'missing-required-field';
 

@@ -94,7 +94,9 @@ per file.
 `tests/` mirrors the layout of the package it was extracted from
 (`Project/`, `Signing/`, `Validation/`, `Certificates/`, `Certification/`,
 `Conformance/`, `Timestamps/`, `Support/`), which is what keeps a diff between
-the two repositories readable during a catch-up.
+the two repositories readable during a catch-up. `IcpBrasil/` is the one
+deliberate divergence, and it follows `src/IcpBrasil/`; every such divergence is
+listed in `docs/history/port-from-laravel-a1.md`.
 
 ## Architecture
 
@@ -164,6 +166,16 @@ the CMS actually verifies. `PdfSignatureExtractor` locates each `/ByteRange`,
 `Pkcs7Reader`/`DerReader` parse ASN.1 by declared length (never by trimming
 trailing `0`s), and `SignatureVerifier` is the one remaining deliberate
 shell-out. DocTimeStamps are classified separately and excluded from `isValid()`.
+
+### IcpBrasil, the regional layer
+
+Everything country-specific lives under `src/IcpBrasil/` and nothing else
+depends on it: `Reader` (the identity in `subjectAlternativeName`), `Validator`
+(structural conformance, never trust), `NationalRegistry` (CPF and CNPJ check
+digits), plus `Data/` and `Enums/` of its own. **`isValid()` consults none of
+it.** The sub-namespaces exist so the arch rules for value objects and enums
+can be pointed at them
+(docs/decisions/0104-the-regional-layer-is-its-own-namespace.md).
 
 ### Supporting pieces
 

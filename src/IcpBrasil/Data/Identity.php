@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace LSNepomuceno\Signet\Data;
+namespace LSNepomuceno\Signet\IcpBrasil\Data;
 
-use LSNepomuceno\Signet\Enums\IcpBrasilCertificateType;
+use LSNepomuceno\Signet\Data\BaseData;
+use LSNepomuceno\Signet\IcpBrasil\Enums\CertificateType;
 
 /**
  * Who an ICP-Brasil certificate says its holder is.
@@ -20,7 +21,7 @@ use LSNepomuceno\Signet\Enums\IcpBrasilCertificateType;
  * when a number is unavailable, is reported as null. "Absent" and "eleven
  * zeros" are the same fact and only one of them is worth handing to a caller.
  */
-final readonly class IcpBrasilIdentity extends BaseData
+final readonly class Identity extends BaseData
 {
     /**
      * @param  ?string  $cpf  The holder's, for an e-CPF; the responsible
@@ -41,7 +42,7 @@ final readonly class IcpBrasilIdentity extends BaseData
      *                                      field this package does not model.
      */
     public function __construct(
-        public IcpBrasilCertificateType $type,
+        public CertificateType $type,
         public ?string $cpf = null,
         public ?string $cnpj = null,
         public ?string $birthDate = null,
@@ -63,7 +64,7 @@ final readonly class IcpBrasilIdentity extends BaseData
      */
     public static function none(): self
     {
-        return new self(IcpBrasilCertificateType::None);
+        return new self(CertificateType::None);
     }
 
     /**

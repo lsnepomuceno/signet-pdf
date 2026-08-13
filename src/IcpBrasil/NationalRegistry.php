@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LSNepomuceno\Signet\Support;
+namespace LSNepomuceno\Signet\IcpBrasil;
 
 /**
  * The check digits a CPF and a CNPJ carry.

@@ -17,13 +17,14 @@ use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Contracts\SignatureValidator;
 use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Data\EncryptedCertificate;
-use LSNepomuceno\Signet\Data\IcpBrasilReport;
 use LSNepomuceno\Signet\Data\SignatureField;
 use LSNepomuceno\Signet\Data\SignatureReport;
 use LSNepomuceno\Signet\Data\SignedPdf;
 use LSNepomuceno\Signet\Exceptions\FileNotFoundException;
 use LSNepomuceno\Signet\Exceptions\HasNoSignatureOrInvalidPkcs7Exception;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
+use LSNepomuceno\Signet\IcpBrasil\Data\Report;
+use LSNepomuceno\Signet\IcpBrasil\Validator;
 use LSNepomuceno\Signet\Seal\InterventionSealRenderer;
 use LSNepomuceno\Signet\Signing\ArchiveExtender;
 use LSNepomuceno\Signet\Signing\Cades\CadesBuilder;
@@ -41,7 +42,6 @@ use LSNepomuceno\Signet\Support\Files;
 use LSNepomuceno\Signet\Support\Pem;
 use LSNepomuceno\Signet\Support\SymfonyProcessRunner;
 use LSNepomuceno\Signet\Support\TempDirectory;
-use LSNepomuceno\Signet\Validation\IcpBrasilValidator;
 use LSNepomuceno\Signet\Validation\PdfSignatureExtractor;
 use LSNepomuceno\Signet\Validation\PdfSignatureValidator;
 use LSNepomuceno\Signet\Validation\Pkcs7Reader;
@@ -283,7 +283,7 @@ final class Signet
         string $certificatePath,
         #[SensitiveParameter]
         string $password = '',
-    ): IcpBrasilReport {
+    ): Report {
         $bytes = Files::read($certificatePath);
 
         $bundle = Pem::hasCertificate($bytes)
@@ -292,7 +292,7 @@ final class Signet
 
         $certificate = Pem::certificates($bundle)[0] ?? '';
 
-        return new IcpBrasilValidator()->validate($certificate, self::commonName($certificate));
+        return new Validator()->validate($certificate, self::commonName($certificate));
     }
 
     /**

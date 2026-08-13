@@ -18,6 +18,30 @@ declaring it.
 php -m | grep sodium
 ```
 
+## The ICP-Brasil layer moved to its own namespace
+
+Everything regional now lives under `LSNepomuceno\Signet\IcpBrasil\`, and the
+redundant prefix came off the class names
+(`docs/decisions/0104-the-regional-layer-is-its-own-namespace.md`). If you do
+not sign Brazilian documents, nothing here affects you.
+
+It is a find-and-replace over your imports:
+
+| Was | Is |
+|---|---|
+| `Validation\IcpBrasilValidator` | `IcpBrasil\Validator` |
+| `Certificates\IcpBrasilReader` | `IcpBrasil\Reader` |
+| `Support\NationalRegistry` | `IcpBrasil\NationalRegistry` |
+| `Data\IcpBrasilIdentity` | `IcpBrasil\Data\Identity` |
+| `Data\IcpBrasilReport` | `IcpBrasil\Data\Report` |
+| `Enums\IcpBrasilCertificateType` | `IcpBrasil\Enums\CertificateType` |
+| `Enums\IcpBrasilFinding` | `IcpBrasil\Enums\Finding` |
+| `Enums\IcpBrasilOtherName` | `IcpBrasil\Enums\OtherName` |
+
+Behaviour is unchanged: same fields, same rules, same values on every enum
+case. `Signet::icpBrasil()` and `Data\Signer::$icpBrasil` keep their names, so
+code reaching the layer through the entry point needs no change at all.
+
 ## Certificate vault keys are 32 bytes, and older ones still work
 
 `Certificates\CertificateVault` seals new material with XChaCha20-Poly1305

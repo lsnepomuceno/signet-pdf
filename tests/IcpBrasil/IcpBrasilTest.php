@@ -2,16 +2,17 @@
 
 declare(strict_types=1);
 
-use LSNepomuceno\Signet\Certificates\IcpBrasilReader;
 use LSNepomuceno\Signet\Certificates\NativeCertificateReader;
 use LSNepomuceno\Signet\Certificates\SubjectAlternativeNameReader;
-use LSNepomuceno\Signet\Enums\IcpBrasilCertificateType;
-use LSNepomuceno\Signet\Enums\IcpBrasilFinding;
-use LSNepomuceno\Signet\Enums\IcpBrasilOtherName;
+use LSNepomuceno\Signet\IcpBrasil\Data\Identity;
+use LSNepomuceno\Signet\IcpBrasil\Enums\CertificateType;
+use LSNepomuceno\Signet\IcpBrasil\Enums\Finding;
+use LSNepomuceno\Signet\IcpBrasil\Enums\OtherName;
+use LSNepomuceno\Signet\IcpBrasil\NationalRegistry;
+use LSNepomuceno\Signet\IcpBrasil\Reader;
+use LSNepomuceno\Signet\IcpBrasil\Validator;
 use LSNepomuceno\Signet\Support\Files;
-use LSNepomuceno\Signet\Support\NationalRegistry;
 use LSNepomuceno\Signet\Testing\DebugCertificate;
-use LSNepomuceno\Signet\Validation\IcpBrasilValidator;
 
 /**
  * Reading who a Brazilian signer is, and checking the certificate says it
@@ -30,7 +31,7 @@ use LSNepomuceno\Signet\Validation\IcpBrasilValidator;
  * @param  array<string, string>  $otherNames
  */
 function icpCertificate(
-    IcpBrasilCertificateType $type = IcpBrasilCertificateType::Individual,
+    CertificateType $type = CertificateType::Individual,
     array $otherNames = [],
     string $commonName = 'JOAO DA SILVA:11144477735',
 ): string {
@@ -53,16 +54,16 @@ it('finds the otherName fields openssl_x509_parse cannot render', function () {
 
     expect($rendered)->toContain('othername')
         ->and($names)->toHaveKeys([
-            IcpBrasilOtherName::HolderData->value,
-            IcpBrasilOtherName::VoterRegistration->value,
-            IcpBrasilOtherName::HolderSocialSecurity->value,
+            OtherName::HolderData->value,
+            OtherName::VoterRegistration->value,
+            OtherName::HolderSocialSecurity->value,
         ]);
 });
 
 it('reads an e-CPF holder', function () {
-    $identity = resolve(IcpBrasilReader::class)->read(icpCertificate());
+    $identity = resolve(Reader::class)->read(icpCertificate());
 
-    expect($identity->type)->toBe(IcpBrasilCertificateType::Individual)
+    expect($identity->type)->toBe(CertificateType::Individual)
         ->and($identity->cpf)->toBe('11144477735')
         ->and($identity->cnpj)->toBeNull()
         ->and($identity->birthDate)->toBe('11/08/1985')
@@ -77,9 +78,9 @@ it('reads an e-CPF holder', function () {
 it('reads an e-CNPJ as the company rather than as the person answering for it', function () {
     // An e-CNPJ carries a CPF too. Reading the CPF first would report every
     // company certificate as a person, which is the trap in the layout.
-    $identity = resolve(IcpBrasilReader::class)->read(icpCertificate(IcpBrasilCertificateType::LegalEntity));
+    $identity = resolve(Reader::class)->read(icpCertificate(CertificateType::LegalEntity));
 
-    expect($identity->type)->toBe(IcpBrasilCertificateType::LegalEntity)
+    expect($identity->type)->toBe(CertificateType::LegalEntity)
         ->and($identity->cnpj)->toBe('11222333000181')
         ->and($identity->cpf)->toBe('11144477735')
         ->and($identity->responsibleName)->toBe('JOAO DA SILVA')
@@ -91,7 +92,7 @@ it('reports a field written as zeros as absent rather than as zeros', function (
     // The specification requires an unavailable number to be filled with zeros,
     // so "000000000000" and "not there" are the same fact, and only one of them
     // is worth handing to a caller.
-    $identity = resolve(IcpBrasilReader::class)->read(icpCertificate());
+    $identity = resolve(Reader::class)->read(icpCertificate());
 
     expect($identity->socialSecurity)->toBeNull();
 });
@@ -99,10 +100,10 @@ it('reports a field written as zeros as absent rather than as zeros', function (
 it('answers None for a certificate that never claimed to be ICP-Brasil', function () {
     [$pfx, $password] = debugCertificate();
 
-    $identity = resolve(IcpBrasilReader::class)
+    $identity = resolve(Reader::class)
         ->read(resolve(NativeCertificateReader::class)->read(Files::read($pfx), $password)->original);
 
-    expect($identity->type)->toBe(IcpBrasilCertificateType::None)
+    expect($identity->type)->toBe(CertificateType::None)
         ->and($identity->cpf)->toBeNull();
 });
 
@@ -138,7 +139,7 @@ it('carries the identity on the signer a validated document reports', function (
 */
 
 it('conforms when every rule the specification states is satisfied', function () {
-    $report = resolve(IcpBrasilValidator::class)->validate(icpCertificate(), 'JOAO DA SILVA:11144477735');
+    $report = resolve(Validator::class)->validate(icpCertificate(), 'JOAO DA SILVA:11144477735');
 
     expect($report->conforms())->toBeTrue()
         ->and($report->findings)->toBe([])
@@ -151,53 +152,53 @@ it('does not conform when the certificate is not ICP-Brasil at all', function ()
     // because there was nothing to conform to.
     [$pfx, $password] = debugCertificate();
 
-    $report = resolve(IcpBrasilValidator::class)->validate(
+    $report = resolve(Validator::class)->validate(
         resolve(NativeCertificateReader::class)->read(Files::read($pfx), $password)->original,
     );
 
     expect($report->conforms())->toBeFalse()
         ->and($report->findings)->toBe([])
-        ->and($report->identity->type)->toBe(IcpBrasilCertificateType::None);
+        ->and($report->identity->type)->toBe(CertificateType::None);
 });
 
 it('catches a CPF that does not satisfy its own check digits', function () {
     $broken = '11081985' . '11144477736' . '12345678901' . '000000012345678' . 'SSPSP';
 
-    $report = resolve(IcpBrasilValidator::class)->validate(
-        icpCertificate(otherNames: [IcpBrasilOtherName::HolderData->value => $broken]),
+    $report = resolve(Validator::class)->validate(
+        icpCertificate(otherNames: [OtherName::HolderData->value => $broken]),
     );
 
-    expect($report->has(IcpBrasilFinding::InvalidCpfCheckDigits))->toBeTrue()
+    expect($report->has(Finding::InvalidCpfCheckDigits))->toBeTrue()
         ->and($report->conforms())->toBeFalse();
 });
 
 it('catches a CNPJ that does not satisfy its own check digits', function () {
-    $report = resolve(IcpBrasilValidator::class)->validate(
+    $report = resolve(Validator::class)->validate(
         icpCertificate(
-            IcpBrasilCertificateType::LegalEntity,
-            [IcpBrasilOtherName::CompanyRegistry->value => '11222333000182'],
+            CertificateType::LegalEntity,
+            [OtherName::CompanyRegistry->value => '11222333000182'],
         ),
     );
 
-    expect($report->has(IcpBrasilFinding::InvalidCnpjCheckDigits))->toBeTrue();
+    expect($report->has(Finding::InvalidCnpjCheckDigits))->toBeTrue();
 });
 
 it('catches a required field the profile does not carry', function () {
     // An e-CPF must carry all three. Removing the voter registration leaves a
     // certificate that reads as an e-CPF and is not a complete one.
-    $report = resolve(IcpBrasilValidator::class)->validate(
-        icpCertificate(otherNames: [IcpBrasilOtherName::VoterRegistration->value => '']),
+    $report = resolve(Validator::class)->validate(
+        icpCertificate(otherNames: [OtherName::VoterRegistration->value => '']),
     );
 
-    expect($report->has(IcpBrasilFinding::MissingRequiredField))->toBeTrue();
+    expect($report->has(Finding::MissingRequiredField))->toBeTrue();
 });
 
 it('catches a field that is not the width its layout fixes', function () {
-    $report = resolve(IcpBrasilValidator::class)->validate(
-        icpCertificate(otherNames: [IcpBrasilOtherName::HolderData->value => '1108198511144477735']),
+    $report = resolve(Validator::class)->validate(
+        icpCertificate(otherNames: [OtherName::HolderData->value => '1108198511144477735']),
     );
 
-    expect($report->has(IcpBrasilFinding::UnexpectedFieldLength))->toBeTrue();
+    expect($report->has(Finding::UnexpectedFieldLength))->toBeTrue();
 });
 
 it('accepts the one short field the specification allows', function () {
@@ -206,59 +207,59 @@ it('accepts the one short field the specification allows', function () {
     // run short and only that one.
     $short = '11081985' . '11144477735' . '12345678901' . '000000012345678' . 'DIC';
 
-    $report = resolve(IcpBrasilValidator::class)->validate(
-        icpCertificate(otherNames: [IcpBrasilOtherName::HolderData->value => $short]),
+    $report = resolve(Validator::class)->validate(
+        icpCertificate(otherNames: [OtherName::HolderData->value => $short]),
     );
 
-    expect($report->has(IcpBrasilFinding::UnexpectedFieldLength))->toBeFalse()
+    expect($report->has(Finding::UnexpectedFieldLength))->toBeFalse()
         ->and($report->identity->nationalIdIssuer)->toBe('DIC');
 });
 
 it('catches characters the alphabet does not allow', function () {
     // Only A to Z and 0 to 9. Accents are stripped before issue precisely
     // because of this rule, so one appearing is a certificate built by hand.
-    $report = resolve(IcpBrasilValidator::class)->validate(
+    $report = resolve(Validator::class)->validate(
         icpCertificate(
-            IcpBrasilCertificateType::LegalEntity,
-            [IcpBrasilOtherName::ResponsibleName->value => 'JOAO DA SILVA JUNIOR-ME'],
+            CertificateType::LegalEntity,
+            [OtherName::ResponsibleName->value => 'JOAO DA SILVA JUNIOR-ME'],
         ),
     );
 
-    expect($report->has(IcpBrasilFinding::IllegalCharacter))->toBeTrue();
+    expect($report->has(Finding::IllegalCharacter))->toBeTrue();
 });
 
 it('catches a birth date that is not a date', function () {
-    $report = resolve(IcpBrasilValidator::class)->validate(
+    $report = resolve(Validator::class)->validate(
         icpCertificate(otherNames: [
-            IcpBrasilOtherName::HolderData->value => '32131985' . '11144477735' . '12345678901' . '000000012345678' . 'SSPSP',
+            OtherName::HolderData->value => '32131985' . '11144477735' . '12345678901' . '000000012345678' . 'SSPSP',
         ]),
     );
 
-    expect($report->has(IcpBrasilFinding::ImplausibleBirthDate))->toBeTrue()
+    expect($report->has(Finding::ImplausibleBirthDate))->toBeTrue()
         ->and($report->identity->birthDate)->toBeNull();
 });
 
 it('catches an issuing authority named for an identity number that is absent', function () {
     // §3.2.5, stated outright: if the RG is unavailable, the issuer and state
     // fields shall not be filled in.
-    $report = resolve(IcpBrasilValidator::class)->validate(
+    $report = resolve(Validator::class)->validate(
         icpCertificate(otherNames: [
-            IcpBrasilOtherName::HolderData->value => '11081985' . '11144477735' . '12345678901' . '000000000000000' . 'SSPSP',
+            OtherName::HolderData->value => '11081985' . '11144477735' . '12345678901' . '000000000000000' . 'SSPSP',
         ]),
     );
 
-    expect($report->has(IcpBrasilFinding::IssuerNamedWithoutNationalId))->toBeTrue();
+    expect($report->has(Finding::IssuerNamedWithoutNationalId))->toBeTrue();
 });
 
 it('catches the two places a CPF appears disagreeing', function () {
     // Nothing in the format makes the common name and the extension agree, and
     // a document filed under the wrong number is filed under the wrong person.
-    $report = resolve(IcpBrasilValidator::class)->validate(
+    $report = resolve(Validator::class)->validate(
         icpCertificate(commonName: 'JOAO DA SILVA:12345678909'),
         'JOAO DA SILVA:12345678909',
     );
 
-    expect($report->has(IcpBrasilFinding::CommonNameDisagreesWithCpf))->toBeTrue()
+    expect($report->has(Finding::CommonNameDisagreesWithCpf))->toBeTrue()
         ->and($report->messages())->toContain('commonName: the CPF in the common name is not the CPF in the subject alternative name (12345678909 against 11144477735)');
 });
 

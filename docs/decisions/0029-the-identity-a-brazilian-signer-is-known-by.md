@@ -39,9 +39,9 @@ Read the fields from the DER, model them, and check them.
 
 `Certificates\SubjectAlternativeNameReader` walks the certificate to the
 extension (RFC 5280 §4.2.1.6) and returns the `otherName` entries by OID.
-`Certificates\IcpBrasilReader` slices each one by the widths the Receita
+`IcpBrasil\Reader` slices each one by the widths the Receita
 Federal's specification fixes, §2.2.5 for e-CPF and §3.2.5 for e-CNPJ, and
-returns a `Data\IcpBrasilIdentity`.
+returns an `IcpBrasil\Data\Identity`.
 
 Three details in that layout are worth stating, because each one is a way to
 read a field wrong:
@@ -61,7 +61,7 @@ to it.
 
 ### Checking, and the word "structural"
 
-`Validation\IcpBrasilValidator` returns a `Data\IcpBrasilReport`. Every rule it
+`IcpBrasil\Validator` returns an `IcpBrasil\Data\Report`. Every rule it
 applies is one the specification states about the bytes:
 
 | | |
@@ -93,8 +93,8 @@ from the bytes beats finding it out from a rejected filing.
   implementing the interface, which the Roave check reports.
 - `Pkcs7Reader::signers()` now goes through the PEM rather than through a parse,
   because the identity is only in the bytes.
-- `Support\NationalRegistry` is new, and bespoke by necessity: neither Laravel
-  nor any dependency here validates a CPF (docs/spec/conventions.md).
+- `IcpBrasil\NationalRegistry` is new, and bespoke by necessity: no dependency
+  this package has validates a CPF (docs/spec/conventions.md).
 - **It says a number is well formed, never that it exists.** Whether the Receita
   Federal issued it is a question only the Receita Federal answers, and asking
   would mean a network call from validation, which nothing here does.
@@ -110,3 +110,15 @@ from the bytes beats finding it out from a rejected filing.
 | Check the number against the Receita Federal | A network call from validation, and an availability dependency on somebody else's service |
 | Call the structural check "validation" without qualification | It would read as trust, and a self-signed certificate passes it |
 | A `CertificatePolicies` check for the A1/A3 arc | Worth having, and it says which kind of certificate rather than whether it is well formed. Left out rather than half done |
+
+## Outcome
+
+All of it moved into a namespace of its own, and the class names lost the
+`IcpBrasil` prefix that the namespace made redundant: `IcpBrasil\Reader`,
+`IcpBrasil\Validator`, `IcpBrasil\NationalRegistry`, and `Data\` and `Enums\`
+beneath them. The names in this record are the current ones.
+
+The reasoning here did not change, and that is the point of the move: this was
+always a bounded regional layer that `isValid()` does not consult, and the
+layout said the opposite by scattering it through five namespaces
+(docs/decisions/0104-the-regional-layer-is-its-own-namespace.md).

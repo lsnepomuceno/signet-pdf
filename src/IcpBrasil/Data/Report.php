@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace LSNepomuceno\Signet\Data;
+namespace LSNepomuceno\Signet\IcpBrasil\Data;
 
-use LSNepomuceno\Signet\Enums\IcpBrasilFinding;
+use LSNepomuceno\Signet\Data\BaseData;
+use LSNepomuceno\Signet\IcpBrasil\Enums\Finding;
 
 /**
  * What a structural check of an ICP-Brasil certificate found.
@@ -20,13 +21,13 @@ use LSNepomuceno\Signet\Enums\IcpBrasilFinding;
  * not be read correctly by anything, and finding that out from the bytes beats
  * finding it out from a rejected filing.
  */
-final readonly class IcpBrasilReport extends BaseData
+final readonly class Report extends BaseData
 {
     /**
-     * @param  list<array{finding: IcpBrasilFinding, field: string, detail: ?string}>  $findings
+     * @param  list<array{finding: Finding, field: string, detail: ?string}>  $findings
      */
     public function __construct(
-        public IcpBrasilIdentity $identity,
+        public Identity $identity,
         public array $findings = [],
     ) {}
 
@@ -45,7 +46,7 @@ final readonly class IcpBrasilReport extends BaseData
     /**
      * Whether anything was found of this kind.
      */
-    public function has(IcpBrasilFinding $finding): bool
+    public function has(Finding $finding): bool
     {
         foreach ($this->findings as $entry) {
             if ($entry['finding'] === $finding) {
