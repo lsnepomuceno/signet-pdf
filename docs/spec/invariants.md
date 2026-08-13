@@ -192,6 +192,18 @@ to provide, and any other vendor is an argument to be had per case
 *Enforced by* `tests/Project/ArchTest.php` (`imports no framework`), as a token walk
 rather than as an arch expectation. The distinction matters: an arch rule can
 only be pointed at symbols that exist, and the point is that these do not, so a
-rule naming `Illuminate\Support\Facades\File` would match nothing and pass for
-the wrong reason. Docblocks are exempt, because several classes explain what
-they replaced and have to name it to do so.
+rule naming the framework's filesystem facade would match nothing and pass for
+the wrong reason.
+
+**The comments are walked too.** Docblocks used to be exempt, because a dozen
+classes explained themselves by naming the construct they replaced. They now
+explain the same thing without naming it: a reader who has never used that
+framework should not have to know it to understand why `Contracts\ProcessRunner`
+is an interface rather than a class. The exemption was removed along with the
+last mention.
+
+One string is allowed through, `lsnepomuceno/laravel-a1-pdf-sign`, because it is
+a package name and not a framework construct. `Support\OpensslEncrypter`
+reproduces that package's encryption envelope byte for byte on purpose, and a
+docblock forbidden from saying whose format it is documents nothing
+(docs/decisions/0101-symfony-is-the-only-vendor.md).

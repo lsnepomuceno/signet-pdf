@@ -17,12 +17,12 @@ use LSNepomuceno\Signet\Support\TempDirectory;
  * RC2 / 40-bit bundles under OpenSSL 3.x.
  *
  * **This class used to hold a container, and the reason it did is gone.**
- * Under Laravel the CLI reader needed a temporary directory, which lived on the
- * package's own facade contract, and resolving that contract here closed a
- * cycle: the manager depended on this factory, so the factory asking the
- * container for the manager recursed until the process segfaulted with no
- * output, no exception and no stack trace (exit 139). The workaround was to
- * hold the container and resolve late.
+ * Before the split the CLI reader needed a temporary directory, which lived on
+ * the interface describing the package's entire public API, and resolving that
+ * interface here closed a cycle: the manager depended on this factory, so the
+ * factory asking the container for the manager recursed until the process
+ * segfaulted with no output, no exception and no stack trace (exit 139). The
+ * workaround was to hold the container and resolve late.
  *
  * The dependency is now `Support\TempDirectory`, a value object with no
  * dependencies of its own, so there is no cycle to break and nothing to

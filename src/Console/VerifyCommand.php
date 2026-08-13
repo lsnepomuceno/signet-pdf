@@ -19,8 +19,8 @@ use Throwable;
 /**
  * Reports on the signatures a document carries.
  *
- * The Laravel package offers this as `php artisan pdf:validate-signature`,
- * which is only reachable from inside an application. Off a framework it is a
+ * Before the split this was a console command registered inside an
+ * application, and therefore only reachable from one. Off a framework it is a
  * binary, and that turns it into something a CI pipeline in any language can
  * call: `--json` prints a stable document rather than prose, so a build can
  * decide on the result without parsing English.

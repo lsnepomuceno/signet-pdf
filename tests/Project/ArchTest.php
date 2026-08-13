@@ -126,24 +126,50 @@ arch('enums are string-backed, so configuration can express them as plain string
  *
  * A walk rather than an arch expectation, because an arch rule can only be
  * pointed at symbols that exist, and the entire point here is that these do
- * not: `Illuminate\Support\Facades\File` is not installed, so a rule naming
- * it matches nothing and passes for the wrong reason. The token walk sees the
+ * not: the framework's filesystem facade is not installed, so a rule naming it
+ * matches nothing and passes for the wrong reason. The token walk sees the
  * import whether or not the class is autoloadable.
  *
- * Docblocks are exempt. Several classes explain what they replaced and name it
- * to do so, which is the prose doing its job.
+ * **The prose is covered too, and it did not used to be.** Docblocks were
+ * exempt while a dozen classes explained themselves by naming the construct
+ * they replaced. They now explain the same thing without it, because a reader
+ * who has never seen that framework should not have to know it to understand
+ * why `Contracts\ProcessRunner` is an interface. The exemption went with the
+ * last mention, and this rule is what stops the next one arriving.
+ *
+ * The one string allowed through is `lsnepomuceno/laravel-a1-pdf-sign`, which
+ * is a package name rather than a framework construct. It has to be nameable:
+ * `Support\OpensslEncrypter` reproduces that package's envelope byte for byte
+ * on purpose, and a docblock that cannot say whose format it is documents
+ * nothing (0101).
  */
 it('imports no framework', function () {
     $forbidden = ['Illuminate\\', 'Orchestra\\', 'Laravel\\'];
+    $inProse = '/\b(laravel|illuminate|orchestra|artisan|eloquent)\b/i';
+    $siblingPackage = 'lsnepomuceno/laravel-a1-pdf-sign';
     $found = [];
 
     foreach (phpFilesUnder(dirname(__DIR__, 2) . '/src') as $path => $contents) {
         foreach (token_get_all($contents) as $token) {
-            if (is_array($token) && in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+            if (! is_array($token)) {
                 continue;
             }
 
-            if (! is_array($token) || $token[0] !== T_NAME_QUALIFIED) {
+            if (in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+                // Word boundaries, so the ICC specification's "illuminated by
+                // D50" in `Support\SrgbProfile` is not a framework reference.
+                $prose = str_replace($siblingPackage, '', $token[1]);
+
+                if (preg_match_all($inProse, $prose, $matches) > 0) {
+                    foreach ($matches[0] as $match) {
+                        $found[] = "{$path}: {$match} (in a comment)";
+                    }
+                }
+
+                continue;
+            }
+
+            if ($token[0] !== T_NAME_QUALIFIED) {
                 continue;
             }
 

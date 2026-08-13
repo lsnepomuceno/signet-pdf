@@ -15,13 +15,15 @@ use Throwable;
  * sixteen classes or catching \Exception and swallowing everything the
  * framework throws with them.
  *
- * In a Laravel application that matters in bootstrap/app.php, where reporting
- * and rendering are registered by class:
+ * It matters most where an application registers reporting or rendering by
+ * class, which is the usual shape of a framework's error handler:
  *
  * ```php
- * ->withExceptions(function (Exceptions $exceptions) {
- *     $exceptions->report(function (SignetException $e) { … });
- * })
+ * try {
+ *     $signet->newSignature()->certificate($pfx, $password)->pdf($path)->sign();
+ * } catch (SignetException $e) {
+ *     // Everything this package can raise, and nothing else.
+ * }
  * ```
  *
  * An interface rather than a base class: several of these may want to extend a

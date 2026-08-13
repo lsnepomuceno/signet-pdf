@@ -16,7 +16,8 @@ namespace LSNepomuceno\Signet\Enums;
  * Only CBC modes appear here, and both carry an HMAC applied by
  * `Support\OpensslEncrypter`. A GCM mode would authenticate on its own and put
  * its tag in the envelope's `tag` field, which is why that field exists and is
- * always empty: the format has to stay readable by Laravel's encrypter
+ * always empty: the envelope has to stay readable by
+ * `lsnepomuceno/laravel-a1-pdf-sign`
  * (docs/decisions/0101-symfony-is-the-only-vendor.md).
  */
 enum Cipher: string

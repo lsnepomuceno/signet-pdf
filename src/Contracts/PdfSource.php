@@ -12,8 +12,8 @@ use LSNepomuceno\Signet\Exceptions\FileNotFoundException;
  * The API this was ported from took a filesystem path, and that is the wrong
  * primitive for a framework-agnostic core: it forces anything held in S3, in a
  * queue payload, in an upload or in memory through a temporary file before it
- * can be signed. It also made `Illuminate\Http\UploadedFile` a type in the
- * signing path, which is a framework type in the middle of a byte pipeline.
+ * can be signed. It also put the host framework's uploaded-file type into the
+ * signing path, which is an HTTP concern in the middle of a byte pipeline.
  *
  * A source resolves to bytes exactly once and names itself for error messages.
  * That is the whole contract: the signer never learns where the document came

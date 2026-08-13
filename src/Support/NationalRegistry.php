@@ -7,8 +7,8 @@ namespace LSNepomuceno\Signet\Support;
 /**
  * The check digits a CPF and a CNPJ carry.
  *
- * Laravel has no rule for either, and neither does any dependency this package
- * already has, so it is written here rather than pulled in
+ * No dependency this package already has offers a rule for either, so it is
+ * written here rather than pulled in
  * (docs/spec/conventions.md). It is one algorithm, modulus eleven over
  * positional weights, applied twice with different weights.
  *

@@ -14,10 +14,10 @@ use Symfony\Component\Uid\Uuid;
  * PEM to `openssl` on disk because the CLI takes paths and not pipes, and the
  * verifiers, which do the same with a detached CMS.
  *
- * Before the split this was `A1PdfSign::tempPath()`, a method on the package's
- * whole facade contract. Both verifiers therefore depended on the entire
- * public API to ask one question, which is the kind of coupling a container
- * makes invisible and a constructor makes obvious.
+ * Before the split this was one method on the interface that described the
+ * package's entire public API. Both verifiers therefore depended on all of it
+ * to ask a single question, which is the kind of coupling a container makes
+ * invisible and a constructor makes obvious.
  *
  * Writing inside the package directory is not an option and never was the
  * default here: it requires `vendor/` to be writable and behaves differently

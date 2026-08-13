@@ -7,9 +7,9 @@ namespace LSNepomuceno\Signet\Config;
 /**
  * Everything the package can be configured with, in one value object.
  *
- * This replaces `config/a1-pdf-sign.php` and the `Illuminate\Contracts\Config\
- * Repository` that five classes took a constructor dependency on. The
- * difference is not cosmetic:
+ * This replaces the configuration file the package was read from before the
+ * split, and the configuration repository five classes took a constructor
+ * dependency on to reach it. The difference is not cosmetic:
  *
  * - a missing key was previously a runtime `null` flowing into a string
  *   parameter, and is now a compile-time impossibility;
@@ -19,8 +19,8 @@ namespace LSNepomuceno\Signet\Config;
  *   that reads a configuration file does that translation once, at its own
  *   edge, rather than pushing a key-value bag through the byte pipeline.
  *
- * Every default here is the default the Laravel package shipped, so an
- * application that configured nothing gets the same behaviour it had
+ * Every default here is the default that file shipped, so an application that
+ * configured nothing gets the same behaviour it had
  * (docs/decisions/0100-the-core-is-framework-agnostic.md).
  */
 final readonly class SignetConfig
