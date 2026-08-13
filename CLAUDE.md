@@ -11,8 +11,9 @@ verifies existing PDF signatures. Published on Packagist as
 `lsnepomuceno/signet-pdf`.
 
 **It was extracted from `lsnepomuceno/laravel-a1-pdf-sign`, which continues to
-exist as the Laravel integration over it.** That repository is still being
-developed and core-side work there has to be brought here:
+exist and has not been rebuilt on top of this package.** The two are separate
+implementations sharing a lineage, so a change here does not reach that one and
+core-side work there has to be brought across by hand:
 `docs/history/port-from-laravel-a1.md` records the baseline commit and the
 outstanding list. Read it before assuming a feature is missing on purpose.
 
@@ -282,11 +283,18 @@ The two that decide whether a piece of code should exist at all are in
 - Do not define `K_PATH_FONTS` globally: tc-lib-pdf and TCPDF 6 read it with
   different formats, and defining it kills TCPDF silently.
 - **Every verification tool is development and CI only, and none may reach
-  production.** veraPDF, qpdf, pyHanko, `pdfsig`, the Arlington PDF Model's
-  `testgrammar` and Ghostscript are instruments:
-  nothing in `src/` may invoke one (`tests/Project/ArchTest.php`), and nothing built for
+  production.** Five are actually exercised: veraPDF (PDF/A and PDF/UA), qpdf
+  (structure), pyHanko (`/DocMDP` and a foreign signature), `pdfsig` (an
+  independent reader) and the Arlington PDF Model's `testgrammar`. Ghostscript
+  and `pdftoppm` are named only in the ban list in `tests/Project/ArchTest.php`,
+  which is deliberate: the rule forbids reaching for an instrument from `src/`,
+  and it costs nothing to forbid one nobody has reached for yet.
+
+  Nothing in `src/` may invoke one (`tests/Project/ArchTest.php`), and nothing built for
   testing may ship (`tests/Project/DistributionTest.php` asks `git archive` what a
-  release contains).
+  release contains). A test whose tool is missing calls `markTestSkipped()`, and
+  `composer test` carries `--fail-on-skipped`, so an absent instrument turns the
+  run red instead of quietly passing.
 - **Nothing skips:** `composer test` carries `--fail-on-skipped`, because every
   check has to run somewhere and a skip is how one quietly stops.
 - Independent verification is done with poppler's `pdfsig`; it has caught bugs

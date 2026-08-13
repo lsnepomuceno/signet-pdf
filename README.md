@@ -463,10 +463,11 @@ it, so a platform of 8.4.0 cannot resolve this package at all. A declared floor
 is a promise that the package installs there
 ([`docs/decisions/0005-php-and-laravel-floor.md`](docs/decisions/0005-php-and-laravel-floor.md)).
 
-Coming from `lsnepomuceno/laravel-a1-pdf-sign`? That package now depends on this
-one and keeps the facade, the service provider and the Artisan commands, so
-moving is only worth it if you want to drop Laravel. [UPGRADE.md](UPGRADE.md)
-maps the surface across.
+Coming from `lsnepomuceno/laravel-a1-pdf-sign`? That package keeps the facade,
+the service provider and the Artisan commands, so moving is only worth it if you
+want to drop Laravel. The two are still separate implementations rather than a
+core and an integration: what binds them is the signed output and the encryption
+envelope, not a dependency. [UPGRADE.md](UPGRADE.md) maps the surface across.
 
 ## Verified, not asserted
 

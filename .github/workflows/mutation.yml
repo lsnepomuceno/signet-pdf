@@ -132,6 +132,21 @@ jobs:
           # is exactly why the rule asks for two.
           - namespace: Support        # 78.26 / 79.26
             min: 74
+          # Added when the ICP-Brasil layer moved into a namespace of its own
+          # (0104), which took its validator out of src/Validation, its reader
+          # out of src/Certificates and NationalRegistry out of src/Support.
+          # All three had been gated and silently stopped being: the same
+          # failure as the Support entry above, one release later.
+          #
+          # The two measurements are 80.54 and 80.54, and they are not from
+          # here: they were run locally and serially, because --parallel
+          # silently produces no mutations at all on that machine. A serial
+          # run counts no timeouts, so it scores higher than this job will.
+          # The floor is therefore set eight points below rather than the four
+          # the entries above use, and it is provisional until two nightly
+          # runs have measured it in the shape that actually runs here.
+          - namespace: IcpBrasil      # 80.54 / 80.54, measured serially
+            min: 72
 
     steps:
       - name: Checkout

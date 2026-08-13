@@ -101,7 +101,9 @@ No behaviour and no API changed.
 
 The core of [`lsnepomuceno/laravel-a1-pdf-sign`](https://github.com/lsnepomuceno/laravel-a1-pdf-sign),
 extracted so it can be used from Symfony, Slim, a plain script or another
-library. That package remains, as the Laravel integration over this one.
+library. That package remains and is still a separate implementation: it was
+not rebuilt on top of this one, so the two share a lineage, a signed-output
+guarantee and an encryption envelope rather than a dependency.
 
 ### Added
 
@@ -144,7 +146,8 @@ library. That package remains, as the Laravel integration over this one.
 
 - The service provider, the facade, the Artisan commands, uploads and HTTP
   responses. All five are framework constructs and all five are still available
-  in `lsnepomuceno/laravel-a1-pdf-sign`, which now depends on this package.
+  in `lsnepomuceno/laravel-a1-pdf-sign`, which remains a separate
+  implementation rather than a consumer of this one.
 
 [Unreleased]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.1...HEAD
 [1.0.1]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.0...1.0.1
