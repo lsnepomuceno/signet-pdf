@@ -82,4 +82,5 @@ guarantee two records with the same number within a release or two.
 | [0104](0104-the-regional-layer-is-its-own-namespace.md) | The regional layer is its own namespace |
 | [0105](0105-the-seal-page-is-named.md) | The seal's page is named, not sentinelled |
 | [0106](0106-validation-reports-findings.md) | Validation reports findings, and only one of them is a verdict |
+| [0107](0107-the-byte-range-is-checked.md) | The `/ByteRange` is checked before it is believed |
 

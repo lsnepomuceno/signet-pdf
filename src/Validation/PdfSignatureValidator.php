@@ -124,6 +124,7 @@ final readonly class PdfSignatureValidator implements SignatureValidator
                 timestampVerified: $stamp['verified'],
                 stampedAt: $stamp['at'],
                 subFilter: $signature['subFilter'],
+                byteRangeSound: $signature['byteRangeSound'],
                 profile: SignatureProfile::classify(
                     $signature['subFilter'],
                     $stamp['verified'] === true,
