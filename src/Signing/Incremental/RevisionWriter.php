@@ -518,7 +518,7 @@ final class RevisionWriter
      * The pages the placement puts the seal on, in page-tree order.
      *
      * The placement answers page by page rather than being interrogated for a
-     * number, so SealPlacement::LAST_PAGE and $onEveryPage are decided in the
+     * number, so a named `Enums\SealPage` and $onEveryPage are decided in the
      * one place that defines them.
      *
      * @return list<int> Object numbers. Never empty: a placement that matches no
@@ -530,8 +530,8 @@ final class RevisionWriter
     private function sealedPages(string $pdf, DocumentInfo $document, SealPlacement $placement): array
     {
         // A tree that cannot be walked still has a page, and treating it as a
-        // document of one keeps the fallback honest: LAST_PAGE and page 1 both
-        // land on it, and page 3 says so instead of guessing.
+        // document of one keeps the fallback honest: a named page and page 1
+        // both land on it, and page 3 says so instead of guessing.
         $pages = $this->reader->pages($pdf, $document);
 
         if ($pages === []) {
@@ -548,7 +548,9 @@ final class RevisionWriter
         }
 
         if ($sealed === []) {
-            throw SealPlacementException::pageOutOfRange($placement->page, $count);
+            // Only a numbered page reaches this: a named one resolves against
+            // the count it was just given and therefore always matched.
+            throw SealPlacementException::pageOutOfRange($placement->pageIn($count), $count);
         }
 
         return $sealed;

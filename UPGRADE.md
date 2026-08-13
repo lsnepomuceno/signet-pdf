@@ -18,6 +18,33 @@ declaring it.
 php -m | grep sodium
 ```
 
+## The seal's page is named instead of sentinelled
+
+`SealPlacement::LAST_PAGE` is gone and `SealPlacement::$page` is now
+`Enums\SealPage|int` (`docs/decisions/0105-the-seal-page-is-named.md`).
+
+```php
+use LSNepomuceno\Signet\Enums\SealPage;
+
+new SealPlacement(page: SealPlacement::LAST_PAGE);   // before
+new SealPlacement(page: SealPage::Last);             // after
+```
+
+A numbered page is unchanged: `new SealPlacement(page: 3)` means what it always
+did, and `SealPage::Last` is still the default, so a placement that never named
+a page needs no edit.
+
+`SealPage::First` is new, and it is not the same as `page: 1` in every document:
+it is the first page the page tree declares, which is only the lowest-numbered
+page object when the producer wrote them in order.
+
+If you accept a page from configuration or from a request, resolve it at your
+edge:
+
+```php
+$page = $input === 'last' ? SealPage::Last : (int) $input;
+```
+
 ## The ICP-Brasil layer moved to its own namespace
 
 Everything regional now lives under `LSNepomuceno\Signet\IcpBrasil\`, and the

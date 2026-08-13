@@ -140,17 +140,20 @@ ISO/IEC 8825-1 and are natural integers. Those are exempt by name in the arch
 rule, the way `sha1` is exempt for `SignatureDetails`, rather than by weakening
 the rule for every enum.
 
-## Known tension
+## A union is the honest answer when only half the set is closed
 
-`Data\SealPlacement::LAST_PAGE` is an `int` sentinel of `-1`, and by this rule it
-would be an enum. It was one: `Enums\SealPage` existed and was removed during the
-v2 work on the grounds that "the page is one field of a placement, not a concept
-with its own behaviour"
-([the modernisation record](../history/v2-modernization.md)).
+`Data\SealPlacement::$page` is `Enums\SealPage|int`, and it reads as an
+exception to this rule until you look at what the set is. A page is either a
+number, which is open, or a position that depends on a count nobody has yet,
+which is closed. Making the whole field an enum would need a case per page
+number; leaving it an `int` is what produced `const int LAST_PAGE = -1`, a
+sentinel that the type could not describe and an IDE could not complete.
 
-That reasoning predates this rule and is not obviously wrong, and reversing it
-now would change the type of a public property. It stays as it is, named here so
-the next person finds a decision rather than an oversight.
+So the closed half is an enum and the open half stays an `int`. Reach for a
+union when a value genuinely has both kinds, and not as a way to avoid deciding
+which one it is: `SealPage` carries `of()`, so the named half computes its own
+answer rather than being unpacked by whoever receives it
+([0105](../decisions/0105-the-seal-page-is-named.md)).
 
 ---
 

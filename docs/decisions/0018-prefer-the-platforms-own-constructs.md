@@ -138,3 +138,16 @@ here named a framework helper whose `substr()` and `length()` are multibyte. The
 helper is gone and the hazard is not, so the rule in `tests/Project/ArchTest.php`
 now names `mb_substr()`, `mb_strlen()` and their siblings directly, which is
 what the framework helper delegated to anyway. It covers more than it used to.
+
+**And the third is closed too: `SealPlacement::LAST_PAGE` is an enum now.** The
+consequence above left it as an `int` sentinel because reversing it would change
+the type of a public property "for a cosmetic gain". Half of that held up and
+half did not. The cost is real, and a major version is where it gets paid. The
+gain was not cosmetic: `int $page` admitted `-2` and `0` as readily as the one
+value that meant anything, and nothing in the signature said a sentinel existed
+at all.
+
+What it became is `Enums\SealPage|int` rather than a plain enum, because only
+half the set is closed: a page number is open, and a position that depends on a
+count the caller does not have yet is not
+(docs/decisions/0105-the-seal-page-is-named.md).
