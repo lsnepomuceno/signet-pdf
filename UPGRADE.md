@@ -67,7 +67,18 @@ It is a find-and-replace over your imports:
 
 Behaviour is unchanged: same fields, same rules, same values on every enum
 case. `Signet::icpBrasil()` and `Data\Signer::$icpBrasil` keep their names, so
-code reaching the layer through the entry point needs no change at all.
+code that only calls them and reads the result off needs no edit.
+
+**Their types changed, though, and that is a break the names hide.**
+`Signet::icpBrasil()` now returns `IcpBrasil\Data\Report` and
+`Data\Signer::$icpBrasil` is now `?IcpBrasil\Data\Identity`. Anything that
+type-hints, `instanceof`-checks or documents the old class names has to be
+edited even though the call site reads the same:
+
+```php
+function record(IcpBrasilReport $report): void {}   // no longer resolves
+function record(Report $report): void {}            // use IcpBrasil\Data\Report
+```
 
 ## Certificate vault keys are 32 bytes, and older ones still work
 
@@ -111,10 +122,16 @@ $vault = CertificateVault::using(
 # Moving from `lsnepomuceno/laravel-a1-pdf-sign`
 
 This package is the core of that one, extracted so it can be used without a
-framework. **If you are using Laravel, you probably do not want to move.** The
-Laravel package now depends on this one and keeps the facade, the service
-provider, the Artisan commands, uploads and HTTP responses. Moving means giving
-those up in exchange for not needing Laravel.
+framework. **If you are using Laravel, you probably do not want to move.** That
+package keeps the facade, the service provider, the Artisan commands, uploads
+and HTTP responses. Moving means giving those up in exchange for not needing
+Laravel.
+
+**The two are still separate implementations.** The extraction produced this
+package; rebuilding the other one on top of it has not happened yet, so today
+they share a lineage and a signed-output guarantee rather than a dependency.
+What binds them is the encryption envelope, which is why
+`Support\OpensslEncrypter` still reads the format that package writes.
 
 If you are on Symfony, Slim, a plain script, or you are writing a library, this
 is the package to use.
