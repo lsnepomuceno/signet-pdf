@@ -62,7 +62,7 @@ jobs:
           php-version: '8.4'
           # intl is the tool's requirement, not the package's. The package's own
           # extensions are declared in composer.json.
-          extensions: intl, zip, openssl, mbstring, fileinfo, gd
+          extensions: intl, zip, openssl, sodium, mbstring, fileinfo, gd
           coverage: none
 
       - name: Install the checker

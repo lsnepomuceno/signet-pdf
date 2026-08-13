@@ -19,11 +19,17 @@ use LSNepomuceno\Signet\Exceptions\EncryptionException;
  *
  * The second is migration. `Support\OpensslEncrypter` reproduces the payload
  * format of `lsnepomuceno/laravel-a1-pdf-sign` byte for byte, so a certificate
- * sealed by that package opens here and the reverse, and an application moving
- * between the two does not have to re-encrypt anything it has stored. That
- * compatibility is a property worth stating in an interface, because the day
- * someone writes a second implementation is the day it can quietly stop being
- * true.
+ * sealed by that package opens here and an application moving between the two
+ * does not have to re-encrypt anything it has stored. That compatibility is a
+ * property worth stating in an interface, because the day someone writes a
+ * second implementation is the day it can quietly stop being true.
+ *
+ * **That promise is one-directional now, and deliberately.**
+ * `Support\SodiumEncrypter` seals new material with XChaCha20-Poly1305 and is
+ * what `Certificates\CertificateVault` defaults to, because a signing package
+ * should not be assembling encrypt-then-MAC by hand. Reading the older
+ * envelope is forever; writing it is over
+ * (docs/decisions/0103-encryption-is-the-platforms.md).
  */
 interface Encrypter
 {

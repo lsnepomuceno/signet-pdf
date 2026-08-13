@@ -12,6 +12,7 @@ use LSNepomuceno\Signet\Exceptions\EncryptionException;
 use LSNepomuceno\Signet\Exceptions\InvalidCertificateContentException;
 use LSNepomuceno\Signet\Exceptions\InvalidX509PrivateKeyException;
 use LSNepomuceno\Signet\Support\OpensslEncrypter;
+use LSNepomuceno\Signet\Support\SodiumEncrypter;
 use SensitiveParameter;
 
 /**
@@ -21,11 +22,24 @@ use SensitiveParameter;
  * ciphertext, and open() needs it: losing it means losing the certificate.
  *
  * The encrypter is injectable so a host application can supply its own, and
- * defaults to `Support\OpensslEncrypter`, which writes the same envelope
- * `lsnepomuceno/laravel-a1-pdf-sign` does (see `Contracts\Encrypter`).
+ * defaults to `Support\SodiumEncrypter`, which seals new material with
+ * XChaCha20-Poly1305.
+ *
+ * **Two envelopes are readable, and the key says which.** Everything sealed
+ * before the move carries the envelope `lsnepomuceno/laravel-a1-pdf-sign`
+ * writes, under a 16-byte AES-128-CBC key; everything sealed since carries
+ * libsodium's, under a 32-byte key. `withKey()` picks by length, which is
+ * unambiguous because those are the only two lengths this class has ever
+ * issued. Nothing has to be re-encrypted, and a caller that kept a hash from
+ * an older release keeps using it unchanged
+ * (docs/decisions/0103-encryption-is-the-platforms.md).
  */
 final readonly class CertificateVault
 {
+    /**
+     * The cipher the previous envelope used, kept because keys of its length
+     * are still opened. New material does not go through it.
+     */
     public const Cipher CIPHER = Cipher::Aes128Cbc;
 
     private function __construct(private Encrypter $encrypter) {}
@@ -37,17 +51,30 @@ final readonly class CertificateVault
      */
     public static function create(): self
     {
-        return new self(new OpensslEncrypter(OpensslEncrypter::generateKey(self::CIPHER), self::CIPHER));
+        return new self(new SodiumEncrypter(SodiumEncrypter::generateKey()));
     }
 
     /**
      * A vault bound to an existing key, as returned by seal().
      *
+     * The length chooses the envelope: 32 bytes is the current one, and the
+     * 16 bytes `self::CIPHER` requires is the one written before the move. A
+     * key of any other length belongs to neither and says so, rather than
+     * being padded into one of them.
+     *
      * @throws EncryptionException When the key is the wrong length.
      */
     public static function withKey(#[SensitiveParameter] string $key): self
     {
-        return new self(new OpensslEncrypter($key, self::CIPHER));
+        return new self(match (strlen($key)) {
+            SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES => new SodiumEncrypter($key),
+            self::CIPHER->keyLength() => new OpensslEncrypter($key, self::CIPHER),
+            default => throw new EncryptionException(
+                'the key must be ' . SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES . ' bytes, or '
+                . self::CIPHER->keyLength() . ' for material sealed before the envelope moved, '
+                . strlen($key) . ' given',
+            ),
+        });
     }
 
     /**

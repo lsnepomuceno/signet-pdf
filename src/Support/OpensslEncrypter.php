@@ -12,6 +12,12 @@ use SensitiveParameter;
 /**
  * AES encryption over ext-openssl, in a fixed interoperable envelope.
  *
+ * **This is the compatibility half of the pair, and no longer the default.**
+ * `Support\SodiumEncrypter` writes new material; this class exists so that
+ * everything sealed before it still opens, which is the whole reason the
+ * envelope is versioned rather than replaced
+ * (docs/decisions/0103-encryption-is-the-platforms.md).
+ *
  * The format is copied deliberately, not coincidentally. A certificate sealed
  * by `lsnepomuceno/laravel-a1-pdf-sign` has to open here, because an
  * application moving to this package cannot re-encrypt material whose
@@ -130,6 +136,15 @@ final readonly class OpensslEncrypter implements Encrypter
      */
     private function envelope(string $payload): array
     {
+        // Named rather than guessed. Without this the base64 below fails and
+        // reports a malformed envelope, which sends the reader looking for
+        // corruption instead of at the key they used.
+        if (SodiumEncrypter::wrote($payload)) {
+            throw new EncryptionException(
+                'this payload was written by the current envelope; open it with its 32-byte key',
+            );
+        }
+
         $json = base64_decode($payload, true);
 
         if ($json === false) {

@@ -39,7 +39,8 @@ src/
 ├── Seal/InterventionSealRenderer.php
 ├── Io/                                   # sources and destinations for documents
 ├── Support/                              # Files, SymfonyProcessRunner, TemporaryFile,
-│                                         # TempDirectory, OpensslEncrypter, SigningLog,
+│                                         # TempDirectory, SodiumEncrypter,
+│                                         # OpensslEncrypter, SigningLog,
 │                                         # PdfFilters, PngReader, SrgbProfile
 ├── Console/                              # sign, verify, fields, check
 ├── Exceptions/                           # one class per failure mode, all sharing

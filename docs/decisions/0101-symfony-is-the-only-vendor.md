@@ -122,3 +122,20 @@ recorded. A PSR interface package is also the weakest kind of dependency there
 is: `psr/log` is three interfaces, a trait and no implementation, and it is
 already in the tree of almost every application that would install this.
 
+## Outcome
+
+**Encryption was the hole this record filled worst, and it has since been
+filled properly.** The table above says "nothing: `Support\OpensslEncrypter`
+over `ext-openssl`", and the reasoning was that no component produces the
+envelope compatibility requires, which was true and answered the wrong
+question. Compatibility fixes what has to be *read*. It never required this
+package to keep *writing* a construction it assembles by hand.
+
+`Support\SodiumEncrypter` now seals new material with XChaCha20-Poly1305, and
+`Support\OpensslEncrypter` stays as the reader for everything sealed before it.
+The rule this record states survived the change without being bent: the
+replacement is `ext-sodium`, a platform extension beside the `ext-openssl` this
+package already requires, so no vendor was added at all. `defuse/php-encryption`
+and `paragonie/halite` were both weighed and both lost to the extension
+(docs/decisions/0103-encryption-is-the-platforms.md).
+
