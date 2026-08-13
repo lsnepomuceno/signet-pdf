@@ -29,6 +29,10 @@ composer require lsnepomuceno/signet-pdf
   enforced rather than merely written.
 - **Visible seals**, or invisible signatures.
 - **ICP-Brasil identities** read out of the certificate's own extensions.
+- **An optional audit trail** over PSR-3, whose context is an allowlist so a
+  key, a password or a path can never reach a log line.
+- **Fakes**, so an application can test its own signing path without a
+  certificate.
 
 It runs anywhere PHP 8.4 does. There is no framework, no container, no facade
 and no global state.
@@ -156,6 +160,7 @@ vendor/bin/signet sign contract.pdf --certificate cert.pfx --password-env CERT_P
 vendor/bin/signet verify contract-signed.pdf
 vendor/bin/signet verify contract-signed.pdf --json
 vendor/bin/signet fields contract.pdf
+vendor/bin/signet check
 ```
 
 The password is read from an environment variable and never from an argument: a
@@ -163,6 +168,52 @@ command line is visible in `ps` and in shell history.
 
 `verify` puts the verdict in the exit status, so a build can gate on it: `0`
 every signature verifies, `1` one does not, `2` the document could not be read.
+
+`check` reports what this package needs from the environment, before anything is
+signed. It exists because a missing `openssl` binary once made validation report
+every signature as invalid, in silence.
+
+## Testing your own code
+
+Signing for real in an application's test suite means a PKCS#12 bundle in its
+repository and a real CMS built for every case that merely passes through.
+Neither is necessary:
+
+```php
+use LSNepomuceno\Signet\Testing\FakeCertificateReader;
+use LSNepomuceno\Signet\Testing\FakePdfSigner;
+
+$signer = new FakePdfSigner();
+$signet = new Signet(signer: $signer, certificateReader: new FakeCertificateReader());
+
+// The code under test, unchanged.
+$signet->newSignature()->certificate('anything.pfx', '')->pdfContents($pdf)->sign();
+
+$signer->assertSigned();
+$signer->assertSignedWithProfile(SignatureProfile::PadesBT);
+$signer->assertNothingSigned();
+```
+
+`Testing\FakeProcessRunner` and `Testing\LocalTimestampAuthority` substitute the
+other two seams, so a suite can exercise B-T and above without reaching a real
+authority.
+
+## Audit trail
+
+Off by default: a package that logs unasked fills somebody's disk.
+
+```php
+use LSNepomuceno\Signet\Support\SigningLog;
+use LSNepomuceno\Signet\Signing\IncrementalSigner;
+
+$signer = new IncrementalSigner(..., log: new SigningLog($psrLogger));
+```
+
+**The allowlist is the feature.** This package handles bundles, private keys and
+passwords, and `#[\SensitiveParameter]` keeps a value out of a stack trace while
+having nothing to say about a line written to disk. The context is filtered
+against a list of keys that may appear rather than a list that may not: a
+denylist is how the next property added to a data object ends up in a log file.
 
 ## Requirements
 
