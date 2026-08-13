@@ -1,0 +1,17 @@
+/vendor/
+/.phpunit.cache/
+/.phpunit.result.cache
+/.idea/
+/.output/
+composer.lock
+
+# Generated certificates and signed output must never be committed.
+*.pdf
+*.pfx
+*.p12
+*.pem
+*.crt
+*.key
+
+# samples/ is the one place signed PDFs are tracked on purpose.
+!/samples/*.pdf

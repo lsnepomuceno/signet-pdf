@@ -1,0 +1,108 @@
+{
+  "name": "lsnepomuceno/signet-pdf",
+  "description": "Signet PDF: sign and verify PDF signatures in PHP. PAdES B-B to B-LTA, incremental updates, framework agnostic.",
+  "license": "MIT",
+  "type": "library",
+  "keywords": [
+    "pades",
+    "pdf-signature",
+    "pdf-sign",
+    "sign",
+    "cades",
+    "pkcs7",
+    "x509",
+    "timestamp",
+    "tsa",
+    "icp-brasil",
+    "incremental-update"
+  ],
+  "authors": [
+    {
+      "name": "Lucas Nepomuceno",
+      "email": "lsn.nepomuceno@gmail.com",
+      "homepage": "https://github.com/lsnepomuceno"
+    }
+  ],
+  "homepage": "https://github.com/lsnepomuceno/signet-pdf",
+  "support": {
+    "issues": "https://github.com/lsnepomuceno/signet-pdf/issues",
+    "source": "https://github.com/lsnepomuceno/signet-pdf"
+  },
+  "require": {
+    "php": ">=8.4 <8.6",
+    "ext-fileinfo": "*",
+    "ext-gd": "*",
+    "ext-json": "*",
+    "ext-mbstring": "*",
+    "ext-openssl": "*",
+    "ext-zlib": "*",
+    "intervention/image": "^3.11",
+    "symfony/console": "^8",
+    "symfony/http-client": "^8",
+    "symfony/http-client-contracts": "^3.6",
+    "symfony/process": "^8",
+    "symfony/uid": "^8",
+    "tecnickcom/tc-lib-pdf-sign": "^1.1"
+  },
+  "require-dev": {
+    "ergebnis/composer-normalize": "^2.52",
+    "ext-tokenizer": "*",
+    "laravel/pint": "^1.30",
+    "pestphp/pest": "^5.0",
+    "pestphp/pest-plugin-type-coverage": "^5.0",
+    "phpstan/phpstan": "^2.2",
+    "phpstan/phpstan-deprecation-rules": "^2.0",
+    "phpstan/phpstan-strict-rules": "^2.0",
+    "phpunit/phpunit": "^13.0",
+    "shipmonk/composer-dependency-analyser": "^1.8"
+  },
+  "suggest": {
+    "ext-gd": "To use GD library based image processing.",
+    "ext-imagick": "To use Imagick based image processing.",
+    "lsnepomuceno/laravel-a1-pdf-sign": "Laravel integration for this package."
+  },
+  "autoload": {
+    "psr-4": {
+      "LSNepomuceno\\Signet\\": "./src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "LSNepomuceno\\Signet\\Tests\\": "./tests"
+    }
+  },
+  "bin": [
+    "bin/signet"
+  ],
+  "config": {
+    "allow-plugins": {
+      "ergebnis/composer-normalize": true,
+      "pestphp/pest-plugin": true
+    }
+  },
+  "scripts": {
+    "analyse": "vendor/bin/phpstan analyse --memory-limit=1G",
+    "check": [
+      "@lint --test",
+      "@analyse",
+      "@deps",
+      "@test"
+    ],
+    "deps": "vendor/bin/composer-dependency-analyser",
+    "lint": "vendor/bin/pint",
+    "test": "vendor/bin/pest --fail-on-skipped",
+    "test:cov": "vendor/bin/pest --coverage",
+    "test:mutate": "vendor/bin/pest --mutate --path=src/Certificates,src/Signing,src/Support,src/Validation --exclude-group=network --parallel --min=65",
+    "test:types": "vendor/bin/pest --type-coverage --min=100"
+  },
+  "scripts-descriptions": {
+    "analyse": "Run PHPStan static analysis.",
+    "check": "Run everything the CI runs: style, static analysis and tests.",
+    "deps": "Report unused and shadow dependencies.",
+    "lint": "Fix code style with Pint (append --test to only check).",
+    "test": "Run the test suite. A skipped test fails it: every check has to run somewhere, and a skip is how one stops.",
+    "test:cov": "Run the test suite with line coverage (needs pcov or xdebug).",
+    "test:mutate": "Run mutation testing over the certificate, signing, support and validation code.",
+    "test:types": "Report type coverage across src/."
+  }
+}

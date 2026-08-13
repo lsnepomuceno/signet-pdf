@@ -1,0 +1,204 @@
+name: CI
+
+# Pull requests targeting main, and main itself after a merge.
+#
+# The second is not the duplication it looks like. A pull request is tested
+# against its own branch, not against main with it merged, so two branches that
+# are each green can still produce a main that is not: on 2026-08-11 two of them
+# were merged an hour apart, both touching the same test helper, and the merged
+# result was only verified because someone ran the suite by hand.
+#
+# It is also what makes the README's test badge able to say anything: a badge
+# reports the default branch, and until now the default branch had never been
+# built.
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  # head_ref is empty on a push, so fall back to the ref: without it every
+  # push to main would share one group and cancel the run before it.
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  # Superseding a pull request's run is a saving; superseding a main build is a
+  # merge that never got verified, which is the whole reason main is built.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor is 8.4, for the constructs the codebase uses outright:
+        # `new Reader()->parse()` without wrapping parentheses, and typed class
+        # constants. 8.5 is the other end of the supported range.
+        #
+        # There is no framework axis any more. That was the second dimension of
+        # this matrix and the reason a cell could fail at `composer update`
+        # before a test ran (docs/decisions/0005-php-and-laravel-floor.md).
+        php: [ '8.4', '8.5' ]
+
+    name: PHP ${{ matrix.php }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, fileinfo, openssl, json, gd, imagick, bcmath, zlib
+          coverage: pcov
+
+      - name: Validate PHP and Composer
+        run: |
+          php -v
+          composer -V
+          composer validate --strict
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --prefer-stable --no-interaction --no-progress
+
+      # setup-php sets COMPOSER_NO_AUDIT, so advisories were silently not
+      # checked. For a signing package a known vulnerability in the tree is
+      # worth blocking on, and --abandoned=ignore keeps the gate about
+      # vulnerabilities rather than about maintenance status.
+      - name: Audit dependencies
+        run: composer audit --abandoned=ignore
+
+      # qpdf checks the structure of what the revision writer emits, and
+      # poppler's pdfsig is the independent cross-check that has caught bugs
+      # this suite passed straight through (docs/spec/invariants.md, rule 3).
+      - name: Install qpdf and poppler
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq qpdf poppler-utils
+
+      # veraPDF is the reference PDF/A validator and the only thing that can
+      # establish a conformance verdict. Pinned rather than tracking "latest":
+      # a validator that changes its verdicts between builds cannot be the
+      # thing a gate is measured against.
+      # See docs/decisions/0025-what-signing-does-to-pdf-a.md.
+      - name: Install veraPDF
+        env:
+          VERAPDF_VERSION: '1.30.2'
+        run: |
+          set -eux
+          curl -sSL -o /tmp/verapdf.zip \
+            "https://software.verapdf.org/releases/${VERAPDF_VERSION%.*}/verapdf-greenfield-${VERAPDF_VERSION}-installer.zip"
+          unzip -q /tmp/verapdf.zip -d /tmp/verapdf-src
+          cat > /tmp/verapdf-auto.xml <<'XML'
+          <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+          <AutomatedInstallation langpack="eng">
+          <com.izforge.izpack.panels.htmlhello.HTMLHelloPanel id="welcome"/>
+          <com.izforge.izpack.panels.target.TargetPanel id="install_dir">
+          <installpath>/opt/verapdf</installpath>
+          </com.izforge.izpack.panels.target.TargetPanel>
+          <com.izforge.izpack.panels.packs.PacksPanel id="sdk_pack_select">
+          <pack index="0" name="veraPDF GUI" selected="true"/>
+          <pack index="1" name="veraPDF Mac and *nix Scripts" selected="true"/>
+          <pack index="3" name="veraPDF Corpus and Tests" selected="false"/>
+          <pack index="4" name="veraPDF Documentation" selected="false"/>
+          <pack index="5" name="veraPDF Sample Plugins" selected="false"/>
+          </com.izforge.izpack.panels.packs.PacksPanel>
+          <com.izforge.izpack.panels.install.InstallPanel id="install"/>
+          <com.izforge.izpack.panels.finish.FinishPanel id="finish"/>
+          </AutomatedInstallation>
+          XML
+          java -jar /tmp/verapdf-src/verapdf-greenfield-*/verapdf-izpack-installer-*.jar /tmp/verapdf-auto.xml
+          sudo ln -s /opt/verapdf/verapdf /usr/local/bin/verapdf
+          verapdf --version
+
+      # pyHanko is the reader that enforces /DocMDP, which pdfsig cannot
+      # surface at all. Pinned for the same reason veraPDF is.
+      #
+      # Two distributions: installing pyHanko alone gives no command, because
+      # the CLI is packaged and versioned separately.
+      # See docs/decisions/0031-certification-verified-by-a-reader.md.
+      - name: Install pyHanko
+        env:
+          PYHANKO_VERSION: '0.36.2'
+          PYHANKO_CLI_VERSION: '0.4.2'
+        run: |
+          set -eux
+          python3 -m venv /opt/pyhanko
+          /opt/pyhanko/bin/pip install --quiet \
+            "pyHanko==${PYHANKO_VERSION}" "pyhanko-cli==${PYHANKO_CLI_VERSION}"
+          sudo ln -s /opt/pyhanko/bin/pyhanko /usr/local/bin/pyhanko
+          pyhanko --version
+
+      # composer test carries --fail-on-skipped: every check has to run
+      # somewhere, and a skip is how one quietly stops. The PDF/A group used to
+      # skip itself when veraPDF was absent, and a job could go green having
+      # validated nothing.
+      - name: Run tests
+        run: composer test -- --exclude-group=network
+
+      # These reach a live timestamp authority, so an outage on their side is
+      # not a defect in this package. Reported, never blocking.
+      #
+      # The profiles themselves are gated offline against
+      # Testing\LocalTimestampAuthority, so what is left here is the only
+      # question a local authority cannot answer: whether this package
+      # interoperates with somebody else's
+      # (docs/decisions/0027-the-transport-is-a-seam.md).
+      - name: Run tests against a live timestamp authority
+        id: interop
+        continue-on-error: true
+        run: vendor/bin/pest --group=network
+
+      # continue-on-error hides the outcome behind a green tick, and that is how
+      # three of these tests were committed broken, went green, and were noticed
+      # only by someone reading the log. Non-blocking is the decision; invisible
+      # was not.
+      - name: Say how the live authority answered
+        if: always()
+        run: |
+          if [ "${{ steps.interop.outcome }}" = "success" ]; then
+            echo "### Live timestamp authority: passed" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ⚠️ Live timestamp authority: FAILED" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Not blocking, because an outage on a third party's side is not a defect here." >> "$GITHUB_STEP_SUMMARY"
+            echo "It is still the only check on interoperability with a real authority, so read the step before assuming it was the weather." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  quality:
+    name: Code style and static analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, dom, fileinfo, openssl, json, gd, imagick, bcmath, zlib
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --prefer-stable --no-interaction --no-progress
+
+      - name: Check code style
+        run: vendor/bin/pint --test
+
+      - name: Check dependencies
+        run: vendor/bin/composer-dependency-analyser
+
+      - name: Check composer.json formatting
+        run: composer normalize --dry-run
+
+      - name: Run static analysis
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+
+      # src/ is fully typed as of PR 5; the gate keeps it that way.
+      - name: Check type coverage
+        run: vendor/bin/pest --type-coverage --min=100

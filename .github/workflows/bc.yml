@@ -1,0 +1,105 @@
+---
+# Backward compatibility, checked against the last release rather than against
+# review.
+#
+# The package is a library: its public surface is other people's code. Every
+# release so far has changed a contract, and each time the break was found by
+# reading the diff, which is the method that eventually misses one. This is the
+# gate that does not get tired.
+#
+# It compares the last SemVer tag against HEAD, so the baseline moves on its own
+# as releases are cut and there is no list to maintain.
+#
+# **It reports, it does not block.** Every release since 2.0 has added a method
+# or a parameter to a published contract, and each shipped as a minor with a
+# "Breaking for implementers" section, because calling the contracts is
+# unaffected and only implementing them is not. A gate that fails on every
+# release of that shape would be turned off within two of them, so it writes
+# what it found into the job summary instead, where it is read rather than
+# worked around. Whether a break is acceptable stays a judgement, and the
+# summary is what informs it.
+#
+# **The tool is installed in a directory of its own, not into require-dev.**
+# Two reasons, and both are specific to this repository: it needs ext-intl and a
+# dependency tree of its own that would have to coexist with a pinned
+# phpunit/php-code-coverage and Pest 5, and composer-dependency-analyser would
+# report a binary nothing imports as an unused dependency.
+#
+# **Not the nyholm/roave-bc-check image.** It is pinned to an older parser and
+# fails outright on PHP 8.4's `new Foo()->bar()`, which this codebase uses
+# throughout. Measured on 2026-08-09: "Syntax error, unexpected
+# T_OBJECT_OPERATOR". The composer install carries a current nikic/php-parser
+# and reads the same file without complaint.
+name: BC
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bc-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  roave:
+    name: Backward compatibility
+    runs-on: ubuntu-latest
+
+    steps:
+      # The tool resolves its own baseline from the tags, so a shallow clone
+      # leaves it with nothing to compare against.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          # intl is the tool's requirement, not the package's. The package's own
+          # extensions are declared in composer.json.
+          extensions: intl, zip, openssl, mbstring, fileinfo, gd
+          coverage: none
+
+      - name: Install the checker
+        run: |
+          mkdir -p "${RUNNER_TEMP}/bc"
+          composer require --no-interaction --no-progress \
+            --working-dir="${RUNNER_TEMP}/bc" \
+            roave/backward-compatibility-check:^8.21
+
+      # Deliberately not blocking, see the note at the top of this file. The
+      # answer to a break is UPGRADE.md, the release notes and the version
+      # number, and those are decisions a person makes with the report in hand.
+      - name: Check for BC breaks
+        id: bc
+        continue-on-error: true
+        run: |
+          set +e
+          "${RUNNER_TEMP}/bc/vendor/bin/roave-backward-compatibility-check" \
+            | tee "${RUNNER_TEMP}/bc-report.txt"
+          echo "status=${PIPESTATUS[0]}" >> "${GITHUB_OUTPUT}"
+
+      # Passing quietly is what turns a report into noise nobody reads, so what
+      # it found goes where the pull request shows it.
+      - name: Publish what it found
+        if: always()
+        run: |
+          {
+            echo "## Backward compatibility"
+            echo
+            if [ "${{ steps.bc.outputs.status }}" = "0" ]; then
+              echo "No backwards-incompatible changes against the last release."
+            else
+              echo "**Breaks detected.** Answer them in \`UPGRADE.md\`, in the release"
+              echo "notes and in the version number. This job does not block the merge."
+              echo
+              echo '```'
+              grep -E '^\[BC\]|backwards-incompatible' "${RUNNER_TEMP}/bc-report.txt" || true
+              echo '```'
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"

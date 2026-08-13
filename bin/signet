@@ -1,0 +1,55 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * The signet command line.
+ *
+ * This exists because the package no longer needs a framework. The Laravel
+ * version offered `php artisan pdf:sign` and `php artisan pdf:validate-signature`,
+ * both reachable only from inside an application; a binary can be called from a
+ * CI pipeline written in anything, from a Makefile, or from a shell on a server
+ * that has no PHP application on it at all.
+ *
+ * `verify --json` is the reason it is worth having: a stable document a build
+ * can decide on, with the verdict also in the exit status.
+ */
+
+namespace LSNepomuceno\Signet;
+
+use LSNepomuceno\Signet\Console\FieldsCommand;
+use LSNepomuceno\Signet\Console\SignCommand;
+use LSNepomuceno\Signet\Console\VerifyCommand;
+use Symfony\Component\Console\Application;
+
+// Installed as a dependency, or being worked on in its own checkout.
+$autoloaders = [
+    __DIR__ . '/../../../autoload.php',
+    __DIR__ . '/../vendor/autoload.php',
+];
+
+$loaded = false;
+
+foreach ($autoloaders as $autoloader) {
+    if (file_exists($autoloader)) {
+        require $autoloader;
+        $loaded = true;
+
+        break;
+    }
+}
+
+if (! $loaded) {
+    fwrite(STDERR, "Could not find the Composer autoloader. Run `composer install`.\n");
+
+    return 1;
+}
+
+$application = new Application('signet', '1.0.0-dev');
+
+$application->addCommand(new SignCommand());
+$application->addCommand(new VerifyCommand());
+$application->addCommand(new FieldsCommand());
+
+$application->run();

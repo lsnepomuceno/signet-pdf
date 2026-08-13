@@ -1,0 +1,24 @@
+<?php
+
+declare(strict_types=1);
+
+namespace LSNepomuceno\Signet\Data;
+
+use SensitiveParameter;
+
+/**
+ * A certificate and its password, encrypted for storage.
+ *
+ * The hash is the key both values were encrypted with, and is required to
+ * decrypt them again.
+ */
+final readonly class EncryptedCertificate extends BaseData
+{
+    public function __construct(
+        public string $certificate,
+        #[SensitiveParameter]
+        public string $password,
+        #[SensitiveParameter]
+        public string $hash,
+    ) {}
+}
