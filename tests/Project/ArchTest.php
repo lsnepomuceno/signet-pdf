@@ -116,6 +116,32 @@ arch('enums are string-backed, so configuration can express them as plain string
     ->ignoring('LSNepomuceno\Signet\Enums\Asn1Tag');
 
 /**
+ * The regional layer keeps every guarantee the shared namespaces have.
+ *
+ * `IcpBrasil\` is bounded rather than special (0104). Its value objects and
+ * enums are the same kind of thing as the ones in `Data\` and `Enums\`, so the
+ * rules are repeated against its sub-namespaces rather than the classes being
+ * exempted for living somewhere else. Sub-namespaces rather than a flat
+ * `IcpBrasil\` exist for exactly this: a rule pointed at a namespace covers
+ * whatever is added to it later, and a rule listing class names does not.
+ */
+arch('the regional value objects are immutable')
+    ->expect('LSNepomuceno\Signet\IcpBrasil\Data')
+    ->toBeReadonly();
+
+arch('the regional value objects are closed for extension')
+    ->expect('LSNepomuceno\Signet\IcpBrasil\Data')
+    ->toBeFinal();
+
+arch('the regional value objects stay on the shared base')
+    ->expect('LSNepomuceno\Signet\IcpBrasil\Data')
+    ->toExtend('LSNepomuceno\Signet\Data\BaseData');
+
+arch('the regional enums are string-backed too')
+    ->expect('LSNepomuceno\Signet\IcpBrasil\Enums')
+    ->toBeStringBackedEnums();
+
+/**
  * The package does not know what Laravel is.
  *
  * This is the gate the whole separation rests on, and it is worth more than

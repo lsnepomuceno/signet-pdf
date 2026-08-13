@@ -77,21 +77,26 @@ but only these methods".
 
 ---
 
-## Known outstanding
+## The regional layer is bounded, not special
 
-`Validation\IcpBrasilValidator` and its readers sit in `Validation\`,
-`Certificates\` and `Data\` alongside everything else. They are a regional
-layer over a package with no other regional content, and they would read better
-under an `IcpBrasil\` namespace of their own: optional, clearly bounded, and
-obviously not part of what "valid" means.
+Everything that reads or checks a Brazilian certificate lives under
+`IcpBrasil\`: the reader, the validator, the two value objects, the three enums
+and the CPF / CNPJ check digits. Nothing regional lives anywhere else, and
+nothing in `IcpBrasil\` is required to sign or verify a document.
 
-Moving them was deliberately left out of the extraction. A port's one safety net
-is being able to compare each file against the source it came from, and
-reorganising namespaces in the same change destroys it. The constraint that
-matters is already enforced regardless of where the files live: `isValid()` does
-not consult any of them.
+That is what the namespace is for. A reader who never signs in Brazil can skip
+one directory, and a reader who does knows where all of it is. It also stops
+`Validation\` reading as though ICP-Brasil conformance were part of what this
+package means by "valid": `isValid()` does not consult any of it, and now the
+layout says so too.
 
-Rationale and alternatives: [0018](../decisions/0018-prefer-the-platforms-own-constructs.md).
+`IcpBrasil\Data\` and `IcpBrasil\Enums\` mirror the namespaces around them so
+that the architecture rules can be pointed at them. Value objects are readonly,
+final and on `Data\BaseData`; enums are string-backed. A rule aimed at a
+namespace covers whatever is added to it later, which a rule listing class names
+does not.
+
+Rationale and alternatives: [0104](../decisions/0104-the-regional-layer-is-its-own-namespace.md).
 
 ---
 

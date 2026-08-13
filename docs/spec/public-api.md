@@ -25,9 +25,16 @@ src/
 ├── Data/                                 # final readonly value objects
 ├── Enums/                                # FontSize, ImageDriver, SignatureProfile,
 │                                         # CertificationLevel, RevocationStatus,
-│                                         # EncryptionAlgorithm, the ICP-Brasil three
+│                                         # EncryptionAlgorithm
 ├── Certificates/                         # readers, parser, vault, factory,
-│                                         # ICP-Brasil and subjectAltName readers
+│                                         # subjectAltName reader
+├── IcpBrasil/                            # the regional layer, all of it, and
+│   │                                     # nothing else depends on any of it
+│   ├── Reader.php                        # the identity a certificate carries
+│   ├── Validator.php                     # structural conformance, never trust
+│   ├── NationalRegistry.php              # CPF and CNPJ check digits
+│   ├── Data/                             # Identity, Report
+│   └── Enums/                            # CertificateType, Finding, OtherName
 ├── Signing/
 │   ├── PendingSignature.php              # the fluent builder
 │   ├── IncrementalSigner.php             # bound to PdfSigner
@@ -150,7 +157,7 @@ $signet->decryptCertificate($hashKey, $encrypted, $password, $isBase64);
 $signet->validate($pdfPath);        // Data\SignatureReport
 $signet->signatureFields($pdfPath);
 $signet->extendArchive($pdfPath);   // a further archive timestamp, no certificate
-$signet->icpBrasil($pfxPath, $password);     // Data\IcpBrasilReport
+$signet->icpBrasil($pfxPath, $password);     // IcpBrasil\Data\Report
 
 $signet->newSignature();            // Signing\PendingSignature
 $signet->vault();                   // Certificates\CertificateVault

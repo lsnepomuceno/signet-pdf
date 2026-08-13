@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace LSNepomuceno\Signet\Testing;
 
-use LSNepomuceno\Signet\Enums\IcpBrasilCertificateType;
-use LSNepomuceno\Signet\Enums\IcpBrasilOtherName;
 use LSNepomuceno\Signet\Exceptions\CertificateOutputNotFoundException;
+use LSNepomuceno\Signet\IcpBrasil\Enums\CertificateType;
+use LSNepomuceno\Signet\IcpBrasil\Enums\OtherName;
 use LSNepomuceno\Signet\Support\TemporaryFile;
 use OpenSSLAsymmetricKey;
 use OpenSSLCertificate;
@@ -159,7 +159,7 @@ final class DebugCertificate
      * @throws CertificateOutputNotFoundException
      */
     public static function icpBrasil(
-        IcpBrasilCertificateType $type = IcpBrasilCertificateType::Individual,
+        CertificateType $type = CertificateType::Individual,
         array $otherNames = [],
         string $commonName = 'JOAO DA SILVA:11144477735',
         int $daysValid = 600,
@@ -291,26 +291,26 @@ final class DebugCertificate
      *
      * @return array<string, string>
      */
-    private static function icpBrasilFields(IcpBrasilCertificateType $type): array
+    private static function icpBrasilFields(CertificateType $type): array
     {
         // 8 birth + 11 CPF + 11 NIS + 15 RG + 6 issuer, and "unavailable" is
         // written as zeros rather than left out.
         $holder = '11081985' . '11144477735' . '12345678901' . '000000012345678' . 'SSPSP';
 
-        if ($type === IcpBrasilCertificateType::LegalEntity) {
+        if ($type === CertificateType::LegalEntity) {
             return [
-                IcpBrasilOtherName::ResponsibleName->value => 'JOAO DA SILVA',
-                IcpBrasilOtherName::CompanyRegistry->value => '11222333000181',
-                IcpBrasilOtherName::ResponsibleData->value => $holder,
-                IcpBrasilOtherName::CompanySocialSecurity->value => '000000000000',
+                OtherName::ResponsibleName->value => 'JOAO DA SILVA',
+                OtherName::CompanyRegistry->value => '11222333000181',
+                OtherName::ResponsibleData->value => $holder,
+                OtherName::CompanySocialSecurity->value => '000000000000',
             ];
         }
 
         return [
-            IcpBrasilOtherName::HolderData->value => $holder,
+            OtherName::HolderData->value => $holder,
             // 12 registration + 3 zone + 4 section + 22 municipality.
-            IcpBrasilOtherName::VoterRegistration->value => '465555610469' . '001' . '0477' . 'SAOPAULOSP',
-            IcpBrasilOtherName::HolderSocialSecurity->value => '000000000000',
+            OtherName::VoterRegistration->value => '465555610469' . '001' . '0477' . 'SAOPAULOSP',
+            OtherName::HolderSocialSecurity->value => '000000000000',
         ];
     }
 

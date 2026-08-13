@@ -79,4 +79,5 @@ guarantee two records with the same number within a release or two.
 | [0101](0101-symfony-is-the-only-vendor.md) | Symfony is the only framework vendor the core depends on |
 | [0102](0102-documents-arrive-as-sources.md) | A document arrives as a source and leaves through a destination |
 | [0103](0103-encryption-is-the-platforms.md) | Encryption is the platform's, and the envelope is versioned |
+| [0104](0104-the-regional-layer-is-its-own-namespace.md) | The regional layer is its own namespace |
 

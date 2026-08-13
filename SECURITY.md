@@ -52,7 +52,7 @@ an advisory:
 - **RC4-encrypted documents are refused rather than signed**, because signing one
   means writing RC4 back into it
   ([0030](docs/decisions/0030-signing-a-document-that-is-encrypted.md)).
-- **A self-signed certificate can satisfy `IcpBrasilReport::conforms()`.** That
+- **A self-signed certificate can satisfy `Report::conforms()`.** That
   check is structural, and it says so everywhere it appears
   ([0029](docs/decisions/0029-the-identity-a-brazilian-signer-is-known-by.md)).
 - **Test-only classes** under `Testing\` generate throwaway certificates and a
