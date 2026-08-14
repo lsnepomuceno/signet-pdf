@@ -201,7 +201,17 @@ $report->signers();      // list<Data\Signer>
 $report->timestamps();   // DocTimeStamps, classified separately
 $report->latest();       // ?Data\SignatureDetails
 $report->findings();     // list<Enums\ValidationFinding>, unioned across the document
+$report->verifiableUntil();             // ?int, an archive timestamp renews it
+$report->isSelfContained();             // bool, nothing detectable missing for offline use
+$report->missingValidationMaterial();   // list<string>, what is missing and for which signature
 ```
+
+`missingValidationMaterial()` is the sufficiency question `hasLongTermMaterial()`
+does not ask: a store can name every signature and carry no revocation material
+at all. **An empty list means nothing detectable is missing, not that the
+document is proven self-contained**: checking that each certificate has a
+matching OCSP or CRL needs the store's objects decoded
+([0109](../decisions/0109-offline-completeness-is-reported.md)).
 
 ### Findings
 
