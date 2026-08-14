@@ -48,6 +48,10 @@ final readonly class SignatureDetails extends BaseData
      *                                      actually satisfies, from what the
      *                                      document carries rather than what it
      *                                      claims.
+     * @param  list<RevisionDiff>  $changesAfter  What each revision appended
+     *                                             after this signature
+     *                                             contained. Empty when it
+     *                                             covers the whole document.
      * @param  ?string  $messageDigest  The digest the signer put their name to,
      *                                   lowercase hex, from the CMS's
      *                                   messageDigest signed attribute. Short
@@ -90,7 +94,35 @@ final readonly class SignatureDetails extends BaseData
         public bool $byteRangeSound = true,
         public ?string $messageDigest = null,
         public ?string $digestAlgorithm = null,
+        public array $changesAfter = [],
     ) {}
+
+    /**
+     * Whether everything appended after this signature was itself a signature.
+     *
+     * The predicate an application actually asks. `coversWholeDocument` says a
+     * later revision exists; this says every one of them was a further
+     * signature or an archive timestamp and its machinery, which is the
+     * legitimate reason to append to a signed document.
+     *
+     * **True is not a verdict of safe.** A counter-signer produces exactly this
+     * shape, and so does anyone else able to append a signature. What it rules
+     * out is an annotation, a page or an action arriving in a revision that
+     * signs nothing (docs/decisions/0110-a-revision-says-what-it-changed.md).
+     *
+     * True for a signature nothing follows, which is the vacuous case and the
+     * honest one: nothing was appended, so nothing appended was wrong.
+     */
+    public function onlyAddedSignatures(): bool
+    {
+        foreach ($this->changesAfter as $revision) {
+            if (! $revision->isFurtherSignature()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     /**
      * The point after which this signature can no longer be verified on its

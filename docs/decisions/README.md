@@ -85,4 +85,5 @@ guarantee two records with the same number within a release or two.
 | [0107](0107-the-byte-range-is-checked.md) | The `/ByteRange` is checked before it is believed |
 | [0108](0108-a-signature-can-name-itself.md) | A signature can name itself, and say how long it lasts |
 | [0109](0109-offline-completeness-is-reported.md) | Offline completeness is reported, and its limits are stated |
+| [0110](0110-a-revision-says-what-it-changed.md) | A revision says what it changed |
 
