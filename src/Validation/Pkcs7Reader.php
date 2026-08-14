@@ -134,7 +134,9 @@ final class Pkcs7Reader
 
                 return [
                     'digest' => bin2hex($value->content($der)),
-                    'algorithm' => self::DIGESTS[$algorithm] ?? 'unknown',
+                    // A CMS naming no digest algorithm, or one outside the set
+                    // PAdES uses, still has a digest worth reporting.
+                    'algorithm' => $algorithm === null ? 'unknown' : (self::DIGESTS[$algorithm] ?? 'unknown'),
                 ];
             }
         }
