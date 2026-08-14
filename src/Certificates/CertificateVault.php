@@ -69,11 +69,17 @@ final readonly class CertificateVault
         return new self(match (strlen($key)) {
             SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES => new SodiumEncrypter($key),
             self::CIPHER->keyLength() => new OpensslEncrypter($key, self::CIPHER),
-            default => throw new EncryptionException(
-                'the key must be ' . SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES . ' bytes, or '
-                . self::CIPHER->keyLength() . ' for material sealed before the envelope moved, '
-                . strlen($key) . ' given',
-            ),
+            // sprintf rather than five concatenations, and not for taste: each
+            // join is its own mutation, so a message assembled in pieces
+            // generates a pile of them that no honest test kills. Asserting the
+            // exact prose to kill them would pin the wording instead of the
+            // behaviour, which is worse than leaving them alive.
+            default => throw new EncryptionException(sprintf(
+                'the key must be %d bytes, or %d for material sealed before the envelope moved, %d given',
+                SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES,
+                self::CIPHER->keyLength(),
+                strlen($key),
+            )),
         });
     }
 
