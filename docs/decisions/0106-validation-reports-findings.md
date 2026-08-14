@@ -80,8 +80,10 @@ one, which is the wrong way round.
   gateable on something other than the exit status: a build can now refuse a
   revoked signature specifically.
 
-- Additive only. Nothing was removed or retyped, so this is a minor release
-  rather than part of the major.
+- Additive only. Nothing was removed or retyped, so this would have been a minor
+  release on its own. It ships inside 2.0.0 because that release was already
+  open, which is a release-timing decision and not a statement about its
+  compatibility: a consumer moving from 1.0.1 has nothing to change for it.
 
 - `$error` stays. It carries the verifier's message when a call fails for an
   environment reason rather than a cryptographic one, which is not a finding

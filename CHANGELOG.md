@@ -16,8 +16,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Four changes, three of them breaking. Each closes something the extraction
-recorded as outstanding rather than decided.
+Nothing yet.
+
+## [2.0.0] - 2026-08-13
+
+Three breaking changes, each closing something the extraction recorded as
+outstanding rather than decided, and six additions to what validation can tell
+you about a document.
+
+**The most dangerous change here is invisible to a backward-compatibility
+checker.** `CertificateVault::create()` keeps its signature and returns a key of
+a different length, so storage sized for the old one truncates it silently. The
+checker reports twelve breaks, and it also skipped seventeen files it could not
+compile, so twelve is a floor rather than a total. Read `UPGRADE.md`, not the
+green check.
 
 ### Removed
 
@@ -203,6 +215,7 @@ guarantee and an encryption envelope rather than a dependency.
   in `lsnepomuceno/laravel-a1-pdf-sign`, which remains a separate
   implementation rather than a consumer of this one.
 
-[Unreleased]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.1...HEAD
+[Unreleased]: https://github.com/lsnepomuceno/signet-pdf/compare/2.0.0...HEAD
+[2.0.0]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.1...2.0.0
 [1.0.1]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/lsnepomuceno/signet-pdf/releases/tag/1.0.0
