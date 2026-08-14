@@ -93,6 +93,16 @@ recorded as outstanding rather than decided.
   horizon, which is what it is for. Null means unanswerable, never "never".
   ([0108](docs/decisions/0108-a-signature-can-name-itself.md))
 
+- **`SignatureReport::missingValidationMaterial()` and `isSelfContained()`.**
+  `hasLongTermMaterial()` answers presence; B-LT promises a verifier could
+  decide offline. A store with one certificate, a `/VRI` entry and no OCSP
+  response satisfies the first completely and leaves an offline verifier unable
+  to decide anything. A list of what is missing rather than a boolean, because
+  "not self-contained" gives an operator nothing to do. **It cannot check that
+  each certificate has a matching OCSP or CRL**, which needs the store's objects
+  decoded, and both docblocks say so.
+  ([0109](docs/decisions/0109-offline-completeness-is-reported.md))
+
 - `Enums\SealPage::First`, which was previously unsayable. It is the first page
   the page tree declares, which is the lowest-numbered page object only when the
   producer wrote them in order.

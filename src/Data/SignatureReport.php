@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LSNepomuceno\Signet\Data;
 
 use LSNepomuceno\Signet\Enums\CertificationLevel;
+use LSNepomuceno\Signet\Enums\RevocationStatus;
 use LSNepomuceno\Signet\Enums\ValidationFinding;
 
 /**
@@ -207,6 +208,82 @@ final readonly class SignatureReport extends BaseData
         }
 
         return $findings;
+    }
+
+    /**
+     * What stands between this document and being validated with no network.
+     *
+     * `hasLongTermMaterial()` answers whether a store is present and names
+     * every signature. That is necessary and it is not sufficient: a store can
+     * satisfy it while carrying no revocation material at all, or fewer
+     * certificates than a chain needs, and B-LT's promise is that a verifier
+     * could reach a decision offline rather than that a dictionary exists.
+     *
+     * **What this cannot determine, and does not claim.** Whether each
+     * individual certificate has a matching, verifying OCSP response or CRL
+     * needs the store's objects resolved and decoded, and
+     * `Validation\SecurityStoreReader` counts references rather than reading
+     * them. So an empty list here means nothing detectable is missing, not that
+     * the document is proven self-contained
+     * (docs/decisions/0109-offline-completeness-is-reported.md).
+     *
+     * @return list<string> Empty when nothing detectable is missing.
+     */
+    public function missingValidationMaterial(): array
+    {
+        if ($this->securityStore === null) {
+            return ['the document carries no Document Security Store'];
+        }
+
+        if ($this->securityStore->isEmpty()) {
+            return ['the Document Security Store is empty'];
+        }
+
+        $missing = [];
+
+        if ($this->securityStore->ocspResponses + $this->securityStore->crls === 0) {
+            $missing[] = 'the store carries no OCSP responses and no CRLs, so revocation cannot be decided offline';
+        }
+
+        foreach ($this->signatures as $index => $signature) {
+            if (! $signature->countsTowardValidity()) {
+                continue;
+            }
+
+            $position = $index + 1;
+
+            if (! $this->securityStore->covers($signature)) {
+                $missing[] = "signature {$position} has no /VRI entry, so the store carries nothing for it";
+
+                continue;
+            }
+
+            // A chain of n certificates needs n in the store to be rebuilt
+            // without fetching any. Fewer is decisive; more is ordinary,
+            // because one store serves every signature.
+            if ($signature->chain !== [] && $this->securityStore->certificates < count($signature->chain)) {
+                $missing[] = "signature {$position} has a chain of " . count($signature->chain)
+                    . ' certificates and the store carries ' . $this->securityStore->certificates;
+            }
+
+            if ($signature->revocation === RevocationStatus::Unknown) {
+                $missing[] = "signature {$position} has material in the store that does not answer whether it was revoked";
+            }
+        }
+
+        return $missing;
+    }
+
+    /**
+     * Whether everything detectable for an offline validation is present.
+     *
+     * The convenience over `missingValidationMaterial()`, and the weaker of the
+     * two: it cannot tell "nothing is missing" from "nothing missing could be
+     * detected". Read the list when that distinction matters.
+     */
+    public function isSelfContained(): bool
+    {
+        return $this->missingValidationMaterial() === [];
     }
 
     /**
