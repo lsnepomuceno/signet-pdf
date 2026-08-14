@@ -83,6 +83,7 @@ final readonly class PdfSignatureValidator implements SignatureValidator
         foreach ($extracted as $signature) {
             [$open, $close, $trailing] = $signature['byteRange'];
 
+            $digest = $this->reader->messageDigest($signature['cms']);
             $ordered = $this->chains->build($this->reader->certificates($signature['cms']));
             $chain = $this->reader->signersFromPem($ordered);
 
@@ -125,6 +126,8 @@ final readonly class PdfSignatureValidator implements SignatureValidator
                 stampedAt: $stamp['at'],
                 subFilter: $signature['subFilter'],
                 byteRangeSound: $signature['byteRangeSound'],
+                messageDigest: $digest['digest'] ?? null,
+                digestAlgorithm: $digest['algorithm'] ?? null,
                 profile: SignatureProfile::classify(
                     $signature['subFilter'],
                     $stamp['verified'] === true,

@@ -210,6 +210,41 @@ final readonly class SignatureReport extends BaseData
     }
 
     /**
+     * The point after which this document can no longer be verified, as a unix
+     * timestamp.
+     *
+     * **An archive timestamp renews the horizon, which is what it is for.**
+     * While one verifies, the material beneath it is attested even after that
+     * material's own certificates have expired, so the document's horizon is
+     * the outermost timestamp's rather than the signatures' (0022).
+     *
+     * Without one the answer is the earliest expiry across the signatures: the
+     * first to become unverifiable decides, because a document is not partly
+     * verifiable.
+     *
+     * Null when nothing carries an expiry. That is "unanswerable", not "never",
+     * and an archive that treats it as the latter will be surprised.
+     */
+    public function verifiableUntil(): ?int
+    {
+        $renewed = array_values(array_filter(array_map(
+            static fn(SignatureDetails $timestamp): ?int => $timestamp->verifiableUntil(),
+            $this->timestamps(),
+        ), static fn(?int $horizon): bool => $horizon !== null));
+
+        if ($renewed !== []) {
+            return max($renewed);
+        }
+
+        $own = array_values(array_filter(array_map(
+            static fn(SignatureDetails $signature): ?int => $signature->verifiableUntil(),
+            $this->signatures,
+        ), static fn(?int $horizon): bool => $horizon !== null));
+
+        return $own === [] ? null : min($own);
+    }
+
+    /**
      * The signature applied last, which is the only one covering the whole file.
      */
     public function latest(): ?SignatureDetails

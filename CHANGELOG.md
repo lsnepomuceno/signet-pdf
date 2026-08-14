@@ -80,6 +80,19 @@ recorded as outstanding rather than decided.
   hexadecimal. Nothing changes for a well-formed document.
   ([0107](docs/decisions/0107-the-byte-range-is-checked.md))
 
+- **`SignatureDetails::$messageDigest` and `$digestAlgorithm`.** The digest the
+  signer put their name to, lowercase hex, short and stable enough for an audit
+  trail to record and compare later. Not proof on its own: it says what the
+  signature claims, and whether the signature is worth believing is
+  `$verified`'s question.
+
+- **`verifiableUntil()`, on both `SignatureDetails` and `SignatureReport`.**
+  When a signature stops being verifiable, so a document can be re-stamped
+  before its chain can no longer be built. The chain's earliest expiry rather
+  than the leaf's, and at document level an archive timestamp renews the
+  horizon, which is what it is for. Null means unanswerable, never "never".
+  ([0108](docs/decisions/0108-a-signature-can-name-itself.md))
+
 - `Enums\SealPage::First`, which was previously unsayable. It is the first page
   the page tree declares, which is the lowest-numbered page object only when the
   producer wrote them in order.
