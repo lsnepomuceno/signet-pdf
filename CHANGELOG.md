@@ -103,6 +103,18 @@ recorded as outstanding rather than decided.
   decoded, and both docblocks say so.
   ([0109](docs/decisions/0109-offline-completeness-is-reported.md))
 
+- **`SignatureDetails::onlyAddedSignatures()`, `$changesAfter`,
+  `Validation\RevisionAnalyzer` and `Enums\RevisionChange`.**
+  `coversWholeDocument` said bytes were appended after a signature and never
+  what they did, which is the live attack surface for PAdES: append an
+  annotation over the payment terms and the signature still verifies, because
+  the new bytes are outside its `/ByteRange`. Each revision is now reported with
+  the objects it defines and what they touched, and `onlyAddedSignatures()` is
+  the predicate an application asks. **True is not a verdict of safe**: a
+  counter-signer produces the same shape. It reads objects rather than the
+  object graph, and the limits are stated.
+  ([0110](docs/decisions/0110-a-revision-says-what-it-changed.md))
+
 - `Enums\SealPage::First`, which was previously unsayable. It is the first page
   the page tree declares, which is the lowest-numbered page object only when the
   producer wrote them in order.

@@ -257,7 +257,16 @@ $signature->signerWasValidWhenSigned(); // ?bool, null when either date is unkno
 $signature->verifiableUntil();          // ?int, when the chain can no longer be built
 $signature->messageDigest;              // ?string, lowercase hex, what the signer signed
 $signature->digestAlgorithm;            // ?string, 'sha256' and friends
+$signature->changesAfter;               // list<Data\RevisionDiff>
+$signature->onlyAddedSignatures();      // bool
 ```
+
+`onlyAddedSignatures()` is the question `coversWholeDocument` cannot answer: was
+everything appended after this signature itself a signature, or did a revision
+add an annotation, a page or an action. **True is not a verdict of safe** — a
+counter-signer produces the same shape, and so does anyone able to append a
+signature. It rules out content changes, not the right to sign
+([0110](../decisions/0110-a-revision-says-what-it-changed.md)).
 
 `verifiableUntil()` is the chain's **earliest** expiry, not the leaf's: an
 expired intermediate breaks the path while the leaf is still inside its window.

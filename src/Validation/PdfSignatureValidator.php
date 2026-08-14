@@ -39,6 +39,9 @@ final readonly class PdfSignatureValidator implements SignatureValidator
         private TimestampTokenReader $timestamps = new TimestampTokenReader(),
         private RevocationReader $revocations = new RevocationReader(new DocumentReader()),
         private RevocationChecker $revocationChecker = new RevocationChecker(),
+        // Appended for the same reason as the two above: a caller who passed
+        // the earlier readers positionally keeps meaning what they meant.
+        private RevisionAnalyzer $revisions = new RevisionAnalyzer(),
     ) {}
 
     /**
@@ -128,6 +131,7 @@ final readonly class PdfSignatureValidator implements SignatureValidator
                 byteRangeSound: $signature['byteRangeSound'],
                 messageDigest: $digest['digest'] ?? null,
                 digestAlgorithm: $digest['algorithm'] ?? null,
+                changesAfter: $this->revisions->after($pdfContents, $signature['coverageEnd']),
                 profile: SignatureProfile::classify(
                     $signature['subFilter'],
                     $stamp['verified'] === true,
