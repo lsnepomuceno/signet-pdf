@@ -99,7 +99,7 @@
     "normalize": "composer normalize",
     "test": "vendor/bin/pest --fail-on-skipped",
     "test:cov": "vendor/bin/pest --coverage",
-    "test:mutate": "vendor/bin/pest --mutate --path=src/Certificates,src/IcpBrasil,src/Signing,src/Support,src/Validation --exclude-group=network --parallel --min=65",
+    "test:mutate": "vendor/bin/pest --mutate --path=src/Certificates,src/IcpBrasil,src/Signing,src/Support,src/Validation --exclude-group=network --min=65",
     "test:types": "vendor/bin/pest --type-coverage --min=100"
   },
   "scripts-descriptions": {
@@ -110,7 +110,7 @@
     "normalize": "Sort and format composer.json. CI runs it with --dry-run.",
     "test": "Run the test suite. A skipped test fails it: every check has to run somewhere, and a skip is how one stops.",
     "test:cov": "Run the test suite with line coverage (needs pcov or xdebug).",
-    "test:mutate": "Run mutation testing over the certificate, ICP-Brasil, signing, support and validation code.",
+    "test:mutate": "Run mutation testing over the certificate, ICP-Brasil, signing, support and validation code. Serial on purpose: --parallel produces no mutations at all in the container.",
     "test:types": "Report type coverage across src/."
   }
 }
