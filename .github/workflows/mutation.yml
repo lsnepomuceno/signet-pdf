@@ -160,6 +160,19 @@ jobs:
           coverage: pcov
           tools: composer:v2
 
+      # This job needs the same instruments the pull-request workflow installs,
+      # and for a sharper reason than going green. A test that cannot run cannot
+      # kill a mutation, so an absent tool does not merely skip: it reports every
+      # mutation that test would have caught as surviving. It is the same
+      # argument the matrix comment makes against --shard, one step further out.
+      #
+      # Without these, tests/Signing/EncryptedDocumentTest fails outright rather
+      # than skipping, because it reaches qpdf through the process runner and
+      # gets MissingBinaryException. Every leg of this matrix was red for that
+      # reason on its first run.
+      - name: Install qpdf and poppler
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq qpdf poppler-utils
+
       - name: Install dependencies
         run: composer update --prefer-dist --prefer-stable --no-interaction --no-progress
 
