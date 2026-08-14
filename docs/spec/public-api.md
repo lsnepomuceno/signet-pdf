@@ -244,7 +244,24 @@ Each `Data\SignatureDetails` also carries when it claims to have been signed:
 ```php
 $signature->signedAt;                   // ?int, unix timestamp, null when absent
 $signature->signerWasValidWhenSigned(); // ?bool, null when either date is unknown
+$signature->verifiableUntil();          // ?int, when the chain can no longer be built
+$signature->messageDigest;              // ?string, lowercase hex, what the signer signed
+$signature->digestAlgorithm;            // ?string, 'sha256' and friends
 ```
+
+`verifiableUntil()` is the chain's **earliest** expiry, not the leaf's: an
+expired intermediate breaks the path while the leaf is still inside its window.
+`SignatureReport::verifiableUntil()` answers for the document, where an archive
+timestamp renews the horizon rather than the signatures deciding it
+([0022](../decisions/0022-the-archive-timestamp-is-a-chain.md)).
+
+Null from either means the question cannot be answered, not that the answer is
+"never".
+
+`messageDigest` is the `messageDigest` signed attribute: what the signer hashed.
+**It is not proof on its own.** It says what the signature claims, and whether
+the signature is worth believing is `verified`'s question. It exists to be
+recorded now and compared later.
 
 `signedAt` is read from `/M` in the signature dictionary. That is inside the
 range the signature covers, so altering it breaks the signature, but it is still

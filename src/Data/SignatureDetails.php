@@ -48,6 +48,13 @@ final readonly class SignatureDetails extends BaseData
      *                                      actually satisfies, from what the
      *                                      document carries rather than what it
      *                                      claims.
+     * @param  ?string  $messageDigest  The digest the signer put their name to,
+     *                                   lowercase hex, from the CMS's
+     *                                   messageDigest signed attribute. Short
+     *                                   and stable enough to record, and not
+     *                                   proof on its own: what it says is what
+     *                                   the signature claims.
+     * @param  ?string  $digestAlgorithm  The algorithm behind it, as a name.
      * @param  bool  $byteRangeSound  Whether the /ByteRange describes what a
      *                                 signature's must: a delimited gap that is
      *                                 the value of a /Contents key, with both
@@ -81,7 +88,37 @@ final readonly class SignatureDetails extends BaseData
         public ?SignatureProfile $profile = null,
         public RevocationStatus $revocation = RevocationStatus::Unknown,
         public bool $byteRangeSound = true,
+        public ?string $messageDigest = null,
+        public ?string $digestAlgorithm = null,
     ) {}
+
+    /**
+     * The point after which this signature can no longer be verified on its
+     * own, as a unix timestamp.
+     *
+     * The earliest expiry in the chain, because a chain is only as good as its
+     * soonest-expiring link: once an intermediate is past its validity the path
+     * cannot be built, whatever the leaf says.
+     *
+     * **This ignores any archive timestamp over it**, which is the whole point
+     * of one. `SignatureReport::verifiableUntil()` is the document-level answer
+     * and does account for them (0022,
+     * docs/decisions/0108-a-signature-can-name-itself.md).
+     *
+     * Null when no certificate carries an expiry, which means the question
+     * cannot be answered rather than that the answer is "never".
+     */
+    public function verifiableUntil(): ?int
+    {
+        $chain = $this->chain === [] ? $this->signers : $this->chain;
+
+        $expiries = array_values(array_filter(
+            array_map(static fn(Signer $signer): ?int => $signer->validTo, $chain),
+            static fn(?int $expiry): bool => $expiry !== null,
+        ));
+
+        return $expiries === [] ? null : min($expiries);
+    }
 
     /**
      * Whether this signature carries an RFC 3161 token at all.

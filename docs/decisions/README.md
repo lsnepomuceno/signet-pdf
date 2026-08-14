@@ -83,4 +83,5 @@ guarantee two records with the same number within a release or two.
 | [0105](0105-the-seal-page-is-named.md) | The seal's page is named, not sentinelled |
 | [0106](0106-validation-reports-findings.md) | Validation reports findings, and only one of them is a verdict |
 | [0107](0107-the-byte-range-is-checked.md) | The `/ByteRange` is checked before it is believed |
+| [0108](0108-a-signature-can-name-itself.md) | A signature can name itself, and say how long it lasts |
 
