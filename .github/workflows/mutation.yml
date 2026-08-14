@@ -108,6 +108,14 @@ jobs:
         # namespace, because the score is not reproducible to the point: it
         # tracks how many mutations time out, which tracks machine load.
         #
+        # **Every measurement below predates two fixes and none of them has
+        # been reproduced since.** The runs they came from had no veraPDF,
+        # pyHanko or testgrammar, so 44 tests skipped and every mutation those
+        # would have killed counted as surviving; and they carried --parallel,
+        # which produces no mutations at all. Treat them as provenance, not as
+        # numbers, until a serial run with the full toolchain has replaced
+        # them.
+        #
         # Measurements below are the nightly runs of 2026-08-09 through
         # 2026-08-12, read from the logs rather than remembered. Every one of
         # them is higher than the pair each floor was originally set from, so
@@ -138,13 +146,10 @@ jobs:
           # All three had been gated and silently stopped being: the same
           # failure as the Support entry above, one release later.
           #
-          # The two measurements are 80.54 and 80.54, and they are not from
-          # here: they were run locally and serially, because --parallel
-          # silently produces no mutations at all on that machine. A serial
-          # run counts no timeouts, so it scores higher than this job will.
-          # The floor is therefore set eight points below rather than the four
-          # the entries above use, and it is provisional until two nightly
-          # runs have measured it in the shape that actually runs here.
+          # The two measurements are 80.54 and 80.54, taken locally. This job
+          # runs serially too now, so the shapes match and the eight-point gap
+          # below them is more headroom than it needs. Provisional until two
+          # nightly runs measure it, and the rule only allows raising it.
           - namespace: IcpBrasil      # 80.54 / 80.54, measured serially
             min: 72
 
@@ -270,7 +275,6 @@ jobs:
           vendor/bin/pest --mutate
           --path=src/${{ matrix.namespace }}
           --exclude-group=network
-          --parallel
           --min=${{ matrix.min }}
           | tee mutation.log
 
