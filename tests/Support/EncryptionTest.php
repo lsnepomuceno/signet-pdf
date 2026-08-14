@@ -82,8 +82,55 @@ it('refuses a payload too short to hold a nonce and a tag', function () {
 });
 
 it('refuses a key that is not the length libsodium requires', function () {
-    expect(fn() => new SodiumEncrypter('too short'))
-        ->toThrow(EncryptionException::class, 'must be 32 bytes');
+    // The length it was given is in the message, because 'wrong length' sends
+    // the reader to check the key and '9 given' tells them what they checked.
+    expect(fn() => new SodiumEncrypter('nine char'))
+        ->toThrow(EncryptionException::class, 'must be 32 bytes')
+        ->and(fn() => new SodiumEncrypter('nine char'))
+        ->toThrow(EncryptionException::class, '9 given');
+});
+
+it('refuses a body that is not base64, rather than decoding what it can', function () {
+    // Strict decoding, and the test has to prove it is strict rather than
+    // merely short. A body with characters that do not belong still decodes to
+    // a full-length envelope once they are dropped, so a loose decode would
+    // sail past the length guard and fail later with the tamper message
+    // instead. The message is what tells the two apart.
+    $encrypter = new SodiumEncrypter(SodiumEncrypter::generateKey());
+    $sealed = $encrypter->encryptString('long enough to survive having characters removed');
+
+    $body = substr($sealed, strlen(SodiumEncrypter::PREFIX));
+    $corrupted = SodiumEncrypter::PREFIX . '!!' . $body . '!!';
+
+    expect(fn() => $encrypter->decryptString($corrupted))
+        ->toThrow(EncryptionException::class, 'not a valid envelope');
+});
+
+it('seals an empty value, which is exactly a nonce and a tag', function () {
+    // 24 + 0 + 16 = 40 bytes, the shortest envelope that can legally exist.
+    // The guard has to admit it, which is why it compares with < and not <=.
+    $encrypter = new SodiumEncrypter(SodiumEncrypter::generateKey());
+    $sealed = $encrypter->encryptString('');
+
+    $raw = base64_decode(substr($sealed, strlen(SodiumEncrypter::PREFIX)), true);
+
+    expect($raw)->toBeString()
+        ->and(strlen((string) $raw))->toBe(
+            SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES
+            + SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_ABYTES,
+        )
+        ->and($encrypter->decryptString($sealed))->toBe('');
+});
+
+it('refuses a payload longer than a nonce and shorter than a nonce and a tag', function () {
+    // Between the two lengths, so it is caught by the guard rather than handed
+    // to libsodium with a nonce assembled out of the tag. That is what adding
+    // the tag length to the nonce length is for.
+    $encrypter = new SodiumEncrypter(SodiumEncrypter::generateKey());
+    $between = random_bytes(SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES + 4);
+
+    expect(fn() => $encrypter->decryptString(SodiumEncrypter::PREFIX . base64_encode($between)))
+        ->toThrow(EncryptionException::class, 'not a valid envelope');
 });
 
 /**
