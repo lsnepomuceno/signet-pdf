@@ -47,13 +47,19 @@ fi
 
 min=${2:-65}
 
-# Deliberately narrow: a bare UUIDv7, optionally carrying one extension, and the
-# twelve directories named after an extension that a truncated path produces.
+# Deliberately narrow: a bare UUIDv7, optionally carrying one extension, the
+# twelve directories named after an extension that a truncated path produces,
+# and the probes in tests/Support/TempDirectoryTest.php. That last one is not
+# hypothetical: the mutant that removes the guard lets those tests create the
+# very directory they exist to forbid, so the test names its path with a prefix
+# this sweep knows.
+#
 # Anything git tracks is refused outright, so a mistake in the pattern cannot
 # cost a file that belongs to the repository.
 sweep() {
     for entry in "$root"/????????-????-????-????-???????????? \
                  "$root"/????????-????-????-????-????????????.* \
+                 "$root"/signet-relative-probe* \
                  "$root"/.bin "$root"/.cnf "$root"/.crt "$root"/.der \
                  "$root"/.key "$root"/.p7s "$root"/.pem "$root"/.pfx \
                  "$root"/.tmp "$root"/.tsq "$root"/.tsr "$root"/.tst; do

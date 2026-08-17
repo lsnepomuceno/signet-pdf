@@ -51,13 +51,23 @@ it('names a file inside that directory, absolutely', function () {
         ->and($temp->file('.pdf'))->toEndWith('.pdf');
 });
 
+/**
+ * The two below pass a path beginning `signet-relative-probe`, and the prefix
+ * is load-bearing rather than decorative: `.docker/mutate.sh` sweeps it.
+ *
+ * Under mutation the guard is itself a mutation target, and the run that
+ * removes it lets `Files::makeDirectory()` create the relative directory these
+ * hand it. That mutant dies here, which is the point, but it leaves a
+ * directory in the package root on its way out. Renaming these to something
+ * generic puts debris back that the sweep no longer recognises.
+ */
 it('refuses a relative directory instead of writing beside the caller', function () {
     // The failure this prevents is silent: a relative path is perfectly valid
     // to the filesystem, so the private key lands in the working directory and
     // the call succeeds.
-    new TempDirectory('somewhere/relative')->path();
+    new TempDirectory('signet-relative-probe/directory')->path();
 })->throws(ProcessRunTimeException::class, 'the temporary path must be absolute');
 
 it('refuses a relative file path for the same reason', function () {
-    new TempDirectory('./still-relative')->file('.pem');
+    new TempDirectory('signet-relative-probe-file')->file('.pem');
 })->throws(ProcessRunTimeException::class, 'the temporary path must be absolute');
