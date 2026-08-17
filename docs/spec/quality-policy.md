@@ -93,7 +93,7 @@ is not lowered, because that is what the second rule below forbids. It is
 written down so the night it fires is not the night somebody first learns the
 margin was that thin.
 
-Three rules govern this, and each cost something to learn:
+Four rules govern this, and each cost something to learn:
 
 **The score is not reproducible.** It tracks how many mutations time out, which
 tracks machine load. A mutation that breaks a loop condition burns the full
@@ -117,6 +117,37 @@ is reported as uncovered. Measured on `src/Certificates`, the full run scores
 64.71% with 8 uncovered, while shard 1/2 reports 61.76% with 26 uncovered and
 shard 2/2 reports 69.12%. Faster precisely because it is wrong. Split by mutated
 path instead.
+
+**The run stays in the package root, and sweeps up after itself.**
+`composer test:mutate` and the nightly both go through `.docker/mutate.sh`.
+
+Mutation rewrites `src/`, and `Support\TempDirectory::file()` builds a path by
+concatenation: `$this->path() . Uuid::v7()->toRfc4122() . $extension`. A mutant
+that drops the left operand returns a bare name, and a relative path resolves
+against the working directory, which is the repository. `tests/Pest.php` routes
+every fixture through that one method, so a single mutant scatters PKCS#12
+bundles, PEM private keys and signed PDFs across the root at once, and the code
+that would delete them no longer knows where they went.
+
+It went unnoticed for as long as it did because `*.pfx`, `*.pdf`, `*.pem` and
+`*.key` are all gitignored, so 1328 entries and 10 MB accumulated with
+`git status` reporting a clean tree throughout. Nothing was ever at risk of
+being committed; it was invisible, which is worse for how long it lasts.
+
+`TempDirectory` now refuses a relative path rather than writing to one, which
+kills those mutants at the source and is worth having on its own: a consumer
+passing a relative `tempPath` was getting a private key somewhere it did not
+choose. That is the fix. The sweep in the script is the backstop, for the
+mutant that removes the guard itself and restores the old behaviour for the
+length of one run.
+
+**Running from a scratch directory is not the answer, and was tried.**
+`pest-plugin-mutate` maps coverage by path and reports every mutation as
+uncovered from anywhere else. Measured on `src/Support`: 1947 uncovered, 0
+tested, 0.00%, against a namespace that scores around 78 from the root. The
+floors would fail the run rather than pass it silently, which is the only
+reason it would have been caught, and a gate that measures nothing is worse
+than the debris it was meant to prevent.
 
 ### `phpunit/php-code-coverage` is held below 14.2.4
 

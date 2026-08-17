@@ -272,10 +272,7 @@ jobs:
         id: mutate
         shell: bash
         run: >
-          vendor/bin/pest --mutate
-          --path=src/${{ matrix.namespace }}
-          --exclude-group=network
-          --min=${{ matrix.min }}
+          .docker/mutate.sh ${{ matrix.namespace }} ${{ matrix.min }}
           | tee mutation.log
 
       # The score lives nowhere but the log, so a red job cannot tell a

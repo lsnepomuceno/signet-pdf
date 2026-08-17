@@ -16,7 +16,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- **`Support\TempDirectory` refuses a relative path instead of writing beside
+  the caller.** `path()` and `file()` now raise `ProcessRunTimeException` when
+  the directory they would hand back is not absolute. A relative path is valid
+  to the filesystem, so the previous behaviour was to succeed and leave a
+  temporary PKCS#12 bundle or PEM private key wherever the process happened to
+  have started. Only a consumer passing a relative `SignetConfig::$tempPath` is
+  affected, and for that consumer the call was already writing somewhere it did
+  not intend.
 
 ## [2.0.0] - 2026-08-13
 

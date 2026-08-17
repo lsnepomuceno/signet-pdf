@@ -220,6 +220,15 @@ can be pointed at them
   and `src/Validation`, nightly rather than on pull requests.
 - **Do not split mutation runs with `--shard`.** It divides the test suite, and
   every mutation needs the whole suite.
+- **Mutation runs through `.docker/mutate.sh`**, which `composer test:mutate`
+  and the nightly both call. A mutant of `Support\TempDirectory::file()` returns
+  a path with no directory in it, and a relative path lands in the working
+  directory: the repository filled with throwaway certificates and signed PDFs
+  that `git status` never showed, because their extensions are all gitignored.
+  `TempDirectory` refuses a relative path now, and the script sweeps the root
+  afterwards for the mutant that removes that guard. **Do not move the run out
+  of the package root to solve this:** `pest-plugin-mutate` maps coverage by
+  path and scores 0.00% with everything uncovered from anywhere else.
 - `composer-dependency-analyser.php` catches unused and shadow dependencies.
 
 `tests/Project/ArchTest.php` enforces structural rules, so read it before adding a class.
