@@ -182,14 +182,29 @@ $signet->signFromPem($pemPath, $password, $pdfPath, $keyPath);
 $signet->encryptCertificate($pfxPath, $password);
 $signet->decryptCertificate($hashKey, $encrypted, $password, $isBase64);
 
-$signet->validate($pdfPath);        // Data\SignatureReport
-$signet->signatureFields($pdfPath);
-$signet->extendArchive($pdfPath);   // a further archive timestamp, no certificate
+$signet->validate($pdf);            // Data\SignatureReport
+$signet->signatureFields($pdf);
+$signet->extendArchive($pdf);       // a further archive timestamp, no certificate
 $signet->icpBrasil($pfxPath, $password);     // IcpBrasil\Data\Report
 
 $signet->newSignature();            // Signing\PendingSignature
 $signet->vault();                   // Certificates\CertificateVault
 ```
+
+**Those three take a `string|Contracts\PdfSource`**, the same way signing does.
+A path keeps meaning what it always meant, including the extension check and the
+missing-file error; anything else the application already holds, bytes from a
+queue message or a stream from its own storage driver, goes in directly:
+
+```php
+$signet->validate(new StringSource($bytes, 'contract.pdf'));
+$signet->signatureFields(new StreamSource($handle));
+$signet->extendArchive(new StringSource($bytes))->writeTo($yourDestination);
+```
+
+The parameter keeps its name. Widening a type is additive and renaming a
+parameter is not, so a caller passing it by name keeps meaning what they meant
+([0102](../decisions/0102-documents-arrive-as-sources.md)).
 
 **It is a convenience over the parts, never a layer in front of them.** Nothing
 in `src/` depends on it, every class it builds can be built directly, and an

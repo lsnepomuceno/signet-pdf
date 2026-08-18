@@ -87,6 +87,7 @@ algorithms under it weaken:
 
 ```php
 $signet->extendArchive('/path/contract-signed.pdf');
+$signet->extendArchive(new StringSource($bytes))->writeTo($yourDestination);
 ```
 
 **No certificate is involved.** A DocTimeStamp is signed by the authority, not by
