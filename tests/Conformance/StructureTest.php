@@ -145,7 +145,7 @@ it('reports nothing at all about any committed sample', function () {
     // /Resources, which ISO 32000-1 §7.7.3.3 requires somewhere in the page
     // tree, so qpdf warned and repaired. That one warning was reason enough to
     // ignore warnings on every other sample too, which is how a compromise in
-    // one place turns off a gate everywhere. `poc/rebuild-stream-fixtures.php`
+    // one place turns off a gate everywhere. the fixture rebuild script in lsnepomuceno/laravel-a1-pdf-sign
     // regenerates them, and the verdict is now the whole verdict.
     $samples = glob(dirname(__DIR__, 2) . '/samples/*.pdf');
 

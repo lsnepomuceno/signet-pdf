@@ -19,7 +19,9 @@ one drift in the package this was extracted from.
 ## The guide: how the package is used
 
 [docs/guide/getting-started.md](docs/guide/getting-started.md) is the entry
-point, and its own last section indexes the sixteen pages beneath it. It is
+point, and its own last section indexes every page beneath it. That index is
+where a new page is registered, and `docs/.vitepress/sidebar.ts` fails the site
+build when the navigation and the directory disagree. It is
 written for someone consuming the package rather than changing it, which is the
 one audience the files above do not serve.
 

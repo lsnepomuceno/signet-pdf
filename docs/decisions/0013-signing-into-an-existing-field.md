@@ -103,7 +103,7 @@ form reports a real template as carrying no fields.
 
 ## Verified
 
-`poc/sign-into-field.php` produces the artefact; `pdfsig` reads it. The template
+The artefact came from a spike in `lsnepomuceno/laravel-a1-pdf-sign`, and `pdfsig` reads it. The template
 carries `SignatureManager` and `SignatureEmployee`, and the employee is signed
 first, deliberately: filling them out of order is what catches a writer that
 takes the next empty field rather than the one named.

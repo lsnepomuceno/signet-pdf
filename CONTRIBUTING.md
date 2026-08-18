@@ -39,7 +39,9 @@ We accept contributions via Pull Requests on [Github](https://github.com/lsnepom
 - **Document any change in behaviour, in every place that describes it.** "And any other relevant
   documentation" is the phrasing this used to carry, and it is how three surfaces went stale at
   once: `samples/` sat a whole release behind, the documentation site stopped at 2.3.1 while 2.4
-  shipped, and the README never mentioned two facade methods that had been public for a release.
+  shipped, and the README never mentioned two entry points that had been public for a release.
+  Two of those three happened in the package this one was extracted from, and the third is why
+  the README gate below exists.
   The list is enumerated below precisely so it cannot be read as "the obvious ones".
 
 - **Consider our release cycle** - We try to follow [SemVer v2.0.0](http://semver.org/). Randomly breaking public APIs is not an option.
@@ -58,7 +60,7 @@ Some are gated, some are not, and the ones that are not are where drift has actu
 
 | Surface | When it changes | Gate |
 |---|---|---|
-| **`README.md`** | any public API, and anything a new user should know | `tests/Project/ArchTest.php` fails when a facade method is missing from it |
+| **`README.md`** | any public API, and anything a new user should know | `tests/Project/ArchTest.php` fails when an entry point on `Signet` is missing from it |
 | **`CHANGELOG.md`** | anything a consumer will notice, under `## [Unreleased]` | `tests/Project/DistributionTest.php` checks it ships |
 | **`UPGRADE.md`** | a change that costs a consumer work, with the migration spelled out | none: review |
 | **`docs/decisions/`** | a decision changes, or a record's outcome turns out differently | `tests/Project/SpecTest.php` checks references resolve |
@@ -69,23 +71,32 @@ Some are gated, some are not, and the ones that are not are where drift has actu
 | **`ARCHITECTURE.md`** | the shape of the package, since it is the index | none: review |
 | **`CLAUDE.md`** | anything an agent working here has to know before touching `src/` | none: review |
 | **Class docblocks** | the class stops doing what its docblock says | two mechanical rules in `tests/Project/ArchTest.php` |
-| **`samples/`** | anything under `src/Signing/`, regenerated with `poc/sign-samples.php` | `tests/Conformance/SamplesTest.php` |
-| **The `docs` branch** | any public behaviour, once it is released | **none, and it is a separate pull request** |
-| **The release notes** | every tag, on GitHub and in the site's `release-notes.md` | none: review |
+| **`samples/`** | anything under `src/Signing/` | `tests/Conformance/SamplesTest.php` and `tests/Conformance/ArtefactCoherenceTest.php` |
+| **`docs/guide/`** | any public behaviour, once it is released | the site build, which fails on a dead link or a page missing from the sidebar |
+| **The release notes** | every tag, on GitHub | none: review |
 
-### The `docs` branch is the one that gets forgotten
+### The documentation site is written with the change and published with the tag
 
-The documentation site at [signet-pdf.netlify.app](https://signet-pdf.netlify.app)
-lives on the `docs` branch, not on `main`, so nothing in a `main` pull request can check it and no
-test on `main` will ever fail because of it. It has gone stale twice.
+The site at [lsnepomuceno.github.io/signet-pdf](https://lsnepomuceno.github.io/signet-pdf/) is built
+from `docs/`, by `.github/workflows/docs.yml`. The pages live on `main`, in the same pull request as
+the behaviour they describe, so nothing is a follow-up and nothing has to be remembered later.
 
-Treat it as part of shipping rather than as follow-up: when a release goes out, the same day it goes
-out, open a pull request against `docs` adding the release notes entry and updating the reference
-pages the change touches.
+**It publishes from a tag, never from a branch.** The site describes what is installable, so a
+feature merged and not yet released does not belong on it. That is the one reason the published site
+is allowed to lag `main`, and it lags until the tag rather than after it. A documentation fix that
+has to reach the site without minting a release goes through `workflow_dispatch` on that workflow.
 
-**Do not document unreleased behaviour there.** The site describes what is installable, so a feature
-merged to `main` and not yet tagged does not belong on it. That is the one reason the branch is
-allowed to lag, and it lags until the tag rather than after it.
+Every push builds it, and that build is a gate rather than a preview: it fails on a link that
+resolves to nothing, and `docs/.vitepress/sidebar.ts` fails it on a page missing from the navigation
+or an entry whose page was deleted. That is what `tests/Project/SpecTest.php` cannot see, since it
+asks whether a path exists in the repository and the site asks whether it exists as a page.
+
+Build it locally while writing:
+
+``` bash
+npm --prefix docs/.vitepress ci
+npm --prefix docs/.vitepress run dev
+```
 
 ## Running the checks
 

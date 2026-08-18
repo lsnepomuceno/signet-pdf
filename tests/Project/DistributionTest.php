@@ -84,7 +84,6 @@ it('ships none of the verification tooling or its fixtures', function () {
         'tests/',
         'samples/',
         'docs/',
-        'poc/',
         '.docker/',
         '.github/',
         '.husky/',

@@ -33,7 +33,7 @@ it('lists the signature fields a template carries', function () {
         ->and($fields[1]->name)->toBe('SignatureEmployee');
 });
 
-it('exposes the fields through the facade', function () {
+it('exposes the fields through the entry point', function () {
     $fields = signet()->signatureFields(resource('signature-fields.pdf'));
 
     expect($fields)->toHaveCount(2)

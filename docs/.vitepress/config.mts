@@ -79,11 +79,11 @@ export default defineConfig({
             'encrypted-documents',
           ],
         },
-        { text: 'Verifying', slugs: ['validation', 'trust'] },
+        { text: 'Verifying', slugs: ['validation', 'trust', 'samples'] },
         { text: 'Certificates', slugs: ['certificates', 'icp-brasil'] },
         {
           text: 'Tooling',
-          slugs: ['cli', 'testing', 'audit-log', 'troubleshooting', 'references'],
+          slugs: ['cli', 'testing', 'audit-log', 'troubleshooting', 'types', 'references'],
         },
       ]),
 
