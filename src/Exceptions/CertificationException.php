@@ -61,6 +61,29 @@ class CertificationException extends Exception implements SignetException, Strin
         );
     }
 
+    /**
+     * The same exclusion again, reached by laying out a form rather than by
+     * signing. Adding a field appends a revision like anything else.
+     */
+    public static function forbidsNewField(): self
+    {
+        return new self(
+            'this document is certified as "no-changes", which forbids the further revision a new signature field would append',
+        );
+    }
+
+    /**
+     * The distinction worth being careful about: form filling permits a field
+     * to be *filled*, and adding one is not filling it. ISO 32000-1 Table 254
+     * lists form field fill-in and signing, and a new field is neither.
+     */
+    public static function formFillingForbidsNewField(): self
+    {
+        return new self(
+            'this document is certified as "form-filling", which permits filling the fields it already carries and not adding one; the field has to exist before the document is certified',
+        );
+    }
+
     public function __toString(): string
     {
         return __CLASS__ . ": [{$this->getCode()}]: {$this->getMessage()}\n";

@@ -177,11 +177,29 @@ final class SealAppearance
      */
     public function rectangle(SealPlacement $placement, SealImage $seal, ?PageGeometry $geometry = null): array
     {
-        [$width, $height] = $this->size($placement, $seal);
+        return $this->box($placement, ...$this->size($placement, $seal), geometry: $geometry);
+    }
 
+    /**
+     * The same mapping for a box whose size is already known.
+     *
+     * An empty signature field has no image to take a size from, and the rule
+     * about where a box may sit is the same for it as for a seal, so it is
+     * stated once (docs/decisions/0111-a-field-can-be-created-not-only-filled.md).
+     *
+     * @return array{0: float, 1: float, 2: float, 3: float}
+     *
+     * @throws SealPlacementException
+     */
+    public function box(
+        SealPlacement $placement,
+        float $width,
+        float $height,
+        ?PageGeometry $geometry = null,
+    ): array {
         $page = $geometry ?? new PageGeometry();
 
-        // The placement is where the seal appears, and on a rotated page that
+        // The placement is where the box appears, and on a rotated page that
         // is not where its coordinates are (docs/decisions/0033-the-seal-honours-page-rotation.md),
         // nor on a page whose crop box is inset from the sheet.
         $rectangle = $page->toUserSpace($placement->x, $placement->y, $width, $height);

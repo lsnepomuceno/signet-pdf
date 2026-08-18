@@ -1,12 +1,13 @@
 # Command line
 
-The package ships `vendor/bin/signet`, built on `symfony/console`, with five
+The package ships `vendor/bin/signet`, built on `symfony/console`, with six
 commands. It is meant for operators and for CI rather than as the primary API.
 
 ```bash
 vendor/bin/signet sign contract.pdf --certificate cert.pfx
 vendor/bin/signet verify contract-signed.pdf
 vendor/bin/signet fields contract.pdf
+vendor/bin/signet field:add contract.pdf Approval --out prepared.pdf
 vendor/bin/signet extend archive.pdf --out archive-renewed.pdf
 vendor/bin/signet check
 ```
@@ -123,6 +124,33 @@ question that comes before signing into a template someone else laid out.
 vendor/bin/signet fields template.pdf
 vendor/bin/signet fields template.pdf --json
 ```
+
+## field:add
+
+Adds an empty signature field, which `sign --into-field` then fills. It is what
+lets a template be prepared from a shell script rather than from a word
+processor.
+
+```bash
+vendor/bin/signet field:add contract.pdf Approval --out prepared.pdf
+vendor/bin/signet field:add contract.pdf Approval -o prepared.pdf \
+    --x=40 --y=60 --width=180 --height=60 --page=last
+```
+
+| Option | Meaning |
+|---|---|
+| `--out`, `-o` | where to write the result |
+| `--in-place` | overwrite the document instead of writing a copy |
+| `--page` | `first`, `last`, or a page number |
+| `--x`, `--y`, `--width`, `--height` | the box, in points, measured from the bottom-left corner of the visible area |
+| `--document-password-env` | names the environment variable holding an encrypted document's password |
+
+**No certificate, and no `--password-env`.** Adding a field is not a
+cryptographic act, so this command takes no key material at all
+([0111](../decisions/0111-a-field-can-be-created-not-only-filled.md)).
+
+With no `--width` and no `--height` the field is invisible, which is legal and
+common. Passing one without the other is refused rather than guessed at.
 
 ## extend
 
