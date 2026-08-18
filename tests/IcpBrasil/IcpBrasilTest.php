@@ -263,7 +263,7 @@ it('catches the two places a CPF appears disagreeing', function () {
         ->and($report->messages())->toContain('commonName: the CPF in the common name is not the CPF in the subject alternative name (12345678909 against 11144477735)');
 });
 
-it('checks a certificate through the facade, from the PFX a signer already has', function () {
+it('checks a certificate through the entry point, from the PFX a signer already has', function () {
     [$pfx, $password] = DebugCertificate::icpBrasil();
 
     $path = tempFile('.pfx');

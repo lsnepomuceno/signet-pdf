@@ -62,7 +62,7 @@ rewriting.
 ## Consequences
 
 - The reach of the package changes materially, which is the whole point.
-- `poc/incremental-signature/` recorded the same limitation when it was a spike.
+- The incremental-signature spike in `lsnepomuceno/laravel-a1-pdf-sign` recorded the same limitation.
   That note stops being a scope statement and becomes a to-do.
 - Verification must go beyond the suite. A signed document built on a
   cross-reference stream has to be checked in poppler and in a reader that
@@ -135,7 +135,8 @@ only a 434-byte fixture was small enough to expose it.
 
 ## Verified
 
-`poc/sign-xref-stream.php` produces the artefacts; `pdfsig` reads them.
+The artefacts came from a spike in `lsnepomuceno/laravel-a1-pdf-sign`, the package this one was
+extracted from, and `pdfsig` reads them. No such script ships here.
 
 | Case | poppler |
 |---|---|

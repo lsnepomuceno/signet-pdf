@@ -37,8 +37,6 @@ PHPStan cannot type without a dedicated extension. Those are ignored by
 identifier under `tests/*`, because they are limits of the tooling rather than
 defects.
 
-`poc/` is excluded: it holds throwaway spikes, not production code.
-
 ## Dead code
 
 **PHPStan already refuses most of it**, at `level: max` with no baseline:
@@ -260,8 +258,11 @@ structural rules, so read it before adding a class.
 
 Independent verification is done with poppler's `pdfsig`; it has caught bugs the
 suite passed straight through. `samples/` holds one signed PDF per profile plus
-a six-signature document. Regenerate them with `poc/sign-samples.php` and
-re-check after any change to `src/Signing/`.
+a six-signature document, and `tests/Conformance/SamplesTest.php` fails when
+they stop being this version's output. **No generator ships here**: the spikes
+that produced them live in the package this one was extracted from, so
+regenerating after a change to `src/Signing/` is a manual step until one is
+written.
 
 **PDF/A conformance is measured with veraPDF**, the reference validator. It is
 installed in the development image and in CI, so it runs everywhere the suite

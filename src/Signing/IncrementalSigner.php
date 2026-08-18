@@ -41,7 +41,8 @@ use LSNepomuceno\Signet\Support\SigningLog;
  * caused: rebuilding a document through FPDI discarded annotations, form
  * fields and any signature already present. See docs/decisions/0006-incremental-revision.md.
  *
- * Proven by poc/incremental-signature: three signatures, all valid.
+ * Proven by the incremental-signature spike in lsnepomuceno/laravel-a1-pdf-sign,
+ * which this package was extracted from: three signatures, all valid.
  */
 final readonly class IncrementalSigner implements PdfSigner
 {

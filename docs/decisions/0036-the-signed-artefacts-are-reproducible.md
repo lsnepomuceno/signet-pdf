@@ -4,7 +4,8 @@
 
 ## Context
 
-`poc/sign-samples.php` minted a **fresh certificate on every run**, and
+The sample generator, which lives in `lsnepomuceno/laravel-a1-pdf-sign` rather than here, minted a
+**fresh certificate on every run**, and
 `samples/README.md` said "the script writes to `.output/`; copy what you need
 over the files here".
 
@@ -37,7 +38,7 @@ rather than detecting it afterwards.
 **The expiry becomes a property of the repository**, and that is the trade.
 A bootstrap certificate is minted with ten years of validity, and the day the
 committed one expires is the day every signed artefact is regenerated together.
-`tests/ArtefactCoherenceTest.php` asserts it has not expired, so that day
+`tests/Conformance/ArtefactCoherenceTest.php` asserts it has not expired, so that day
 arrives as a red test rather than as a puzzling verdict.
 
 ### One command writes every artefact
@@ -55,7 +56,7 @@ pretending to regenerate them.
 Signed output is **not reproducible**: the signing time and the padding differ
 per run, so "regenerate and compare" can never be green twice.
 
-`tests/ArtefactCoherenceTest.php` asserts instead that every committed signed
+`tests/Conformance/ArtefactCoherenceTest.php` asserts instead that every committed signed
 artefact carries the certificate the repository holds, by fingerprinting the DER
 embedded in each signature. Not the serial and not the common name: a throwaway
 bundle has serial 0 and the same subject as every other one ever generated, so

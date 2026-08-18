@@ -1,18 +1,24 @@
 {
   "name": "lsnepomuceno/signet-pdf",
-  "description": "Signet PDF: sign and verify PDF signatures in PHP. PAdES B-B to B-LTA, incremental updates, framework agnostic.",
+  "description": "Sign and verify PDF signatures in PHP. Each signature is appended as a new revision, so signing again never invalidates the ones before it. PAdES B-B to B-LTA, RFC 3161 timestamps, LTV and ICP-Brasil identity. No framework.",
   "license": "MIT",
   "type": "library",
   "keywords": [
+    "pdf",
     "pades",
     "pdf-signature",
     "pdf-sign",
+    "digital-signature",
     "sign",
     "cades",
     "pkcs7",
+    "pkcs12",
     "x509",
+    "openssl",
     "timestamp",
     "tsa",
+    "rfc3161",
+    "ltv",
     "icp-brasil",
     "incremental-update"
   ],
@@ -23,10 +29,12 @@
       "homepage": "https://github.com/lsnepomuceno"
     }
   ],
-  "homepage": "https://github.com/lsnepomuceno/signet-pdf",
+  "homepage": "https://lsnepomuceno.github.io/signet-pdf/",
   "support": {
     "issues": "https://github.com/lsnepomuceno/signet-pdf/issues",
-    "source": "https://github.com/lsnepomuceno/signet-pdf"
+    "source": "https://github.com/lsnepomuceno/signet-pdf",
+    "docs": "https://lsnepomuceno.github.io/signet-pdf/",
+    "security": "https://github.com/lsnepomuceno/signet-pdf/blob/main/SECURITY.md"
   },
   "require": {
     "php": ">=8.4.1 <8.6",
