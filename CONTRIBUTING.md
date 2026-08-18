@@ -61,7 +61,7 @@ Some are gated, some are not, and the ones that are not are where drift has actu
 | Surface | When it changes | Gate |
 |---|---|---|
 | **`README.md`** | any public API, and anything a new user should know | `tests/Project/ArchTest.php` fails when an entry point on `Signet` is missing from it |
-| **`CHANGELOG.md`** | anything a consumer will notice, under `## [Unreleased]` | `tests/Project/DistributionTest.php` checks it ships |
+| **`CHANGELOG.md`** | anything a consumer will notice, under the topmost undated release | `tests/Project/DistributionTest.php` checks it ships |
 | **`UPGRADE.md`** | a change that costs a consumer work, with the migration spelled out | none: review |
 | **`docs/decisions/`** | a decision changes, or a record's outcome turns out differently | `tests/Project/SpecTest.php` checks references resolve |
 | **`docs/spec/invariants.md`** | a rule that breaks the product when violated | as above |
