@@ -22,6 +22,22 @@ A wrong password raises `InvalidCertificatePasswordException`. It is worth
 catching by type, because it is the failure a production application meets most
 and the only one whose fix is "ask the user again" rather than "call support".
 
+## RSA or ECDSA
+
+Both work, on any of the four entry points above and at every profile. Elliptic
+curves are exercised on P-256 and P-384, from PKCS#12 and from PEM, in the
+PKCS#8 shape (`PRIVATE KEY`) and the SEC1 one (`EC PRIVATE KEY`) that
+`openssl ecparam -genkey` writes:
+
+```php
+$signet->newSignature()->certificate('/path/ec-certificate.pfx', $password);
+```
+
+Nothing has to be configured for it, and there is no opinion about which digest
+goes with which curve: P-256 with SHA-512 is unusual, legal, and accepted.
+A key type the CMS builder does not support fails loudly rather than producing a
+signature nobody can check.
+
 ## Two readers, one choice you rarely make
 
 `Certificates\ReaderFactory` picks between them:

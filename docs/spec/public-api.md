@@ -526,6 +526,30 @@ What is left:
 | Fetching revocation at validation time | evaluated from what the document carries, never from the network. That is a decision rather than a gap ([0024](../decisions/0024-revocation-is-evaluated-not-counted.md)) |
 | Signing with an A3 token, a smart card or an HSM | out of scope: this package signs with A1 material it can hold |
 
+## Key types the signer accepts
+
+Both, and both are gated rather than assumed. Nothing in this package ever said
+it signed with RSA, and until `tests/Signing/EcdsaSigningTest.php` existed
+nothing proved it signed with anything else: every fixture in the suite was an
+RSA key, so "does it sign with an ECDSA certificate" could only be answered with
+"probably, nobody has looked".
+
+| | |
+|---|---|
+| RSA | any size the platform will generate. Below 2048 bits validation reports `WeakSignatureKey` |
+| ECDSA | exercised on `prime256v1` (P-256) and `secp384r1` (P-384), at `pades-b-b` and at `pades-b-lta`, from PKCS#12 and from PEM in both the PKCS#8 and the SEC1 shapes |
+| Anything else | refused by the CMS builder with `Unsupported signing key type`, which is a loud failure rather than a wrong signature |
+
+**The package has no opinion about pairing a curve with a digest.** P-256 with
+SHA-512 is legal and unusual, and every combination of the two curves with the
+three digests in `Enums\DigestAlgorithm` is exercised. ETSI TS 119 312
+recommends a pairing and does not forbid the mismatch, and a rule invented here
+would refuse certificates authorities really issue. That is encoded as a test
+rather than written down here alone, so a guard added later fails.
+
+Verified by `pdfsig` and by pyHanko on the EC output, because this package's
+signer and its verifier could agree with each other and both be wrong.
+
 ## Signature profiles
 
 `Enums\SignatureProfile` owns each level's `/SubFilter` and what it requires.

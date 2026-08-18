@@ -18,6 +18,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Signing with an ECDSA certificate is gated rather than assumed.**
+  `Testing\DebugCertificate` generated `OPENSSL_KEYTYPE_RSA` and nothing else,
+  so no test in the suite had ever signed with an elliptic-curve key and the
+  honest answer to "does this package sign with one" was "probably, nobody has
+  looked". It does: `tests/Signing/EcdsaSigningTest.php` signs on `prime256v1`
+  and `secp384r1`, at `pades-b-b` and at `pades-b-lta`, from PKCS#12 and from
+  PEM in both the PKCS#8 and the SEC1 shapes, and `pdfsig` and pyHanko agree.
+
+  No behaviour changed, which is the result worth recording. `DebugCertificate`
+  gains `makeEc()` and a `curve` parameter on `makePem()`, both defaulting to
+  RSA so no existing fixture moves. Every pairing of the two curves with the
+  three digests in `Enums\DigestAlgorithm` is exercised: the package
+  deliberately has no opinion there, and the test is now the opinion.
+
 - **`validate()`, `signatureFields()` and `extendArchive()` take a
   `Contracts\PdfSource` as well as a path.** Signing has taken a document from
   anywhere since 2.0 ([0102](docs/decisions/0102-documents-arrive-as-sources.md))

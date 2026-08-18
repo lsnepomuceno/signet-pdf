@@ -45,6 +45,35 @@ final class DebugCertificate
     }
 
     /**
+     * A bundle whose key is on an elliptic curve rather than RSA.
+     *
+     * Nothing in this package says it signs with RSA, and until this existed
+     * nothing proved it signed with anything else: every fixture in the suite
+     * was `OPENSSL_KEYTYPE_RSA`, so "does it sign with an ECDSA certificate"
+     * could only be answered with "probably, nobody has looked". That is the
+     * wrong shape of answer for a signing library in either direction.
+     *
+     * @param  string  $curve  An openssl curve name. `prime256v1` (P-256) and
+     *                         `secp384r1` (P-384) are the ones the suite gates.
+     * @return array{0: string, 1: string} The PFX bytes and its password.
+     *
+     * @throws CertificateOutputNotFoundException
+     */
+    public static function makeEc(string $curve = 'prime256v1', int $daysValid = 600): array
+    {
+        [$key, $x509] = self::generate($daysValid, $curve);
+
+        $pfx = '';
+
+        if (! openssl_pkcs12_export($x509, $pfx, $key, self::PASSWORD)) {
+            throw new CertificateOutputNotFoundException();
+        }
+
+        /** @var string $pfx */
+        return [$pfx, self::PASSWORD];
+    }
+
+    /**
      * The same certificate as PEM, with the key kept separate.
      *
      * $encryptKey mirrors what a real .pem carries: a passphrase-protected key
@@ -52,12 +81,17 @@ final class DebugCertificate
      * behave differently under openssl_x509_check_private_key(), so both are
      * fixtures rather than one (docs/decisions/0007-pem-second-entry-one-pipeline.md).
      *
+     * @param  ?string  $curve  An openssl curve name, or null for RSA.
+     *                          `Certificates\PemCertificateReader` recognises an
+     *                          `EC PRIVATE KEY` block, and this is what proves
+     *                          it rather than the header being present in the
+     *                          match list.
      * @return array{0: string, 1: string, 2: string} Certificate PEM, private key PEM, and the
      *                                                key's password, empty when it is unencrypted.
      */
-    public static function makePem(bool $encryptKey = true, int $daysValid = 600): array
+    public static function makePem(bool $encryptKey = true, int $daysValid = 600, ?string $curve = null): array
     {
-        [$key, $x509] = self::generate($daysValid);
+        [$key, $x509] = self::generate($daysValid, $curve);
 
         $certificate = '';
 
@@ -438,11 +472,14 @@ final class DebugCertificate
     /**
      * A fresh self-signed certificate and the key that signed it.
      *
+     * @param  ?string  $curve  An elliptic curve by its openssl name, or null
+     *                          for RSA. RSA is the default so that no existing
+     *                          fixture changes shape.
      * @return array{0: OpenSSLAsymmetricKey, 1: OpenSSLCertificate}
      */
-    private static function generate(int $daysValid): array
+    private static function generate(int $daysValid, ?string $curve = null): array
     {
-        $key = self::key();
+        $key = $curve === null ? self::key() : self::ellipticKey($curve);
 
         $csr = self::request(
             ['commonName' => 'Test Certificate', 'organizationalUnitName' => 'LucasNepomuceno'],
@@ -467,6 +504,28 @@ final class DebugCertificate
 
         if (! $key instanceof OpenSSLAsymmetricKey) {
             throw new RuntimeException('Unable to generate a test key: ' . openssl_error_string());
+        }
+
+        return $key;
+    }
+
+    /**
+     * A key on a named curve.
+     *
+     * `prime256v1` and `secp384r1` are the two worth having: P-256 is what a
+     * European qualified certificate and a newer ICP-Brasil one are issued on,
+     * and P-384 is the next step up, which is also the pair the digest matrix
+     * is exercised over.
+     */
+    private static function ellipticKey(string $curve): OpenSSLAsymmetricKey
+    {
+        $key = openssl_pkey_new([
+            'private_key_type' => OPENSSL_KEYTYPE_EC,
+            'curve_name' => $curve,
+        ]);
+
+        if (! $key instanceof OpenSSLAsymmetricKey) {
+            throw new RuntimeException("Unable to generate a test key on {$curve}: " . openssl_error_string());
         }
 
         return $key;
