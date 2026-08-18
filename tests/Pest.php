@@ -277,11 +277,38 @@ function qpdfCheck(string $path, #[SensitiveParameter] string $password = ''): s
     // qpdf exits non-zero for warnings and for errors alike, which are two
     // different things, so the verdict is read from the output rather than from
     // the status.
-    return resolve(LSNepomuceno\Signet\Contracts\ProcessRunner::class)->run(sprintf(
+    $output = resolve(LSNepomuceno\Signet\Contracts\ProcessRunner::class)->run(sprintf(
         'qpdf --check %s %s 2>&1 || true',
         $password === '' ? '' : '--password=' . escapeshellarg($password),
         escapeshellarg($path),
     ));
+
+    // **Output this suite cannot read is a failure, not a clean file.**
+    //
+    // `qpdfComplaints()` collects the `WARNING:` and `ERROR:` lines, so output
+    // in any other shape yields an empty list, and an empty list is what a
+    // sound document produces: the assertions pass and the gate has measured
+    // nothing. The instrument is not pinned, both because a distribution pin
+    // vanishes from the archive when the runner image moves and because the
+    // versions already differ (12.3.2 in .docker, 11.x on the runners), so the
+    // shape is asserted instead of the number.
+    //
+    // Every shape qpdf produces carries one of these: the header and version
+    // for a file it could open, and a complaint for one it could not, down to
+    // a file that is not a PDF at all.
+    $understood = str_contains($output, 'checking ')
+        || str_contains($output, 'PDF Version:')
+        || preg_match('/^(WARNING|ERROR):/m', $output) === 1;
+
+    if (! $understood) {
+        throw new RuntimeException(
+            "qpdf --check produced output this suite does not recognise, so no "
+            . "complaint could be read from it and the check proved nothing. "
+            . "Compare the version in .docker with the one that ran:\n\n" . $output,
+        );
+    }
+
+    return $output;
 }
 
 /**

@@ -111,17 +111,31 @@ actually exercised.
 | Tool | Version | Decides | Exercised by |
 |---|---|---|---|
 | [veraPDF](https://verapdf.org/) | 1.30.2, pinned | PDF/A and PDF/UA conformance | `tests/Conformance/PdfAValidationTest.php`, `tests/Conformance/PdfUaValidationTest.php`, `tests/Timestamps/TimestampOfflineTest.php` |
-| [poppler](https://poppler.freedesktop.org/) `pdfsig` | distribution package | whether an independent reader sees the signatures | `tests/Certification/CertificationEnforcementTest.php` |
-| [qpdf](https://qpdf.readthedocs.io/) | distribution package | structural soundness, and reading back what was encrypted | `tests/Conformance/StructureTest.php`, `tests/Signing/EncryptedDocumentTest.php` |
+| [poppler](https://poppler.freedesktop.org/) `pdfsig` | not pinned, see below | whether an independent reader sees the signatures | `tests/Certification/CertificationEnforcementTest.php` |
+| [qpdf](https://qpdf.readthedocs.io/) | not pinned, see below | structural soundness, and reading back what was encrypted | `tests/Conformance/StructureTest.php`, `tests/Signing/EncryptedDocumentTest.php` |
 | [pyHanko](https://pyhanko.readthedocs.io/) | 0.36.2, CLI 0.4.2, pinned | `/DocMDP` enforcement, and signing the foreign document this package's validator is read against | `tests/Validation/ForeignSignatureTest.php`, `tests/Certification/CertificationEnforcementTest.php` |
 | [Arlington PDF Model](https://github.com/pdf-association/arlington-pdf-model) `testgrammar` | pinned by commit | whether the emitted objects match the specification's own grammar | `tests/Conformance/ArlingtonTest.php` |
 
-### Why each is pinned
+### Why three are pinned and two are not
 
 A validator that changes its verdicts between builds cannot be the thing a gate
-is measured against. veraPDF and pyHanko are pinned to a version; the Arlington
-model is pinned by commit, because the tool and the TSV grammar live in the same
-tree and one SHA pins both together.
+is measured against. veraPDF and pyHanko are pinned to a version, and the
+Arlington model by commit, because the tool and the TSV grammar live in the same
+tree and one SHA pins both together. All three are fetched from upstream, where
+a version stays available.
+
+qpdf and poppler come from the distribution, and a distribution pin is worse
+than none: the exact version disappears from the archive when the runner image
+advances, and CI goes red for a reason unrelated to the code. The two ends
+already differ, which is the honest state of it: `.docker` carries qpdf 12.x
+from Alpine and the runners ship 11.x.
+
+So the shape is asserted instead of the number. `tests/Pest.php` refuses qpdf
+output it cannot read, rather than collecting no complaints from it and
+reporting a sound file: **an empty complaint list is what a good document
+produces**, so a parser that stops matching would turn the gate green in
+silence. Both versions are printed into the CI log, so a verdict that changes
+can be read against the version that changed it.
 
 ### Three rules that keep them where they belong
 
