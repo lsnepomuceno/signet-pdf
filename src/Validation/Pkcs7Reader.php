@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LSNepomuceno\Signet\Validation;
 
 use LSNepomuceno\Signet\Data\Signer;
+use LSNepomuceno\Signet\Enums\DigestOid;
 use LSNepomuceno\Signet\Support\Pem;
 use LSNepomuceno\Signet\Support\Probe;
 
@@ -27,19 +28,6 @@ final class Pkcs7Reader
      * §11.2.
      */
     private const string MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
-
-    /**
-     * The digest algorithms a CMS this package will meet actually names.
-     *
-     * By OID rather than by openssl's name, because the OID is what the DER
-     * carries and the name is what a caller reads.
-     */
-    private const array DIGESTS = [
-        '1.3.14.3.2.26' => 'sha1',
-        '2.16.840.1.101.3.4.2.1' => 'sha256',
-        '2.16.840.1.101.3.4.2.2' => 'sha384',
-        '2.16.840.1.101.3.4.2.3' => 'sha512',
-    ];
 
     public function __construct(
         private readonly DerReader $der = new DerReader(),
@@ -136,7 +124,7 @@ final class Pkcs7Reader
                     'digest' => bin2hex($value->content($der)),
                     // A CMS naming no digest algorithm, or one outside the set
                     // PAdES uses, still has a digest worth reporting.
-                    'algorithm' => $algorithm === null ? 'unknown' : (self::DIGESTS[$algorithm] ?? 'unknown'),
+                    'algorithm' => DigestOid::algorithmFor($algorithm),
                 ];
             }
         }

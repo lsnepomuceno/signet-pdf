@@ -7,6 +7,7 @@ namespace LSNepomuceno\Signet\Data;
 use LSNepomuceno\Signet\Enums\RevocationStatus;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Enums\ValidationFinding;
+use LSNepomuceno\Signet\Support\CryptographicStrength;
 
 /**
  * One signature found in a document.
@@ -59,6 +60,13 @@ final readonly class SignatureDetails extends BaseData
      *                                   proof on its own: what it says is what
      *                                   the signature claims.
      * @param  ?string  $digestAlgorithm  The algorithm behind it, as a name.
+     * @param  ?string  $timestampDigestAlgorithm  The digest the RFC 3161 token
+     *                                             stamped with, which the
+     *                                             authority chose rather than
+     *                                             the signer. Null when there
+     *                                             is no token, or when it did
+     *                                             not verify and so was never
+     *                                             read.
      * @param  bool  $byteRangeSound  Whether the /ByteRange describes what a
      *                                 signature's must: a delimited gap that is
      *                                 the value of a /Contents key, with both
@@ -95,6 +103,9 @@ final readonly class SignatureDetails extends BaseData
         public ?string $messageDigest = null,
         public ?string $digestAlgorithm = null,
         public array $changesAfter = [],
+        // Appended, so a caller constructing details by hand, which the fakes
+        // and most tests do, keeps meaning what they meant.
+        public ?string $timestampDigestAlgorithm = null,
     ) {}
 
     /**
@@ -305,6 +316,43 @@ final readonly class SignatureDetails extends BaseData
         // be reporting that a DocTimeStamp is a DocTimeStamp.
         if ($this->signedAt === null && ! $this->isTimestamp) {
             $findings[] = ValidationFinding::NoSigningTime;
+        }
+
+        return [...$findings, ...$this->cryptographicFindings()];
+    }
+
+    /**
+     * What is weak about the cryptography, as opposed to what is wrong with it.
+     *
+     * Every case here leaves `verified` true and `isValid()` true. A SHA-1
+     * signature does verify, and reporting it as invalid would be a lie of a
+     * different kind; what the application gets instead is the fact, to weigh
+     * against a policy this package deliberately does not have
+     * (docs/decisions/0106-validation-reports-findings.md).
+     *
+     * @return list<ValidationFinding>
+     */
+    private function cryptographicFindings(): array
+    {
+        $findings = [];
+        $signer = $this->signer();
+
+        if (CryptographicStrength::isWeakDigest($this->digestAlgorithm)) {
+            $findings[] = ValidationFinding::WeakDigestAlgorithm;
+        }
+
+        if (CryptographicStrength::isWeakDigest($this->timestampDigestAlgorithm)) {
+            $findings[] = ValidationFinding::WeakTimestampDigest;
+        }
+
+        if ($signer?->hasWeakKey() === true) {
+            $findings[] = ValidationFinding::WeakSignatureKey;
+        }
+
+        // Read from the certificate rather than from what it was used for, and
+        // silent for a certificate that declares neither extension.
+        if ($signer !== null && ! $signer->permitsDocumentSigning()) {
+            $findings[] = ValidationFinding::KeyUsageDoesNotPermitSigning;
         }
 
         return $findings;

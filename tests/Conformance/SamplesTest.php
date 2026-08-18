@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use LSNepomuceno\Signet\Enums\ValidationFinding;
 use LSNepomuceno\Signet\Support\Files;
 
 /**
@@ -77,7 +78,16 @@ it('still validates every sample it ships', function (string $name) {
     $report = signet()->validate(sample($name));
 
     expect($report->isSigned())->toBeTrue()
-        ->and($report->isValid())->toBeTrue();
+        ->and($report->isValid())->toBeTrue()
+        // The regression test for a strength threshold set too aggressively.
+        // These are the package's own output, so a weakness finding on one of
+        // them is a finding on every document it produces, and the samples are
+        // where that shows up before a user's report does
+        // (`Support\CryptographicStrength`).
+        ->and($report->findings())->not->toContain(ValidationFinding::WeakDigestAlgorithm)
+        ->and($report->findings())->not->toContain(ValidationFinding::WeakSignatureKey)
+        ->and($report->findings())->not->toContain(ValidationFinding::WeakTimestampDigest)
+        ->and($report->findings())->not->toContain(ValidationFinding::KeyUsageDoesNotPermitSigning);
 })->with([
     'legacy.pdf',
     'pades-b-b.pdf',

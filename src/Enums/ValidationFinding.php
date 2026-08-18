@@ -108,6 +108,52 @@ enum ValidationFinding: string
     case ByteRangeNotSound = 'byte-range-not-sound';
 
     /**
+     * The signature was computed under a digest nobody should still be relying
+     * on: MD5 or SHA-1.
+     *
+     * **It still verifies**, which is exactly why this is a finding and not a
+     * verdict. What it stops being is evidence: a digest with practical
+     * collisions can be made to say something else was signed. The thresholds
+     * and their sources are in `Support\CryptographicStrength`.
+     */
+    case WeakDigestAlgorithm = 'weak-digest-algorithm';
+
+    /**
+     * The signer's key is too small for its family: RSA or DSA below 2048 bits,
+     * an elliptic curve below 224.
+     *
+     * Reported rather than refused, for the same reason. A 1024-bit RSA
+     * signature verifies and was ordinary when it was made; whether it is
+     * acceptable now is the application's policy.
+     */
+    case WeakSignatureKey = 'weak-signature-key';
+
+    /**
+     * The RFC 3161 token carries the same weakness.
+     *
+     * Separate from `WeakDigestAlgorithm` because the choice was a different
+     * party's and the remedy is different: a weak signature has to be redone by
+     * the signer, while a weak timestamp is answered by a fresh archive
+     * timestamp over the same document
+     * (docs/decisions/0022-the-archive-timestamp-is-a-chain.md).
+     */
+    case WeakTimestampDigest = 'weak-timestamp-digest';
+
+    /**
+     * The signer's certificate does not say it may sign documents.
+     *
+     * Decided from the certificate's own extensions, never from what it was
+     * used for: a `keyUsage` naming neither digitalSignature nor
+     * nonRepudiation, or an `extendedKeyUsage` naming only purposes that are
+     * certainly something else, a TLS server certificate being the case worth
+     * catching.
+     *
+     * A certificate declaring neither extension raises nothing, since RFC 5280
+     * §4.2.1.3 reads an absent keyUsage as unconstrained.
+     */
+    case KeyUsageDoesNotPermitSigning = 'key-usage-does-not-permit-signing';
+
+    /**
      * Whether `Data\SignatureReport::isValid()` turns false on this finding.
      *
      * True for exactly one case. The rest are reported so that an application

@@ -18,6 +18,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A weak digest, a weak key and a certificate that was not issued for signing
+  are reported as findings.** `Data\SignatureDetails` reported the digest
+  algorithm and nothing evaluated it, so a CMS signed with SHA-1 arrived as
+  `verified: true` with nothing attached for an application to weigh. Four new
+  `Enums\ValidationFinding` cases: `WeakDigestAlgorithm` (MD5, SHA-1),
+  `WeakSignatureKey` (RSA and DSA below 2048 bits, an elliptic curve below 224),
+  `WeakTimestampDigest` (the same weakness inside the RFC 3161 token, separated
+  because the authority chose it and the remedy is a fresh archive timestamp
+  rather than a fresh signature), and `KeyUsageDoesNotPermitSigning`.
+
+  **`isValid()` is unaffected and that is deliberate.** A SHA-1 signature does
+  verify, and reporting it as invalid would be a lie of a different kind
+  ([0106](docs/decisions/0106-validation-reports-findings.md)). The thresholds
+  are policy that ages, so they live in one place, `Support\CryptographicStrength`,
+  naming the standards they came from and the date those were read.
+
+  `Data\Signer` gains `keyAlgorithm`, `keyBits`, `keyUsage` and
+  `extendedKeyUsage`, appended; `Data\SignatureDetails` gains
+  `timestampDigestAlgorithm`, also appended. `Enums\DigestOid` is new and holds
+  the OID-to-name map that `Validation\Pkcs7Reader` kept privately and
+  `Validation\TimestampTokenReader` would otherwise have copied.
+  `Testing\DebugCertificate` gains `makeWithKeySize()` and `makeForPurpose()`,
+  because a weak fixture cannot be produced by signing: `Enums\DigestAlgorithm`
+  has no SHA-1 case on purpose.
+
 - **`signet extend`, so the archive chain is a cron entry.**
   `Signing\ArchiveExtender` renews a B-LTA document with no certificate
   anywhere near it, and until now the only way to call it was a PHP script with

@@ -83,10 +83,43 @@ $signature->has(ValidationFinding::CertificateRevoked);
 | `TimestampDoesNotVerify` | an RFC 3161 token is present and fails |
 | `NoSigningTime` | the CMS carries no signing-time attribute |
 | `ByteRangeNotSound` | the `/ByteRange` does not describe a signature's own `/Contents` |
+| `WeakDigestAlgorithm` | the signature was computed under MD5 or SHA-1 |
+| `WeakSignatureKey` | RSA or DSA below 2048 bits, an elliptic curve below 224 |
+| `WeakTimestampDigest` | the RFC 3161 token carries the same weakness |
+| `KeyUsageDoesNotPermitSigning` | the certificate's own extensions say it is not for signing documents |
 
 **Only `CmsDoesNotVerify` decides validity**, and `decidesValidity()` on the enum
-says so. The other nine are facts for your policy, which is why the enum carries
-no severity: how much `NotTrusted` matters is not this package's call.
+says so. The other thirteen are facts for your policy, which is why the enum
+carries no severity: how much `NotTrusted` matters is not this package's call.
+
+### Weak is not invalid
+
+A SHA-1 signature **verifies**. So does one made with a 1024-bit key, and so
+does one made by a TLS server certificate. Reporting any of them as invalid
+would be a lie of a different kind, so each is a finding and `isValid()` stays
+true.
+
+The thresholds are policy and they age, so they live in one place,
+`Support\CryptographicStrength`, naming the standards they came from
+(SOG-IS, NIST SP 800-57, NIST SP 800-131A, ETSI TS 119 312) and the date they
+were read. They are deliberately set at "broken or too small to argue about"
+rather than at what anyone should sign with today: a finding raised on every
+2048-bit RSA signature in Brazil would be noise, and noise is how a real finding
+gets ignored.
+
+`KeyUsageDoesNotPermitSigning` is read from the certificate and never from what
+it was used for. A certificate declaring neither `keyUsage` nor
+`extendedKeyUsage` raises nothing, since RFC 5280 §4.2.1.3 reads an absent
+`keyUsage` as unconstrained, and an `extendedKeyUsage` naming a purpose this
+package does not model raises nothing either: unknown means unjudged.
+
+```php
+$signature->signer()?->keyAlgorithm;             // 'RSA', 'EC', 'DSA'
+$signature->signer()?->keyBits;                  // 2048
+$signature->signer()?->keyUsage;                 // ['Digital Signature', 'Non Repudiation']
+$signature->signer()?->extendedKeyUsage;
+$signature->timestampDigestAlgorithm;            // what the authority stamped with
+```
 
 An empty list is not a recommendation to accept. It means nothing was found to
 say.

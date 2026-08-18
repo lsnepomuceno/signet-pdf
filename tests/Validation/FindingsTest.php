@@ -35,6 +35,8 @@ function detailsWith(
     ?int $signedAt = 1_700_000_000,
     bool $isTimestamp = false,
     array $chain = [],
+    ?string $digestAlgorithm = 'sha256',
+    ?string $timestampDigestAlgorithm = null,
 ): SignatureDetails {
     return new SignatureDetails(
         verified: $verified,
@@ -48,6 +50,35 @@ function detailsWith(
         isTrusted: $isTrusted,
         timestampVerified: $timestampVerified,
         revocation: $revocation,
+        digestAlgorithm: $digestAlgorithm,
+        timestampDigestAlgorithm: $timestampDigestAlgorithm,
+    );
+}
+
+/**
+ * A signer whose key and extensions are what the test is about.
+ *
+ * @param  list<string>  $keyUsage
+ * @param  list<string>  $extendedKeyUsage
+ */
+function signerWithKey(
+    ?string $keyAlgorithm = 'RSA',
+    ?int $keyBits = 4096,
+    array $keyUsage = [],
+    array $extendedKeyUsage = [],
+): Signer {
+    return new Signer(
+        commonName: 'Someone',
+        organization: null,
+        organizationalUnit: null,
+        email: null,
+        serialNumber: null,
+        validFrom: null,
+        validTo: null,
+        keyAlgorithm: $keyAlgorithm,
+        keyBits: $keyBits,
+        keyUsage: $keyUsage,
+        extendedKeyUsage: $extendedKeyUsage,
     );
 }
 
@@ -140,6 +171,92 @@ it('reports a timestamp that failed, which isValid() stays silent about', functi
     expect($report->isValid())->toBeTrue()
         ->and($report->findings())->toContain(ValidationFinding::TimestampDoesNotVerify);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Weak, as opposed to wrong
+|--------------------------------------------------------------------------
+|
+| Every case below leaves the signature verifying and the report valid. That is
+| the decision being tested as much as the finding is: a SHA-1 signature does
+| verify, and reporting it as invalid would be a lie of a different kind. The
+| thresholds live in Support\CryptographicStrength with the standards they came
+| from and the date they were read.
+|
+*/
+
+it('reports a broken digest without calling the signature invalid', function (string $algorithm) {
+    $details = detailsWith(digestAlgorithm: $algorithm);
+
+    expect($details->has(ValidationFinding::WeakDigestAlgorithm))->toBeTrue()
+        ->and($details->verified)->toBeTrue()
+        ->and(new SignatureReport([$details])->isValid())->toBeTrue();
+})->with(['md5', 'sha1', 'SHA1']);
+
+it('says nothing about a digest that is fine, or one it could not read', function (?string $algorithm) {
+    // "unknown" is what the reader writes for an algorithm outside the set it
+    // models. An algorithm nobody could read is not one known to be weak, and
+    // reporting it would put a finding on every signature this package cannot
+    // fully parse.
+    expect(detailsWith(digestAlgorithm: $algorithm)->has(ValidationFinding::WeakDigestAlgorithm))->toBeFalse();
+})->with(['sha256', 'sha384', 'sha512', 'unknown', null]);
+
+it('separates the authority from the signer when a digest is weak', function () {
+    // The remedy differs, which is why the cases do: a weak signature has to be
+    // redone by the signer, a weak timestamp is answered by a fresh archive
+    // timestamp over the same document.
+    $details = detailsWith(digestAlgorithm: 'sha256', timestampDigestAlgorithm: 'sha1');
+
+    expect($details->has(ValidationFinding::WeakTimestampDigest))->toBeTrue()
+        ->and($details->has(ValidationFinding::WeakDigestAlgorithm))->toBeFalse();
+});
+
+it('reports a key that is too small for its family', function (?string $algorithm, ?int $bits, bool $weak) {
+    // The two scales are not comparable: a 256-bit elliptic curve is stronger
+    // than a 2048-bit RSA key, so one threshold for both would report every EC
+    // signature ever made.
+    expect(detailsWith(chain: [signerWithKey($algorithm, $bits)])->has(ValidationFinding::WeakSignatureKey))
+        ->toBe($weak);
+})->with([
+    'RSA 1024' => ['RSA', 1024, true],
+    'RSA 2048' => ['RSA', 2048, false],
+    'RSA 4096' => ['RSA', 4096, false],
+    'DSA 1024' => ['DSA', 1024, true],
+    'EC P-192' => ['EC', 192, true],
+    'EC P-256' => ['EC', 256, false],
+    'EC P-384' => ['EC', 384, false],
+    // A key that could not be read is not a small one.
+    'unread' => [null, null, false],
+    'a family nobody models' => ['Ed25519', 256, false],
+]);
+
+it('reads the certificate to decide what it was issued for', function (string $keyUsage, string $extendedKeyUsage, bool $permitted) {
+    // Written as the sentence openssl_x509_parse() renders, rather than as a
+    // list, because that is the shape the reader actually meets.
+    $split = static fn(string $extension): array => $extension === ''
+        ? []
+        : array_map(trim(...), explode(',', $extension));
+
+    expect(detailsWith(chain: [
+        signerWithKey(keyUsage: $split($keyUsage), extendedKeyUsage: $split($extendedKeyUsage)),
+    ])->has(ValidationFinding::KeyUsageDoesNotPermitSigning))->toBe(! $permitted);
+})->with([
+    // RFC 5280 §4.2.1.3: an absent keyUsage is unconstrained, not forbidden.
+    'neither extension' => ['', '', true],
+    'digital signature' => ['Digital Signature', '', true],
+    'non repudiation' => ['Non Repudiation', '', true],
+    'encipherment only' => ['Key Encipherment, Data Encipherment', '', false],
+    'a TLS server certificate' => ['Digital Signature, Key Encipherment', 'TLS Web Server Authentication', false],
+    'e-mail protection, as an ICP-Brasil certificate carries' => [
+        'Digital Signature, Non Repudiation',
+        'TLS Web Client Authentication, E-mail Protection',
+        true,
+    ],
+    // Unknown means unjudged: this extension is rendered as text whose wording
+    // has moved between openssl versions, and a purpose nobody recognises must
+    // not raise a finding against an ordinary certificate.
+    'a purpose this package does not model' => ['', '1.2.840.113583.1.1.5', true],
+]);
 
 it('carries a stable string for every case, so a build can gate on it', function () {
     foreach (ValidationFinding::cases() as $finding) {
