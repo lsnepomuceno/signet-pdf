@@ -118,3 +118,26 @@ What the network tests assert:
 | Refuse a document that is not already B-LTA | The chain has to start somewhere, and that makes signing time the only chance to reach it |
 | Re-sign instead of re-stamping | Loses the original signing time, which is what the archive was preserving |
 | Keep counting `/FT /Sig` in the bytes | Undercounts a packed form, and two fields share a name |
+
+## Outcome, 2026-08-18
+
+"A scheduled job can do this with no key material anywhere near it" was true of
+the code and false in practice: the only way to call it was a PHP script with a
+Composer autoload in it, written by hand, for one call taking one path.
+`Console\ExtendCommand` closes that: `signet extend <pdf> --out <path>`, or
+`--in-place`, which is a flag rather than a default because it is the version
+that can destroy an archive.
+
+Two things came out of writing it, and both were gaps rather than additions:
+
+- **The archive timestamp carried no time.** `Validation\PdfSignatureValidator`
+  discarded a DocTimeStamp's own genTime, so the one entry in a report whose
+  time comes from an authority was the only one with no time at all, and "how
+  old is this archive" had nothing to ask. It now reads it into `stampedAt`,
+  leaving `timestampVerified` null, since nothing stamps an archive timestamp
+  and the next link in the chain is an entry of its own. `--if-due=<days>`
+  rests on it.
+- **The authority's failure was unreachable.** See
+  [0008](0008-exceptions-name-the-real-fault.md)'s outcome: the transport's
+  exception was being rewrapped as a process fault, which is what a retryable
+  status needed to tell apart.

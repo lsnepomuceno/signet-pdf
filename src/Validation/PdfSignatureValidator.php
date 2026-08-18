@@ -90,25 +90,30 @@ final readonly class PdfSignatureValidator implements SignatureValidator
             $ordered = $this->chains->build($this->reader->certificates($signature['cms']));
             $chain = $this->reader->signersFromPem($ordered);
 
-            // A DocTimeStamp carries no signature value to stamp, so it is
-            // never asked; it is itself the token, and is verified as one below.
-            $stamp = $signature['isTimestamp']
-                ? ['verified' => null, 'at' => null]
-                : $this->stamp($signature['cms']);
+            $covered = $this->extractor->coveredBytes($pdfContents, $open, $close, $trailing);
+
+            // A timestamp is verified against its own imprint rather than as a
+            // detached signature, which is why the two paths differ
+            // (docs/decisions/0010-validation-consumes-what-signing-writes.md).
+            //
+            // **A DocTimeStamp carries no signature value to stamp: it is
+            // itself the token.** So `timestampVerified` stays null, since
+            // nothing stamps it and the next link in the chain is an entry of
+            // its own, while `stampedAt` is its own genTime. That time used to
+            // be discarded, which left an archive timestamp as the one thing in
+            // the report carrying no time at all, and a caller asking how old
+            // an archive is has nothing else to ask.
+            if ($signature['isTimestamp']) {
+                $info = $this->verifier->verifiedTimestampInfo($signature['cms'], $covered);
+                $verified = $info !== null;
+                $stamp = ['verified' => null, 'at' => $info === null ? null : $this->timestamps->stampedAt($info)];
+            } else {
+                $verified = $this->verifier->verify($signature['cms'], $covered);
+                $stamp = $this->stamp($signature['cms']);
+            }
 
             $signatures[] = new SignatureDetails(
-                // A timestamp is verified against its own imprint rather than
-                // as a detached signature, which is why the two paths differ
-                // (docs/decisions/0010-validation-consumes-what-signing-writes.md).
-                verified: $signature['isTimestamp']
-                    ? $this->verifier->verifyTimestamp(
-                        $signature['cms'],
-                        $this->extractor->coveredBytes($pdfContents, $open, $close, $trailing),
-                    )
-                    : $this->verifier->verify(
-                        $signature['cms'],
-                        $this->extractor->coveredBytes($pdfContents, $open, $close, $trailing),
-                    ),
+                verified: $verified,
                 signers: $this->reader->signers($signature['cms']),
                 coverageEnd: $signature['coverageEnd'],
                 // Only the last signature reaches the end of the file; the

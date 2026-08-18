@@ -167,9 +167,19 @@ final readonly class SignatureDetails extends BaseData
      * $signedAt is the signer's own clock and answers a different question, so
      * falling back to it would let a caller read an unattested time as an
      * attested one.
+     *
+     * **A DocTimeStamp is the token**, so the verification that matters for it
+     * is its own: nothing stamps an archive timestamp, and $timestampVerified
+     * is null for one by construction. Reading that null as "unattested" would
+     * report the one entry whose time comes from an authority as the one entry
+     * with no attested time.
      */
     public function attestedAt(): ?int
     {
+        if ($this->isTimestamp) {
+            return $this->verified === true ? $this->stampedAt : null;
+        }
+
         return $this->timestampVerified === true ? $this->stampedAt : null;
     }
 

@@ -13,6 +13,7 @@ use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Exceptions\InvalidCertificateContentException;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
+use LSNepomuceno\Signet\Exceptions\SignatureTransportException;
 use LSNepomuceno\Signet\Support\Pem;
 use Throwable;
 
@@ -37,6 +38,8 @@ final readonly class CadesBuilder
      *
      * @throws InvalidCertificateContentException
      * @throws ProcessRunTimeException
+     * @throws SignatureTransportException When a timestamp authority the
+     *          profile needs did not answer.
      */
     public function build(
         string $content,
@@ -59,6 +62,13 @@ final readonly class CadesBuilder
                 $timestampClient,
                 $timestampTransport,
             );
+        } catch (SignatureTransportException $exception) {
+            // Straight through, deliberately. A timestamp authority that did
+            // not answer is a network fault and not a process one, and the
+            // caller can retry it; wrapping it here made it indistinguishable
+            // from a signature that will never build
+            // (docs/decisions/0008-exceptions-name-the-real-fault.md).
+            throw $exception;
         } catch (Throwable $exception) {
             throw new ProcessRunTimeException('CAdES signing failed: ' . $exception->getMessage());
         }

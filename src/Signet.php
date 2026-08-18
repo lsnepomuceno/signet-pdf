@@ -20,9 +20,12 @@ use LSNepomuceno\Signet\Data\EncryptedCertificate;
 use LSNepomuceno\Signet\Data\SignatureField;
 use LSNepomuceno\Signet\Data\SignatureReport;
 use LSNepomuceno\Signet\Data\SignedPdf;
+use LSNepomuceno\Signet\Exceptions\CertificationException;
 use LSNepomuceno\Signet\Exceptions\FileNotFoundException;
 use LSNepomuceno\Signet\Exceptions\HasNoSignatureOrInvalidPkcs7Exception;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
+use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
+use LSNepomuceno\Signet\Exceptions\SignatureTransportException;
 use LSNepomuceno\Signet\IcpBrasil\Data\Report;
 use LSNepomuceno\Signet\IcpBrasil\Validator;
 use LSNepomuceno\Signet\Seal\InterventionSealRenderer;
@@ -253,8 +256,14 @@ final class Signet
      * Appends a fresh archive timestamp, renewing a B-LTA document before its
      * existing one ages out.
      *
+     * @throws CertificationException When the document is certified
+     *          "no-changes", which forbids the revision this appends.
      * @throws FileNotFoundException
+     * @throws HasNoSignatureOrInvalidPkcs7Exception When there is no signature
+     *          to archive.
      * @throws InvalidPdfFileException
+     * @throws ProcessRunTimeException
+     * @throws SignatureTransportException When the authority did not answer.
      */
     public function extendArchive(string $pdfPath): SignedPdf
     {

@@ -53,3 +53,17 @@ that was ever accurate keeps saying exactly what it said.
 - The same shape exists in `FileNotFoundException`, which prefixes
   "File not found. Current file: ". That one is honest, since every call site
   really is a missing file, so it is left alone.
+
+## Outcome, 2026-08-18
+
+The rule was being defeated one layer up. `Signing\Cades\CadesBuilder` and
+`Signing\Incremental\DocTimeStampWriter` each wrapped every `Throwable` from
+the transport in a `ProcessRunTimeException` ("CAdES signing failed",
+"archive timestamp failed"), so a `SignatureTransportException` raised for the
+exact reason this record exists never reached a caller: no process is run to
+fetch a timestamp, and the class named a fault that did not occur.
+
+Both now let that one class through and keep wrapping everything else. What it
+unblocks is the thing the distinction was for: `signet extend` exits `75`,
+`EX_TEMPFAIL`, when the authority did not answer, and a scheduled job can retry
+that without retrying a document that will never accept a timestamp.
