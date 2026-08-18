@@ -15,15 +15,52 @@ vendor/bin/signet check
 
 Signs a document with an A1 certificate.
 
-| Option | Requirement | Meaning |
-|---|---|---|
-| `pdf` | argument, required | path to the document |
-| `--certificate`, `-c` | required | path to the PKCS#12 or PEM certificate |
-| `--password-env` | default `SIGNET_PASSWORD` | **name** of the environment variable holding the password |
-| `--out`, `-o` | | where to write the signed document |
-| `--profile`, `-p` | default `pades-b-b` | `legacy`, `pades-b-b`, `pades-b-t`, `pades-b-lt`, `pades-b-lta` |
-| `--tsa` | | timestamp authority URL, required from `pades-b-t` up |
-| `--chain` | repeatable | a PEM or DER certificate to fold into the chain, for a bundle that carries only the leaf |
+**Every option maps onto one call on the fluent builder**, so a shell script and
+a PHP application describe the same signature in the same words.
+
+| Option | Requirement | Meaning | Builder |
+|---|---|---|---|
+| `pdf` | argument, required | path to the document | `pdf()` |
+| `--certificate`, `-c` | required | path to the PKCS#12 or PEM certificate | `certificate()` |
+| `--password-env` | default `SIGNET_PASSWORD` | **name** of the environment variable holding the password | |
+| `--document-password-env` | | the same for the **document's** password, when it is encrypted | `pdf($path, $password)` |
+| `--out`, `-o` | | where to write the signed document | `save()` |
+| `--profile`, `-p` | default `pades-b-b` | `legacy`, `pades-b-b`, `pades-b-t`, `pades-b-lt`, `pades-b-lta` | `profile()` |
+| `--tsa` | | timestamp authority URL, required from `pades-b-t` up | |
+| `--chain` | repeatable | a PEM or DER certificate to fold into the chain, for a bundle that carries only the leaf | `chain()` |
+| `--name`, `--reason`, `--location`, `--contact` | | what the signature says about itself | `info()` |
+| `--seal` | | draw a visible seal, rendered from the certificate | `seal()` |
+| `--seal-image` | | stamp your own artwork instead, and implies `--seal` | `sealFrom()` |
+| `--seal-page` | default `last` | `first`, `last`, or a page number | `SealPage`, `SealPlacement::$page` |
+| `--seal-every-page` | | put it on every page | `SealPlacement::$onEveryPage` |
+| `--seal-x`, `--seal-y`, `--seal-width`, `--seal-height` | | where it goes, in points from the bottom-left corner | `SealPlacement` |
+| `--certify` | | `no-changes`, `form-filling` or `annotations` | `certify()` |
+| `--lock` | | `all`, `include:A,B` or `exclude:A,B` | `lock()` |
+| `--into-field` | | fill a signature field the document already carries | `intoField()` |
+| `--field-name` | default `Signature` | name the field this signature creates | `fieldName()` |
+
+```bash
+export SIGNET_PASSWORD='the certificate password'
+
+vendor/bin/signet sign contract.pdf -c cert.pfx -o signed.pdf \
+    --name 'Lucas Nepomuceno' --reason Contract \
+    --seal --seal-page first --seal-x 40 --seal-y 60 --seal-width 120 --seal-height 30 \
+    --certify form-filling --lock include:Amount,Date
+```
+
+::: tip There is no `--seal-placement=bottom-right`
+`Data\SealPlacement` is absolute user space, so a named corner would have to be
+resolved against the page box, and doing that correctly is its own piece of
+work: a crop box smaller than the sheet and a `/UserUnit` on a plot both move
+where a corner is. Inventing a vocabulary the library does not have would put
+that arithmetic in the command rather than where it belongs.
+:::
+
+::: warning `--into-field` and `--field-name` are mutually exclusive
+One fills a field the document already carries and the other names one this
+signature creates. The command refuses rather than picking: resolving it by
+precedence would create a field beside the one you meant to fill.
+:::
 
 ```bash
 export SIGNET_PASSWORD='the certificate password'
@@ -36,10 +73,10 @@ vendor/bin/signet sign contract.pdf \
     --tsa https://freetsa.org/tsr
 ```
 
-::: tip The password is never an argument
-It is read from an environment variable whose **name** you pass, because a
-command line is visible in `ps` and lands in shell history. `--password-env`
-names the variable; it does not take the password.
+::: tip The passwords are never arguments
+They are read from environment variables whose **names** you pass, because a
+command line is visible in `ps` and lands in shell history. `--password-env` and
+`--document-password-env` name the variables; neither takes a password.
 :::
 
 ## verify
