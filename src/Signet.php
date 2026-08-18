@@ -138,6 +138,7 @@ final class Signet
             $this->sealRenderer(),
             new PemCertificateReader(new CertificateParser()),
             $this->config->signing,
+            $this->config->certificate,
         );
     }
 

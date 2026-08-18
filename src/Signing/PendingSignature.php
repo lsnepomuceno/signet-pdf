@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace LSNepomuceno\Signet\Signing;
 
 use LSNepomuceno\Signet\Certificates\PemCertificateReader;
+use LSNepomuceno\Signet\Certificates\SuppliedChain;
+use LSNepomuceno\Signet\Config\CertificateConfig;
 use LSNepomuceno\Signet\Config\SigningConfig;
 use LSNepomuceno\Signet\Contracts\CertificateReader;
 use LSNepomuceno\Signet\Contracts\PdfSigner;
@@ -23,6 +25,7 @@ use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Exceptions\CertificationException;
 use LSNepomuceno\Signet\Exceptions\FieldLockException;
 use LSNepomuceno\Signet\Exceptions\FileNotFoundException;
+use LSNepomuceno\Signet\Exceptions\InvalidCertificateContentException;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Exceptions\InvalidPemContentException;
 use LSNepomuceno\Signet\Exceptions\InvalidPFXException;
@@ -88,12 +91,27 @@ final class PendingSignature
 
     private SignatureProfile|string|null $profile = null;
 
+    /**
+     * Certificates to fold into this signature's chain, as PEM or DER bytes.
+     *
+     * Empty means "use whatever the configuration names", which is how
+     * `profile` already behaves: the builder overrides the default rather than
+     * adding to it, so a caller who names a chain here gets exactly that one.
+     *
+     * @var list<string>
+     */
+    private array $suppliedChain = [];
+
     public function __construct(
         private readonly CertificateReader $reader,
         private readonly PdfSigner $signer,
         private readonly SealRenderer $sealRenderer,
         private readonly PemCertificateReader $pemReader,
         private readonly SigningConfig $config = new SigningConfig(),
+        // Appended, so a caller who built this by hand keeps meaning what they
+        // meant.
+        private readonly CertificateConfig $certificates = new CertificateConfig(),
+        private readonly SuppliedChain $chain = new SuppliedChain(),
     ) {
         $this->info = new SignatureInfo();
     }
@@ -183,6 +201,37 @@ final class PendingSignature
     public function usingCertificate(Certificate $certificate): self
     {
         $this->certificate = $certificate;
+
+        return $this;
+    }
+
+    /**
+     * Certificates the bundle did not carry, from files.
+     *
+     * **The normal case for an ICP-Brasil e-CPF exported from a browser or a
+     * token**, which holds the leaf and nothing else: the intermediates are
+     * published by the AC and are not in the file, so the CMS embeds a chain
+     * that reaches no root, `pades-b-lt` builds a store that cannot be
+     * validated offline, and revocation cannot be checked for a certificate
+     * whose issuer is absent.
+     *
+     * PEM or DER, one certificate per file or a concatenated bundle, in any
+     * order: `Validation\ChainBuilder` puts them in issuer order, because the
+     * security store's collector reads a certificate's neighbour as its issuer.
+     *
+     * @throws FileNotFoundException When a named file is not there.
+     */
+    public function chain(string ...$paths): self
+    {
+        return $this->chainContents(...array_map(Files::read(...), $paths));
+    }
+
+    /**
+     * The same, from bytes an application already holds.
+     */
+    public function chainContents(string ...$certificates): self
+    {
+        $this->suppliedChain = array_values($certificates);
 
         return $this;
     }
@@ -399,6 +448,9 @@ final class PendingSignature
      * @throws FileNotFoundException
      * @throws SealPlacementException
      * @throws SignatureFieldException
+     * @throws InvalidCertificateContentException When a supplied chain
+     *          certificate cannot be read, or is not part of this signer's
+     *          chain.
      * @throws SignatureTransportException From pades-b-t up, when the
      *          timestamp authority did not answer.
      */
@@ -425,6 +477,8 @@ final class PendingSignature
             );
         }
 
+        $certificate = $this->chain->into($this->certificate, $this->chainMaterial());
+
         $seal = $this->withSeal ? $this->renderSeal() : null;
 
         // By reference, so the signer can release the document the moment the
@@ -432,7 +486,7 @@ final class PendingSignature
         // extra copy alive through hashing, which for a 200 MB plan is 200 MB.
         $signed = $this->signer->sign(
             $this->pdfContents,
-            $this->certificate,
+            $certificate,
             $this->info,
             $this->fieldName,
             $seal,
@@ -445,6 +499,23 @@ final class PendingSignature
         );
 
         return new SignedPdf($signed->contents, $this->signedFileName());
+    }
+
+    /**
+     * The chain certificates for this signature: the ones named here, or the
+     * configured ones when none were.
+     *
+     * @return list<string>
+     *
+     * @throws FileNotFoundException
+     */
+    private function chainMaterial(): array
+    {
+        if ($this->suppliedChain !== []) {
+            return $this->suppliedChain;
+        }
+
+        return array_map(Files::read(...), array_values($this->certificates->chainPaths));
     }
 
     /**

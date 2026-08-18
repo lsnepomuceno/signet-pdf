@@ -526,6 +526,22 @@ What is left:
 | Fetching revocation at validation time | evaluated from what the document carries, never from the network. That is a decision rather than a gap ([0024](../decisions/0024-revocation-is-evaluated-not-counted.md)) |
 | Signing with an A3 token, a smart card or an HSM | out of scope: this package signs with A1 material it can hold |
 
+## Supplying the chain
+
+The certificates that reach the CMS are whatever the bundle carried, plus
+whatever the caller supplies:
+
+```php
+->chain(string ...$paths)             // PEM or DER files
+->chainContents(string ...$bytes)     // the same, already in hand
+```
+
+`Config\CertificateConfig::$chainPaths` is the default for an application whose
+signers all come from one AC, and a `chain()` call overrides it for one
+signature. The supplied certificates are ordered by `Validation\ChainBuilder`,
+deduplicated against what the bundle held, and one that issued nothing in the
+chain raises `InvalidCertificateContentException` rather than being embedded.
+
 ## Key types the signer accepts
 
 Both, and both are gated rather than assumed. Nothing in this package ever said

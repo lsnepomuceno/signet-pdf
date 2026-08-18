@@ -22,6 +22,60 @@ A wrong password raises `InvalidCertificatePasswordException`. It is worth
 catching by type, because it is the failure a production application meets most
 and the only one whose fix is "ask the user again" rather than "call support".
 
+## When the bundle carries only the leaf
+
+**The normal case for an ICP-Brasil e-CPF exported from a browser or a token.**
+The intermediates are published by the AC and are not in the file, so the
+signature embeds a chain that reaches no root:
+
+- `pades-b-lt` and `pades-b-lta` build their Document Security Store from what
+  the signature carries, so the store is incomplete and long-term validation is
+  not actually long-term;
+- revocation cannot be checked for a certificate whose issuer is absent;
+- validation reports `ChainDoesNotReachRoot`, correctly, for a signature that
+  would be fine if the intermediates were there.
+
+Supply them:
+
+```php
+$signet->newSignature()
+    ->certificate('/path/e-cpf.pfx', $password)
+    ->chain('/path/ac-intermediate.cer', '/path/ac-root.cer')
+    ->pdf('/path/contract.pdf')
+    ->sign();
+
+// or from bytes an application already holds
+->chainContents($intermediate, $root)
+```
+
+PEM or DER, one certificate per file or a concatenated bundle, **in any order**:
+they are put in issuer order before they are embedded, because the security
+store's collector reads each certificate's neighbour as its issuer. A
+certificate already in the bundle is not embedded twice, compared by the digest
+of its DER rather than by its text.
+
+**A certificate that issued nothing in the chain is refused rather than
+embedded.** It would inflate the CMS and every store built from it while saying
+nothing about the signer, which means the wrong file was almost certainly named.
+
+For an application whose signers all come from the same AC, configure it once:
+
+```php
+use LSNepomuceno\Signet\Config\CertificateConfig;
+use LSNepomuceno\Signet\Config\SignetConfig;
+
+$signet = new Signet(new SignetConfig(
+    certificate: new CertificateConfig(chainPaths: ['/etc/ssl/ac-intermediate.cer']),
+));
+```
+
+`chain()` on a signature overrides that, the way `profile()` does. From a shell,
+`--chain` is repeatable:
+
+```bash
+vendor/bin/signet sign contract.pdf -c e-cpf.pfx --chain ac-intermediate.cer --chain ac-root.cer
+```
+
 ## RSA or ECDSA
 
 Both work, on any of the four entry points above and at every profile. Elliptic

@@ -123,44 +123,79 @@ final class DebugCertificate
      * builds the shape a real certificate has
      * (docs/decisions/0016-trust-is-the-applications-policy.md).
      *
+     * @param  bool  $embedRoot  Whether the root travels inside the bundle.
+     *          **False is the shape of a real ICP-Brasil e-CPF**: exported from
+     *          a browser or a token it holds the leaf and nothing else, and the
+     *          intermediates are published by the AC rather than handed over
+     *          with the key. That is the fixture `PendingSignature::chain()`
+     *          exists for.
      * @return array{0: string, 1: string, 2: string} The PFX bytes, its password,
      *                                                and the root authority in PEM.
      *
      * @throws CertificateOutputNotFoundException
      */
-    public static function makeChain(int $daysValid = 600): array
+    public static function makeChain(int $daysValid = 600, bool $embedRoot = true): array
     {
         $rootKey = self::key();
         $rootCsr = self::request(['commonName' => 'Test Root Authority'], $rootKey);
 
         // v3_ca is what sets basicConstraints CA:TRUE, which is what makes a
         // certificate usable as an anchor at all.
+        //
+        // **The serials are distinct, and that is load-bearing.** They default
+        // to 0, so the root and the certificate it issues came out carrying the
+        // same issuer name and the same serial, and a CMS identifies its signer
+        // by exactly that pair (RFC 5652 §5.3). pyHanko then resolved the
+        // SignerInfo to the root, found the ESS signing-certificate-v2 attribute
+        // describing the leaf, and refused the signature outright. No authority
+        // issues two certificates that way, so the fixture was the defect.
         $root = openssl_csr_sign($rootCsr, null, $rootKey, $daysValid + 365, [
             'digest_alg' => 'sha256',
             'x509_extensions' => 'v3_ca',
-        ]);
+        ], serial: 1);
 
         if ($root === false) {
             throw new RuntimeException('Unable to build the test root: ' . openssl_error_string());
         }
 
         $key = self::key();
-        $csr = self::request(
+
+        // **The leaf declares what it is for**, which a certificate signed with
+        // no extensions section does not. pyHanko applies a key usage policy
+        // when it validates a document signature and refuses to build a path to
+        // a certificate that claims neither digitalSignature nor
+        // nonRepudiation, so without this the chain could not be checked by the
+        // one instrument that checks chains (RFC 5280 §4.2.1.3). The key
+        // identifiers are here for the same reason: they are how a path is
+        // built from the leaf to its issuer.
+        $x509 = self::signWithExtensions(
+            implode("\n", [
+                '[req]',
+                'distinguished_name = dn',
+                '[dn]',
+                '[leaf]',
+                'basicConstraints = CA:FALSE',
+                'keyUsage = critical, digitalSignature, nonRepudiation',
+                'subjectKeyIdentifier = hash',
+                'authorityKeyIdentifier = keyid,issuer',
+                '',
+            ]),
+            'leaf',
             ['commonName' => 'Test Certificate', 'organizationalUnitName' => 'LucasNepomuceno'],
             $key,
+            $daysValid,
+            $root,
+            $rootKey,
+            2,
         );
-
-        $x509 = openssl_csr_sign($csr, $root, $rootKey, $daysValid, ['digest_alg' => 'sha256']);
-
-        if ($x509 === false) {
-            throw new RuntimeException('Unable to issue the test certificate: ' . openssl_error_string());
-        }
 
         $pfx = '';
 
         // The root travels in the bundle, which is what lets the signature
         // carry its own chain and what a real PFX from an authority does.
-        if (! openssl_pkcs12_export($x509, $pfx, $key, self::PASSWORD, ['extracerts' => [$root]])) {
+        $options = $embedRoot ? ['extracerts' => [$root]] : [];
+
+        if (! openssl_pkcs12_export($x509, $pfx, $key, self::PASSWORD, $options)) {
             throw new CertificateOutputNotFoundException();
         }
 
@@ -376,12 +411,23 @@ final class DebugCertificate
         array $subject,
         OpenSSLAsymmetricKey $key,
         int $daysValid,
+        ?OpenSSLCertificate $issuer = null,
+        ?OpenSSLAsymmetricKey $issuerKey = null,
+        int $serial = 0,
     ): OpenSSLCertificate {
         return TemporaryFile::with(
             sys_get_temp_dir(),
             '.cnf',
             $configuration,
-            static function (TemporaryFile $file) use ($section, $subject, $key, $daysValid): OpenSSLCertificate {
+            static function (TemporaryFile $file) use (
+                $section,
+                $subject,
+                $key,
+                $daysValid,
+                $issuer,
+                $issuerKey,
+                $serial,
+            ): OpenSSLCertificate {
                 $options = ['digest_alg' => 'sha256', 'config' => $file->path, 'x509_extensions' => $section];
 
                 // openssl_csr_new takes the key by reference, so it is handed a
@@ -394,7 +440,7 @@ final class DebugCertificate
                     throw new RuntimeException('Unable to generate the test CSR: ' . openssl_error_string());
                 }
 
-                $signed = openssl_csr_sign($csr, null, $key, $daysValid, $options);
+                $signed = openssl_csr_sign($csr, $issuer, $issuerKey ?? $key, $daysValid, $options, $serial);
 
                 if ($signed === false) {
                     throw new RuntimeException('Unable to sign the test certificate: ' . openssl_error_string());
