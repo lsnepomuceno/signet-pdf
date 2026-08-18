@@ -71,6 +71,12 @@ tamper cases, and a disagreement fails this package's build
 **It is opt in rather than a fallback**, because an environment change should
 not silently change which code decides whether a signature is valid.
 
+Trust is unaffected either way: `Validation\TrustVerifier` asks
+`openssl_x509_checkpurpose()`, which is the extension rather than the binary. It
+does write the roots to a temporary file, because that function reads PEM from
+paths, so a writable temporary directory is needed for a trust store and for
+nothing else in validation.
+
 ## Per signature
 
 ```php

@@ -50,7 +50,7 @@ existing lock covers is refused with `FieldLockException`, rather than producing
 a document whose earlier signature silently stopped verifying. Writing a lock
 nobody enforces is decoration; refusing to violate one is the feature.
 
-## The three rules, enforced rather than documented
+## The rules, enforced rather than documented
 
 Each raises `CertificationException`:
 
@@ -58,7 +58,12 @@ Each raises `CertificationException`:
 2. There can be only **one** certification in a document.
 3. A document certified at **`no-changes` cannot be signed again**, because a
    further signature is a further revision, which is exactly what that level
-   forbids.
+   forbids. An archive timestamp is refused for the same reason.
+4. **A new signature field is refused at `no-changes` and at `form-filling`.**
+   The second is the one worth knowing: that level permits *filling* the fields
+   the document already carries, and adding one is not filling one (ISO 32000-1
+   Table 254). The field has to exist before the document is certified
+   ([0111](../decisions/0111-a-field-can-be-created-not-only-filled.md)).
 
 ## Reading it back
 

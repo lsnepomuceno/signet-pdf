@@ -9,6 +9,10 @@ name: Documentation
 # `tests/Project/SpecTest.php` cannot see, since it checks whether a path exists
 # in the repository and this checks whether it exists as a page.
 #
+# It builds **two** sites: the line that is current, at the root, and one
+# archive per superseded line, each read out of its own tag and published under
+# a prefix (docs/.vitepress/versions.mjs).
+#
 # `deploy` publishes to GitHub Pages **from a tag**, never from a branch. The
 # site describes what is installable, so a change merged to `main` and not yet
 # tagged does not belong on it (CONTRIBUTING.md). A pull request and a push to
@@ -55,8 +59,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          # The site prints the date each page was last updated, and reads it
-          # from the commit that touched the file.
+          # Two reasons, and the second is load-bearing. The site prints the
+          # date each page was last updated and reads it from the commit that
+          # touched the file; and the build archives the previous line by
+          # reading its documentation out of that line's **tag**, which a
+          # shallow checkout does not carry
+          # (docs/decisions/0112-the-site-documents-one-release-line.md).
           fetch-depth: 0
 
       - name: Setup Node

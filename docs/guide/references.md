@@ -46,8 +46,8 @@ revision 6 handler is specified rather than in the 1.7 edition.
 
 | Standard | Implemented in | Why |
 |---|---|---|
-| [RFC 5652](https://www.rfc-editor.org/rfc/rfc5652), CMS | `src/Validation/Pkcs7Reader.php`, `src/Validation/TimestampTokenReader.php` | The container the signature lives in. Reading it is how validation verifies rather than assumes |
-| [RFC 5035](https://www.rfc-editor.org/rfc/rfc5035), ESS `signing-certificate-v2` | `src/Signing/Cades/CadesBuilder.php` | PAdES requires this attribute, and `openssl_pkcs7_sign()` cannot emit it. That single sentence is why the CMS is built with tc-lib-pdf-sign instead |
+| [RFC 5652](https://www.rfc-editor.org/rfc/rfc5652), CMS | `src/Validation/Pkcs7Reader.php`, `src/Validation/NativeSignatureVerifier.php`, `src/Validation/TimestampTokenReader.php` | The container the signature lives in. Reading it is how validation verifies rather than assumes, and §5.4 is why the signed attributes are re-tagged before the signature over them is checked |
+| [RFC 5035](https://www.rfc-editor.org/rfc/rfc5035), ESS `signing-certificate-v2` | `src/Signing/Cades/CadesBuilder.php`, `src/Validation/NativeSignatureVerifier.php` | PAdES requires this attribute, and `openssl_pkcs7_sign()` cannot emit it. That single sentence is why the CMS is built with tc-lib-pdf-sign instead. On the reading side it is what stops a substituted certificate |
 | [RFC 2985](https://www.rfc-editor.org/rfc/rfc2985), PKCS#9 | `src/Validation/PdfSignatureExtractor.php` | The signed attributes, including the message digest a signature commits to |
 | [RFC 5126](https://www.rfc-editor.org/rfc/rfc5126), CAdES | `src/Enums/CmsAttribute.php` | The attribute set the PAdES levels are defined on top of |
 | [ETSI EN 319 142](https://www.etsi.org/deliver/etsi_en/319100_319199/31914201/01.01.01_60/en_31914201v010101p.pdf), PAdES | `src/Enums/SignatureProfile.php`, `src/Signing/ArchiveExtender.php` | What B-B, B-T, B-LT and B-LTA each require, and what an archive timestamp has to cover |
@@ -83,10 +83,14 @@ service.
 [**ISO 14289-1 (PDF/UA)**](https://www.iso.org/search.html?q=ISO%2014289) are
 consulted in
 `src/Signing/Incremental/RevisionWriter.php`,
-`src/Signing/Incremental/DocTimeStampWriter.php` and
+`src/Signing/Incremental/DocTimeStampWriter.php`,
+`src/Signing/Incremental/StructureTreeWriter.php` and
 `src/Signing/Incremental/SealAppearance.php`, because a signed document has to
 stay conformant and the revision is what could break it: output intents, colour
 spaces and tagged structure all have rules a naive appended object violates.
+§7.18 is the one a visible seal used to fail, and the widget joins the structure
+tree to satisfy it
+([0113](../decisions/0113-the-seal-joins-the-structure-tree.md)).
 
 Neither is asserted. Both are measured, with veraPDF, below.
 

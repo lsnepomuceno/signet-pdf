@@ -82,11 +82,26 @@ actually declares:
 vendor/bin/signet fields template.pdf
 ```
 
+**Adding** one raises the same class for its own three cases: the name is
+already in use, the name is empty, or the placement has a width and no height.
+The last is refused rather than guessed at, because a seal derives a missing
+height from its image and an empty field has no image.
+
 ## `CertificationException`
 
-One of three rules: a certification has to be the first signature, there can be
-only one, and a document certified at `no-changes` cannot be signed again. See
+One of four rules: a certification has to be the first signature, there can be
+only one, a document certified at `no-changes` cannot be signed again or
+archived, and a **new** signature field is refused at `no-changes` and at
+`form-filling` alike, since that level permits filling the fields a document
+already carries rather than adding one. See
 [Certification and locks](./certification.md).
+
+## `VerificationUnsupportedException`
+
+Only from `Validation\NativeSignatureVerifier`, and only for a signature
+algorithm `openssl_verify()` cannot express, which in practice means RSASSA-PSS.
+**It is not a verdict**: the signature was not judged bad, it was not judged at
+all. Use the default verifier, which asks the `openssl` binary and handles it.
 
 ## `FieldLockException`
 

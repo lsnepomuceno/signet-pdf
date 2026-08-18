@@ -10,6 +10,16 @@ They have to be regenerated after any change to `src/Signing/`, and
 `tests/Conformance/SamplesTest.php` fails when they stop being this version's
 output, so a stale sample is caught rather than trusted.
 
+**They are one release behind as this is written**, and the gap is named rather
+than left to be discovered: 2.0.0 gives every signature widget a `/TU`
+description and puts a visible seal into the structure tree of a tagged
+document, and none of the files here carries either
+([0113](../docs/decisions/0113-the-seal-joins-the-structure-tree.md)). Nothing
+about them is wrong, they verify and every reader accepts them, and they show
+the 1.x shape of a widget. Regenerating needs a live timestamp authority for the
+three timestamped profiles, which is why it is a release step rather than
+something the suite can do.
+
 **No generator ships in this repository.** The script that produced them is a
 spike in `lsnepomuceno/laravel-a1-pdf-sign`, the package this one was extracted
 from, so regenerating is a manual step until one is written here. That is a gap

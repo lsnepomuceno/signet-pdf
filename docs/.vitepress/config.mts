@@ -106,11 +106,17 @@ export default defineConfig({
       { text: 'History', link: '/history/decision-log', activeMatch: '^/history/' },
       {
         // The version in the navigation, read from the changelog rather than
-        // typed here, so it cannot drift from the release it names.
+        // typed here, so it cannot drift from the release it names. The
+        // archives beneath it are what makes this a switcher rather than a
+        // label (docs/decisions/0112-the-site-documents-one-release-line.md).
         text: `v${release().version}`,
         items: [
           { text: 'Changelog', link: '/releases/changelog' },
           { text: 'Upgrading', link: '/releases/upgrade' },
+          {
+            text: '1.x (archived)',
+            link: '/signet-pdf/v1/',
+          },
           {
             text: 'All releases',
             link: 'https://github.com/lsnepomuceno/signet-pdf/releases',

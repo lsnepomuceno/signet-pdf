@@ -83,3 +83,10 @@ held, with nothing failing
 `tests/Conformance/SamplesTest.php` checks them on every run, so a sample that
 stops matching what the signer produces fails the suite rather than sitting
 there misleading a reader.
+
+It checks the structures it was taught to check, which is not the same as every
+structure the signer writes: the files committed here predate 2.0.0's `/TU`
+description and its structure-tree entries, and the suite is content because
+nothing told it to look. That is written down in
+[samples/README.md](https://github.com/lsnepomuceno/signet-pdf/blob/main/samples/README.md)
+rather than left for a reader to find by diffing.

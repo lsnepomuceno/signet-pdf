@@ -1,6 +1,8 @@
 # 0112: The site documents one release line, and says which
 
-**Status:** implemented.
+**Status:** implemented, and **partly superseded on 2026-08-18** by the outcome
+at the end of this record: the line that is current keeps the whole site, and a
+line that stops being current is archived under a prefix of its own.
 
 ## Context
 
@@ -85,3 +87,52 @@ for a reader clicking into a 404.
 - **The cost is stated:** documentation for an older line is what shipped with
   its tag. The banner says so and links to the releases page, and anyone needing
   `1.x` prose reads it at that tag.
+
+## Outcome, 2026-08-18: the previous line is archived beside it
+
+**Latest-only was the right call for one line and is not enough across a major
+release.** This record chose it over versioned builds and put the cost in
+writing: "documentation for an older line is what shipped with its tag". Cutting
+`2.0.0` is where that bill arrives. A reader who installed `^1` needs pages that
+describe `^1`, and a banner telling them these do not is a warning rather than
+an answer.
+
+So the site gains one prefix per superseded line:
+
+    /signet-pdf/         the line that is current, whatever it is now
+    /signet-pdf/v1/      the 1.x archive, frozen at 1.0.1
+
+**The current line stays at the root.** Putting it under `/v2/` would mean
+rewriting every link into the documentation at each major release, and every
+link somebody else wrote would rot. An archive gets a prefix; the present does
+not.
+
+**The `1.x` line never had a site**, which decides what an archive can honestly
+be. At `1.0.1` the repository carried `docs/spec`, `docs/decisions` and
+`docs/history` as files GitHub rendered, and no guide at all. So
+`docs/.vitepress/versions.mjs` points *this* machinery at that tag's own
+markdown: the prose is what shipped, the generator is current. Building it with
+the tag's own tooling would be a second build to keep working, and the archive
+is valuable for what it says rather than how it is rendered.
+
+Two things follow from an archive being an archive:
+
+- **Its dead links are ignored, and only its.** Those pages were written to be
+  read on GitHub at their tag, so they link to `README.md`, `UPGRADE.md` and
+  files under `src/`, none of which is a page. Failing the build on that would
+  mean editing an archive, which would stop it being one. The current site keeps
+  the strict check.
+- **It is rebuilt from the tag on every deploy** rather than committed, so
+  nothing about it can drift and there is no second copy of the prose in the
+  repository.
+
+`git archive` is the obvious way to extract the tree and it does not work here:
+`.gitattributes` marks `/docs export-ignore` so the documentation stays out of
+the installed package, and `git archive` honours it, succeeding with an empty
+tar. The files are read out with `git show` instead, which touches neither the
+working copy nor the index.
+
+**What this does not become.** There is no per-line build of the current
+documentation, no version selector that rewrites the current pages, and no
+maintenance of old prose: an archive is frozen at its tag and is never edited
+again.

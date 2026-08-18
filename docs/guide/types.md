@@ -31,16 +31,17 @@ configuration can stay as plain strings and never has to import anything.
 
 | Enum | Cases | Reported by |
 |---|---|---|
-| `ValidationFinding` | ten, listed in [Verifying signatures](./validation.md) | `$report->findings()` |
+| `ValidationFinding` | sixteen, listed in [Verifying signatures](./validation.md) | `$report->findings()` |
 | `RevocationStatus` | `good`, `revoked`, `unknown` | `$signature->revocation` |
 | `RevisionChange` | `signature-added`, `timestamp-added`, `security-store-written`, `annotations`, `form-fields`, `pages`, `catalog`, `actions`, `other` | `$signature->changesAfter` |
 | `SigningEvent` | `signature.applied`, `timestamp.received`, `validation.completed`, `validation.failed` | [Audit trail](./audit-log.md) |
+| `ExtendExitCode` | the status `signet extend` exits with | [Command line](./cli.md) |
 
 ### The ones that describe a format
 
-`Asn1Tag`, `CmsAttribute`, `Cipher`, `EncryptionAlgorithm`, `SealEncoding` and
-`StreamFilter` name what a specification defines rather than a choice a caller
-makes. They are public because the classes returning them are, and there is
+`Asn1Tag`, `CmsAttribute`, `Cipher`, `DigestOid`, `EncryptionAlgorithm`,
+`SealEncoding` and `StreamFilter` name what a specification defines rather than
+a choice a caller makes. They are public because the classes returning them are, and there is
 rarely a reason to reach for one.
 
 ## Contracts
@@ -78,7 +79,7 @@ replaced.
 
 ## Exceptions
 
-Nineteen classes, one per failure mode, and **every one implements
+Twenty classes, one per failure mode, and **every one implements
 `Exceptions\SignetException`**, which extends `Throwable`. Catch the interface
 to handle the package's failures as a group.
 
@@ -87,6 +88,7 @@ to handle the package's failures as a group.
 | Certificates | `InvalidCertificatePasswordException`, `InvalidCertificateContentException`, `InvalidPFXException`, `InvalidPemContentException`, `InvalidX509PrivateKeyException`, `CertificateOutputNotFoundException` |
 | Documents | `InvalidPdfFileException`, `FileNotFoundException`, `HasNoSignatureOrInvalidPkcs7Exception` |
 | Signing | `SealPlacementException`, `SignatureFieldException`, `CertificationException`, `FieldLockException` |
+| Verifying | `VerificationUnsupportedException`, raised by the native verifier for a signature algorithm it cannot express rather than reporting the signature bad |
 | The environment | `MissingBinaryException`, `ProcessUnavailableException`, `ProcessRunTimeException` |
 | Network and storage | `SignatureTransportException`, `EncryptionException` |
 | The interface itself | `SignetException` |

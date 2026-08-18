@@ -95,8 +95,15 @@ Build it locally while writing:
 
 ``` bash
 npm --prefix docs/.vitepress ci
-npm --prefix docs/.vitepress run dev
+npm --prefix docs/.vitepress run dev     # the current line, with reload
+npm --prefix docs/.vitepress run build   # the current line and every archive
 ```
+
+`run build` produces two sites: the line that is current, at the root, and one
+archive per superseded line, read out of that line's **tag** and published under
+a prefix such as `/v1/`. It therefore needs the tags in the checkout, which is
+why the workflow fetches the full history
+(docs/decisions/0112-the-site-documents-one-release-line.md).
 
 ## Running the checks
 

@@ -547,10 +547,18 @@ compatibility table came to name a line that was no longer current
 4. **The tag**, which is the only thing pushed to the remote directly. Everything
    else arrives through a pull request.
 
-The site documents **one** line, the newest, and says so in a banner on every
-page. Documentation for an older line is what shipped with its tag, which is the
-cost this policy accepts in exchange for not building and deploying a site per
-line for the life of the project.
+The site documents **one** line at the root, the newest, and says so in a banner
+on every page.
+
+**A major release adds a fifth step**: the line being superseded is archived. Add
+it to `ARCHIVES` in `docs/.vitepress/versions.mjs`, pinned to its last tag, and
+it is published under a prefix of its own (`/v1/`, `/v2/`) and never edited
+again. The archive is rebuilt from the tag on every deploy rather than committed,
+so there is no second copy of the prose to keep in step
+([0112](../decisions/0112-the-site-documents-one-release-line.md)).
+
+That step needs the tags present in the checkout, which is why the documentation
+workflow fetches the full history rather than a shallow one.
 
 ---
 

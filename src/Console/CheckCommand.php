@@ -55,14 +55,28 @@ final class CheckCommand extends Command
         $io->newLine();
 
         $this->requirement($io, 'ext-openssl', extension_loaded('openssl'), 'PKCS#12 reading and CMS building');
+        $this->requirement($io, 'ext-sodium', extension_loaded('sodium'), 'sealing certificate material at rest');
         $this->requirement($io, 'ext-bcmath', extension_loaded('bcmath'), 'required by tc-lib-pdf through tc-lib-barcode');
-        $this->requirement($io, 'proc_open', function_exists('proc_open'), 'validation shells out; often in disable_functions');
+
+        // Both of these are what the **default** verifier needs, not what
+        // validation needs: NativeSignatureVerifier answers the same questions
+        // through ext-openssl and spawns nothing
+        // (docs/decisions/0114-verification-has-two-implementations.md). They
+        // stay requirements rather than becoming optional, because the default
+        // is what a caller gets without asking, and the remedy is named here
+        // rather than left to be discovered.
+        $this->requirement(
+            $io,
+            'proc_open',
+            function_exists('proc_open'),
+            'the default verifier shells out; often in disable_functions. NativeSignatureVerifier needs none',
+        );
 
         $this->requirement(
             $io,
             'openssl binary',
             $this->binaryExists($signet),
-            'validation and legacy PFX. Separate from ext-openssl',
+            'the default verifier and legacy PFX. Separate from ext-openssl, and not needed by NativeSignatureVerifier',
         );
 
         $this->optional(

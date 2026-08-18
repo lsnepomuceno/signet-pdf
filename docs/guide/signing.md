@@ -85,8 +85,9 @@ signature without making them true.
 ```
 
 The name the signature field carries in the document. Omitted, the package picks
-one. To fill a field a template **already** declares, that is a different method
-and a different page: [Signing into existing fields](./templates.md).
+one. Filling a field a template **already** declares is a different method, and
+laying one out is a different call entirely: both are on
+[Signature fields](./templates.md).
 
 ## What comes back
 
