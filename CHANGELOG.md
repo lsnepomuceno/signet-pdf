@@ -14,7 +14,11 @@ consumers test their own signing paths with it.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [2.0.0]
+
+**Not tagged yet.** The open issues are being closed first, so everything below
+ships in this release rather than in a series after it: `2.0.0-rc.1` is the only
+tag, and the section is dated on the day the stable one is cut (#18).
 
 ### Added
 
@@ -77,6 +81,128 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   refused rather than embedded.** `Config\CertificateConfig::$chainPaths`
   configures it once for an application whose signers share an AC, and
   `signet sign --chain` is repeatable.
+
+
+- **`Enums\ValidationFinding` and `SignatureDetails::findings()`.** The
+  validator computed a great deal more than `isValid()` reports, and the only
+  ways to reach it were reading a dozen properties or matching on the English in
+  `$error`. Nine cases name the facts it already established, and
+  `decidesValidity()` marks the one that turns `isValid()` false. The other
+  eight are for an application's own policy, which is why the enum carries no
+  severity (0016). `SignatureReport::findings()` unions them across the
+  document, and `signet verify --json` prints them, so a build can gate on a
+  revoked signature specifically rather than on the exit status alone.
+  ([0106](docs/decisions/0106-validation-reports-findings.md))
+
+- **`ValidationFinding::ByteRangeNotSound`.** The `/ByteRange` is the one input
+  to validation an attacker writes, and everything downstream derived from it
+  unchecked: which bytes get hashed, and where the CMS is read from. Six
+  conditions are now checked at extraction, the sixth being that the gap is the
+  value of a `/Contents` key rather than any window in the document holding
+  hexadecimal. Nothing changes for a well-formed document.
+  ([0107](docs/decisions/0107-the-byte-range-is-checked.md))
+
+- **`SignatureDetails::$messageDigest` and `$digestAlgorithm`.** The digest the
+  signer put their name to, lowercase hex, short and stable enough for an audit
+  trail to record and compare later. Not proof on its own: it says what the
+  signature claims, and whether the signature is worth believing is
+  `$verified`'s question.
+
+- **`verifiableUntil()`, on both `SignatureDetails` and `SignatureReport`.**
+  When a signature stops being verifiable, so a document can be re-stamped
+  before its chain can no longer be built. The chain's earliest expiry rather
+  than the leaf's, and at document level an archive timestamp renews the
+  horizon, which is what it is for. Null means unanswerable, never "never".
+  ([0108](docs/decisions/0108-a-signature-can-name-itself.md))
+
+- **`SignatureReport::missingValidationMaterial()` and `isSelfContained()`.**
+  `hasLongTermMaterial()` answers presence; B-LT promises a verifier could
+  decide offline. A store with one certificate, a `/VRI` entry and no OCSP
+  response satisfies the first completely and leaves an offline verifier unable
+  to decide anything. A list of what is missing rather than a boolean, because
+  "not self-contained" gives an operator nothing to do. **It cannot check that
+  each certificate has a matching OCSP or CRL**, which needs the store's objects
+  decoded, and both docblocks say so.
+  ([0109](docs/decisions/0109-offline-completeness-is-reported.md))
+
+- **`SignatureDetails::onlyAddedSignatures()`, `$changesAfter`,
+  `Validation\RevisionAnalyzer` and `Enums\RevisionChange`.**
+  `coversWholeDocument` said bytes were appended after a signature and never
+  what they did, which is the live attack surface for PAdES: append an
+  annotation over the payment terms and the signature still verifies, because
+  the new bytes are outside its `/ByteRange`. Each revision is now reported with
+  the objects it defines and what they touched, and `onlyAddedSignatures()` is
+  the predicate an application asks. **True is not a verdict of safe**: a
+  counter-signer produces the same shape. It reads objects rather than the
+  object graph, and the limits are stated.
+  ([0110](docs/decisions/0110-a-revision-says-what-it-changed.md))
+
+- `Enums\SealPage::First`, which was previously unsayable. It is the first page
+  the page tree declares, which is the lowest-numbered page object only when the
+  producer wrote them in order.
+
+- `Support\SodiumEncrypter`, a `Contracts\Encrypter` over `ext-sodium`.
+  `Support\OpensslEncrypter` stays as the reader for the earlier envelope.
+
+### Changed
+
+- **An archive timestamp now reports its own time.**
+  `Data\SignatureDetails::$stampedAt` and `attestedAt()` carry a DocTimeStamp's
+  genTime, where both were null for one before. Nothing stamps an archive
+  timestamp, so `timestampVerified` stays null for it, and `attestedAt()` reads
+  its own `verified` instead. This is additive for a caller reading a
+  signature, and it is what `--if-due` rests on: the one entry whose time comes
+  from an authority was the only entry in a report with no time at all.
+
+- **A timestamp authority that did not answer arrives as
+  `SignatureTransportException` again.** `Signing\Cades\CadesBuilder` and
+  `Signing\Incremental\DocTimeStampWriter` wrapped every `Throwable` from the
+  transport in a `ProcessRunTimeException`, which names a fault that did not
+  occur: no process is run to fetch a timestamp
+  ([0008](docs/decisions/0008-exceptions-name-the-real-fault.md)). Both now let
+  that one class through and keep wrapping everything else. A caller catching
+  `ProcessRunTimeException` around a `pades-b-t` or higher signature to handle
+  an unreachable authority has to catch `SignatureTransportException` instead;
+  both implement `Exceptions\SignetException`.
+
+
+- **Certificate material is sealed with XChaCha20-Poly1305 through
+  `ext-sodium`**, instead of an AES-128-CBC and HMAC construction this package
+  assembled itself. Encrypt-then-MAC written in application code is the shape
+  that fails quietly, and encryption at rest is a convenience beside a PDF
+  signing package rather than the product.
+
+  **Nothing has to be re-encrypted.** The payload carries its version and
+  `CertificateVault::withKey()` picks the reader from the key's length, so a key
+  issued by 1.x keeps opening what it sealed. `create()` now returns a 32-byte
+  key where it returned 16, so storage sized for the old width needs widening.
+  Material sealed here no longer opens in `lsnepomuceno/laravel-a1-pdf-sign`
+  until that package learns the same envelope; the other direction, which is the
+  one a migration needs, is unaffected.
+  ([0103](docs/decisions/0103-encryption-is-the-platforms.md))
+
+- **The ICP-Brasil layer moved to `IcpBrasil\`**, and the redundant prefix came
+  off its class names. Eight public names changed and behaviour did not.
+  `Signet::icpBrasil()` and `Data\Signer::$icpBrasil` are unchanged, so code
+  reaching the layer through the entry point needs no edit. If you do not sign
+  Brazilian documents, none of it affects you.
+  ([0104](docs/decisions/0104-the-regional-layer-is-its-own-namespace.md))
+
+- **`SealPlacement::$page` is `Enums\SealPage|int`.** A page number still means
+  what it always did and `SealPage::Last` is still the default, so a placement
+  that never named a page needs no edit. A page arriving from configuration or
+  from a request now has to be resolved at your edge rather than cast to `int`.
+  ([0105](docs/decisions/0105-the-seal-page-is-named.md))
+
+### Removed
+
+- **`ext-sodium` is now required.** It ships with PHP and has since 7.2, so on
+  most systems this changes nothing, but a build compiled without it now fails
+  at `composer install` instead of at runtime.
+  ([0103](docs/decisions/0103-encryption-is-the-platforms.md))
+
+- `Data\SealPlacement::LAST_PAGE`, replaced by `Enums\SealPage::Last`.
+  ([0105](docs/decisions/0105-the-seal-page-is-named.md))
 
 ### Fixed
 
@@ -158,28 +284,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   job retries only what is worth retrying
   ([0022](docs/decisions/0022-the-archive-timestamp-is-a-chain.md)).
 
-### Changed
-
-- **An archive timestamp now reports its own time.**
-  `Data\SignatureDetails::$stampedAt` and `attestedAt()` carry a DocTimeStamp's
-  genTime, where both were null for one before. Nothing stamps an archive
-  timestamp, so `timestampVerified` stays null for it, and `attestedAt()` reads
-  its own `verified` instead. This is additive for a caller reading a
-  signature, and it is what `--if-due` rests on: the one entry whose time comes
-  from an authority was the only entry in a report with no time at all.
-
-- **A timestamp authority that did not answer arrives as
-  `SignatureTransportException` again.** `Signing\Cades\CadesBuilder` and
-  `Signing\Incremental\DocTimeStampWriter` wrapped every `Throwable` from the
-  transport in a `ProcessRunTimeException`, which names a fault that did not
-  occur: no process is run to fetch a timestamp
-  ([0008](docs/decisions/0008-exceptions-name-the-real-fault.md)). Both now let
-  that one class through and keep wrapping everything else. A caller catching
-  `ProcessRunTimeException` around a `pades-b-t` or higher signature to handle
-  an unreachable authority has to catch `SignatureTransportException` instead;
-  both implement `Exceptions\SignetException`.
-
-### Fixed
 
 - **The alphanumeric CNPJ is no longer rejected as malformed.**
   `IcpBrasil\NationalRegistry::isCnpj()` tested `/^\d{14}$/` and
@@ -226,123 +330,6 @@ No behaviour changed, and nothing here ships: `.docker/` is `export-ignore`.
   scores 0.00% from anywhere but the package root, which is the reason the
   sweep exists instead.
 
-## [2.0.0] - 2026-08-13
-
-Three breaking changes, each closing something the extraction recorded as
-outstanding rather than decided, and six additions to what validation can tell
-you about a document.
-
-**The most dangerous change here is invisible to a backward-compatibility
-checker.** `CertificateVault::create()` keeps its signature and returns a key of
-a different length, so storage sized for the old one truncates it silently. The
-checker reports twelve breaks, and it also skipped seventeen files it could not
-compile, so twelve is a floor rather than a total. Read `UPGRADE.md`, not the
-green check.
-
-### Removed
-
-- **`ext-sodium` is now required.** It ships with PHP and has since 7.2, so on
-  most systems this changes nothing, but a build compiled without it now fails
-  at `composer install` instead of at runtime.
-  ([0103](docs/decisions/0103-encryption-is-the-platforms.md))
-
-- `Data\SealPlacement::LAST_PAGE`, replaced by `Enums\SealPage::Last`.
-  ([0105](docs/decisions/0105-the-seal-page-is-named.md))
-
-### Changed
-
-- **Certificate material is sealed with XChaCha20-Poly1305 through
-  `ext-sodium`**, instead of an AES-128-CBC and HMAC construction this package
-  assembled itself. Encrypt-then-MAC written in application code is the shape
-  that fails quietly, and encryption at rest is a convenience beside a PDF
-  signing package rather than the product.
-
-  **Nothing has to be re-encrypted.** The payload carries its version and
-  `CertificateVault::withKey()` picks the reader from the key's length, so a key
-  issued by 1.x keeps opening what it sealed. `create()` now returns a 32-byte
-  key where it returned 16, so storage sized for the old width needs widening.
-  Material sealed here no longer opens in `lsnepomuceno/laravel-a1-pdf-sign`
-  until that package learns the same envelope; the other direction, which is the
-  one a migration needs, is unaffected.
-  ([0103](docs/decisions/0103-encryption-is-the-platforms.md))
-
-- **The ICP-Brasil layer moved to `IcpBrasil\`**, and the redundant prefix came
-  off its class names. Eight public names changed and behaviour did not.
-  `Signet::icpBrasil()` and `Data\Signer::$icpBrasil` are unchanged, so code
-  reaching the layer through the entry point needs no edit. If you do not sign
-  Brazilian documents, none of it affects you.
-  ([0104](docs/decisions/0104-the-regional-layer-is-its-own-namespace.md))
-
-- **`SealPlacement::$page` is `Enums\SealPage|int`.** A page number still means
-  what it always did and `SealPage::Last` is still the default, so a placement
-  that never named a page needs no edit. A page arriving from configuration or
-  from a request now has to be resolved at your edge rather than cast to `int`.
-  ([0105](docs/decisions/0105-the-seal-page-is-named.md))
-
-### Added
-
-- **`Enums\ValidationFinding` and `SignatureDetails::findings()`.** The
-  validator computed a great deal more than `isValid()` reports, and the only
-  ways to reach it were reading a dozen properties or matching on the English in
-  `$error`. Nine cases name the facts it already established, and
-  `decidesValidity()` marks the one that turns `isValid()` false. The other
-  eight are for an application's own policy, which is why the enum carries no
-  severity (0016). `SignatureReport::findings()` unions them across the
-  document, and `signet verify --json` prints them, so a build can gate on a
-  revoked signature specifically rather than on the exit status alone.
-  ([0106](docs/decisions/0106-validation-reports-findings.md))
-
-- **`ValidationFinding::ByteRangeNotSound`.** The `/ByteRange` is the one input
-  to validation an attacker writes, and everything downstream derived from it
-  unchecked: which bytes get hashed, and where the CMS is read from. Six
-  conditions are now checked at extraction, the sixth being that the gap is the
-  value of a `/Contents` key rather than any window in the document holding
-  hexadecimal. Nothing changes for a well-formed document.
-  ([0107](docs/decisions/0107-the-byte-range-is-checked.md))
-
-- **`SignatureDetails::$messageDigest` and `$digestAlgorithm`.** The digest the
-  signer put their name to, lowercase hex, short and stable enough for an audit
-  trail to record and compare later. Not proof on its own: it says what the
-  signature claims, and whether the signature is worth believing is
-  `$verified`'s question.
-
-- **`verifiableUntil()`, on both `SignatureDetails` and `SignatureReport`.**
-  When a signature stops being verifiable, so a document can be re-stamped
-  before its chain can no longer be built. The chain's earliest expiry rather
-  than the leaf's, and at document level an archive timestamp renews the
-  horizon, which is what it is for. Null means unanswerable, never "never".
-  ([0108](docs/decisions/0108-a-signature-can-name-itself.md))
-
-- **`SignatureReport::missingValidationMaterial()` and `isSelfContained()`.**
-  `hasLongTermMaterial()` answers presence; B-LT promises a verifier could
-  decide offline. A store with one certificate, a `/VRI` entry and no OCSP
-  response satisfies the first completely and leaves an offline verifier unable
-  to decide anything. A list of what is missing rather than a boolean, because
-  "not self-contained" gives an operator nothing to do. **It cannot check that
-  each certificate has a matching OCSP or CRL**, which needs the store's objects
-  decoded, and both docblocks say so.
-  ([0109](docs/decisions/0109-offline-completeness-is-reported.md))
-
-- **`SignatureDetails::onlyAddedSignatures()`, `$changesAfter`,
-  `Validation\RevisionAnalyzer` and `Enums\RevisionChange`.**
-  `coversWholeDocument` said bytes were appended after a signature and never
-  what they did, which is the live attack surface for PAdES: append an
-  annotation over the payment terms and the signature still verifies, because
-  the new bytes are outside its `/ByteRange`. Each revision is now reported with
-  the objects it defines and what they touched, and `onlyAddedSignatures()` is
-  the predicate an application asks. **True is not a verdict of safe**: a
-  counter-signer produces the same shape. It reads objects rather than the
-  object graph, and the limits are stated.
-  ([0110](docs/decisions/0110-a-revision-says-what-it-changed.md))
-
-- `Enums\SealPage::First`, which was previously unsayable. It is the first page
-  the page tree declares, which is the lowest-numbered page object only when the
-  producer wrote them in order.
-
-- `Support\SodiumEncrypter`, a `Contracts\Encrypter` over `ext-sodium`.
-  `Support\OpensslEncrypter` stays as the reader for the earlier envelope.
-
-### Internal
 
 No behaviour changed, and both are recorded because they change what a
 contributor is allowed to write.
@@ -423,7 +410,6 @@ guarantee and an encryption envelope rather than a dependency.
   in `lsnepomuceno/laravel-a1-pdf-sign`, which remains a separate
   implementation rather than a consumer of this one.
 
-[Unreleased]: https://github.com/lsnepomuceno/signet-pdf/compare/2.0.0...HEAD
-[2.0.0]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.1...2.0.0
+[2.0.0]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.1...main
 [1.0.1]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/lsnepomuceno/signet-pdf/releases/tag/1.0.0
