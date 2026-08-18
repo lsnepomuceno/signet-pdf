@@ -45,6 +45,13 @@ final readonly class XrefStreamWriter
      *                                    this stream's own number and offset.
      * @param  int  $size  One past the highest object number in the document.
      * @param  int  $prev  Offset of the section this revision chains onto.
+     * @param  int  $encryptRef  The object number of `/Encrypt`, or 0 for a
+     *          document in the clear. **A cross-reference stream's dictionary
+     *          is the trailer** (§7.5.8.2), so it carries the same entries a
+     *          classic one does, and leaving this out reads as the point where
+     *          the document stopped being encrypted: a reader stops decrypting
+     *          and every stream written before it inflates to nothing. qpdf
+     *          says "incorrect header check"; a user says the file is broken.
      */
     public function object(
         int $number,
@@ -54,6 +61,7 @@ final readonly class XrefStreamWriter
         ?string $infoRef,
         int $prev,
         ?string $id = null,
+        int $encryptRef = 0,
     ): string {
         ksort($offsets);
 
@@ -89,6 +97,7 @@ final readonly class XrefStreamWriter
             . "/Root {$root} 0 R"
             . $info
             . $identifier
+            . ($encryptRef === 0 ? '' : "/Encrypt {$encryptRef} 0 R")
             . "/Prev {$prev}"
             . '/Length ' . strlen($data)
             . ">>\nstream\n"

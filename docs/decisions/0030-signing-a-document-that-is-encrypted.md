@@ -133,3 +133,34 @@ clean.
 | Take the password from configuration | It is a property of one document, not of the installation |
 | Trust the password and skip the check | A wrong one corrupts the file quietly, which is the exact failure 0014 exists to prevent |
 | Branch on `isEncrypted()` at each writer | Nine branches, nine chances to forget one |
+
+## Outcome, 2026-08-18
+
+**An encrypted document packed into object streams signs.** This record refused
+it, and the refusal was one step wide rather than a missing capability:
+`Signing\Encryption\StandardSecurityHandler::decrypt()` already opened a stream
+given its object number, and `Signing\Incremental\ObjectStreamReader` already
+parsed a container once it had plaintext. Nothing decrypted the container
+between them.
+
+The step is at the container, and that is the half worth writing down: an object
+stream is encrypted as a stream like any other, and **the objects packed inside
+it are not encrypted individually** (§7.5.7, §7.6.2). Deriving the key from a
+packed object's own number would decrypt nothing and corrupt everything.
+
+The `/Encrypt` dictionary is refused if a producer packs it, which no conforming
+one does: reading it is what gives a reader the key to unpack anything.
+
+**It exposed a real defect, and qpdf found it.** A revision written onto a
+document that uses cross-reference streams omitted `/Encrypt` from the new
+trailer, because a cross-reference stream's dictionary *is* the trailer
+(§7.5.8.2) and only the classic path repeated the entry. A reader then treats
+the last revision as the point where the document stopped being encrypted, and
+every stream written before it inflates to nothing. It was unreachable until
+now, because encrypted plus cross-reference streams was exactly the combination
+this record refused, and the comment on the classic path had described the
+symptom for months: "qpdf says incorrect header check; a user says the file is
+broken".
+
+RC4 stays refused, and a test proves the refusal did not move.
+

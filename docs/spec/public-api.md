@@ -516,19 +516,19 @@ be readable before the document can be signed at all.
 
 Stated here because a public API is also its boundaries, and each has a record.
 
-Two entries stood here until 2.5 and are gone, which is worth saying rather than
-quietly deleting: encrypted documents were refused outright, and revocation
-material was counted rather than read. Both were named here as limits, and both
-were fixed by the records that named them
-([0030](../decisions/0030-signing-a-document-that-is-encrypted.md) and
-[0024](../decisions/0024-revocation-is-evaluated-not-counted.md)).
+Entries have left this table rather than being quietly deleted, which is worth
+saying: encrypted documents were refused outright, revocation material was
+counted rather than read, and an encrypted document packed into object streams
+was refused for want of one step, decrypting the container before unpacking it.
+All three were named here as limits, and all three were fixed by the records
+that named them ([0030](../decisions/0030-signing-a-document-that-is-encrypted.md)
+and [0024](../decisions/0024-revocation-is-evaluated-not-counted.md)).
 
 What is left:
 
 | | |
 |---|---|
 | RC4-encrypted documents | refused, deliberately: signing one means writing RC4 back into it ([0030](../decisions/0030-signing-a-document-that-is-encrypted.md)) |
-| An encrypted document packed into object streams | the streams holding the objects are encrypted too, so reading the catalog needs decryption on the way in. Reachable, not done |
 | `pades-b-lt` and above, on an encrypted document | they append a security store and an archive timestamp whose streams this does not encrypt |
 | A security handler other than the standard one | its key comes from somewhere this package cannot reach, by definition |
 | Fetching revocation at validation time | evaluated from what the document carries, never from the network. That is a decision rather than a gap ([0024](../decisions/0024-revocation-is-evaluated-not-counted.md)) |

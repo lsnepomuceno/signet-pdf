@@ -40,8 +40,18 @@ final readonly class ObjectStreamReader
      * Null when the stream cannot be decoded or does not carry that object,
      * which the caller reports as the object being unreachable rather than
      * guessing at a body.
+     *
+     * @param  (callable(string): ?string)|null  $decrypt  Decrypts the object
+     *          stream's own bytes, for an encrypted document.
+     *
+     * **The container is encrypted; the objects inside it are not.**
+     *          ISO 32000-1 §7.5.7 and §7.6.2: strings and streams packed into
+     *          an object stream are covered by the encryption of the stream
+     *          that holds them, so decrypting them again would corrupt every
+     *          one of them. This is the trap that is easy to get backwards, and
+     *          the reason the hook is here rather than around each body.
      */
-    public function object(string $pdf, int $offset, int $number): ?string
+    public function object(string $pdf, int $offset, int $number, ?callable $decrypt = null): ?string
     {
         $dictionary = $this->streams->dictionaryAt($pdf, $offset);
 
@@ -49,7 +59,7 @@ final readonly class ObjectStreamReader
             return null;
         }
 
-        $data = $this->streams->contentsAt($pdf, $offset, $dictionary);
+        $data = $this->streams->contentsAt($pdf, $offset, $dictionary, $decrypt);
 
         if ($data === null) {
             return null;

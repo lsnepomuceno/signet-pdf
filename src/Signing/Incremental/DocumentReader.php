@@ -121,14 +121,17 @@ final class DocumentReader
     /**
      * The handler that holds the file encryption key.
      *
-     * The encryption dictionary is the one object in the file that is never
-     * itself encrypted, which is what makes this possible at all.
+     * **The encryption dictionary is the one object in the file that is never
+     * itself encrypted**, which is what makes this possible at all (§7.6.2). It
+     * is also the one object a producer may not pack into an object stream, for
+     * the same reason: reading it is what gives you the key to read anything
+     * else. A document that packs it anyway is refused rather than opened
+     * halfway.
      *
-     * A document packed into object streams is refused while encrypted: the
-     * streams holding the objects are encrypted too, so reading the catalog
-     * would mean decrypting on the way in as well as encrypting on the way out.
-     * Refusing beats reading half of it
-     * (docs/decisions/0030-signing-a-document-that-is-encrypted.md).
+     * An encrypted document whose *other* objects are packed used to be refused
+     * here. It is not any more: the container stream is decrypted with its own
+     * object number before it is unpacked, which is the one step that was
+     * missing (docs/decisions/0030-signing-a-document-that-is-encrypted.md).
      *
      * @throws InvalidPdfFileException
      */
@@ -140,9 +143,10 @@ final class DocumentReader
         #[\SensitiveParameter]
         string $password,
     ): StandardSecurityHandler {
-        if ($document->compressed !== []) {
+        if ($document->isCompressed($number)) {
             throw new InvalidPdfFileException(
-                'the document is encrypted and packs its objects into object streams, which this package reads but does not decrypt',
+                'the encryption dictionary is packed into an object stream, which ISO 32000-1 §7.6.2 forbids: '
+                    . 'reading it is what gives a reader the key to unpack anything',
             );
         }
 
@@ -188,6 +192,28 @@ final class DocumentReader
     }
 
     /**
+     * How to decrypt one object stream, or null for a document in the clear.
+     *
+     * **Keyed by the container's own object number**, which is the half of
+     * §7.6.2 that is easy to get backwards: an object stream is encrypted as a
+     * stream like any other, and the objects packed inside it are not encrypted
+     * individually. Deriving the key from the packed object's number instead
+     * would decrypt nothing and corrupt everything.
+     *
+     * @return (callable(string): ?string)|null
+     */
+    private function decryptor(DocumentInfo $document, int $stream): ?callable
+    {
+        $security = $document->security;
+
+        if ($security === null) {
+            return null;
+        }
+
+        return static fn(string $raw): ?string => $security->decrypt($raw, $stream);
+    }
+
+    /**
      * The body of an object packed into an object stream, ISO 32000-1 §7.5.7.
      *
      * @throws InvalidPdfFileException
@@ -203,7 +229,7 @@ final class DocumentReader
             );
         }
 
-        $body = $this->packed->object($pdf, $offset, $number);
+        $body = $this->packed->object($pdf, $offset, $number, $this->decryptor($document, $stream));
 
         if ($body === null) {
             throw new InvalidPdfFileException(

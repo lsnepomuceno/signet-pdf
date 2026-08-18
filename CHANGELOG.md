@@ -22,6 +22,16 @@ tag, and the section is dated on the day the stable one is cut (#18).
 
 ### Added
 
+- **An encrypted document that packs its objects into object streams can be
+  signed.** That is what a password-protected export from a word processor looks
+  like, and `Signing\Incremental\DocumentReader` refused it. Both halves
+  already existed and only needed to meet: the container stream is now decrypted
+  with **its own** object number before it is unpacked, because an object stream
+  is encrypted as a stream like any other and the objects packed inside it are
+  not encrypted individually (ISO 32000-1 §7.5.7 and §7.6.2). RC4 stays refused,
+  and the `/Encrypt` dictionary is refused if a producer packs it, which no
+  conforming one does.
+
 - **The seal is placed against `/CropBox` and `/UserUnit`, not only
   `/MediaBox`.** `grep -rn 'CropBox\|UserUnit' src/` used to return nothing, and
   both entries turn up in the documents this matters most for: architectural
@@ -222,6 +232,16 @@ tag, and the section is dated on the day the stable one is cut (#18).
   ([0105](docs/decisions/0105-the-seal-page-is-named.md))
 
 ### Fixed
+
+- **A revision written onto an encrypted document that uses cross-reference
+  streams left `/Encrypt` out of its trailer.** A cross-reference stream's
+  dictionary *is* the trailer (§7.5.8.2), and only the classic path repeated the
+  entry. A reader then treats the last revision as the point where the document
+  stopped being encrypted, and every stream written before it inflates to
+  nothing: qpdf says "incorrect header check", a user says the file is broken.
+  It was unreachable until the object-stream work above, since encrypted plus
+  cross-reference streams was exactly the combination that used to be refused,
+  and qpdf found it the moment it became reachable.
 
 - **`Testing\DebugCertificate::makeChain()` issued two certificates with the
   same serial**, both defaulting to `0` under the same issuer name. A CMS

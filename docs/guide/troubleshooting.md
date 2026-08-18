@@ -85,7 +85,6 @@ signature silently stopped verifying.
 | Case | Status |
 |---|---|
 | RC4 | refused deliberately |
-| Object streams inside an encrypted document | not supported |
 | `pades-b-lt` or above on an encrypted document | not supported |
 
 See [Encrypted documents](./encrypted-documents.md).

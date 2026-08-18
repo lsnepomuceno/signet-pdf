@@ -294,6 +294,7 @@ final class RevisionWriter
             $document->infoRef,
             $document->startxref,
             $document->id,
+            $document->encryptRef,
         ) . $ending;
     }
 
