@@ -149,6 +149,33 @@ floors would fail the run rather than pass it silently, which is the only
 reason it would have been caught, and a gate that measures nothing is worse
 than the debris it was meant to prevent.
 
+**A run that mutates nothing fails.** The script refuses a namespace with no
+directory behind it before pest is started, and refuses a completed run whose
+output says `No mutations created`.
+
+`--path=src/Typo` is not an error to the plugin. It is a path holding nothing
+to mutate, so the whole suite runs, `0 Mutations for 0 Files created` scrolls
+past, and the run reports a score of `0.00%`.
+
+What that cost depends on the floor, and both were measured on
+`.docker/mutate.sh NoSuchNamespace`:
+
+| Floor | Exit | Reported as |
+|---|---|---|
+| 0 | 0 | a pass |
+| 64, which is what the nightly passes | 1 | `Mutation score below expected: 0.0 %` |
+
+So one wrong letter in the matrix in `.github/workflows/mutation.yml` never
+went green, and it was worse than that: it spent three minutes running the
+suite, then filed a score regression against a namespace that does not exist,
+which is the misdiagnosis the workflow already separates a crash from for
+exactly this reason.
+
+The second check exists because the arguments are only one of the ways a run
+arrives at that state, and it is the general case of the argument above about
+the scratch directory: a gate that reports a number it did not measure is the
+failure this file cares about most.
+
 ### `phpunit/php-code-coverage` is held below 14.2.4
 
 **`>=14.2 <14.2.4` in `require-dev`. Remove it once `pest-plugin-mutate` can

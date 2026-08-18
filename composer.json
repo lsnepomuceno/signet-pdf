@@ -110,7 +110,7 @@
     "normalize": "Sort and format composer.json. CI runs it with --dry-run.",
     "test": "Run the test suite. A skipped test fails it: every check has to run somewhere, and a skip is how one stops.",
     "test:cov": "Run the test suite with line coverage (needs pcov or xdebug).",
-    "test:mutate": "Run mutation testing over the certificate, ICP-Brasil, signing, support and validation code. Serial on purpose: --parallel produces no mutations at all in the container. Runs from a scratch directory so a mutated temporary path cannot litter the repository: see .docker/mutate.sh.",
+    "test:mutate": "Run mutation testing over the certificate, ICP-Brasil, signing, support and validation code. Serial on purpose: --parallel produces no mutations at all in the container. Runs from the package root, because the plugin maps coverage by path and scores 0.00% from anywhere else, and sweeps up afterwards: see .docker/mutate.sh.",
     "test:types": "Report type coverage across src/."
   }
 }

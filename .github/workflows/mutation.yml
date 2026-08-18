@@ -288,6 +288,17 @@ jobs:
           score=$(printf '%s\n' "$plain" | grep -oE 'Score:[[:space:]]+[0-9.]+%' | tail -1 | grep -oE '[0-9.]+' || true)
           mutations=$(printf '%s\n' "$plain" | grep -oE 'Mutations:.*' | tail -1 | sed -e 's/[[:space:]]\+/ /g' || true)
 
+          # A run that created no mutation prints a score of 0.00%, and that
+          # number is not a measurement: nothing was mutated, so nothing was
+          # measured. Passing it on would file the failure as a regression
+          # against whatever namespace was named, which is the misdiagnosis the
+          # step below already separates a crash from. .docker/mutate.sh fails
+          # such a run; this decides what the failure is called.
+          if printf '%s\n' "$plain" | grep -q 'No mutations created'; then
+            score=''
+            mutations='none created'
+          fi
+
           echo "score=${score:-unknown}" >> "$GITHUB_OUTPUT"
 
           display="unavailable"
@@ -343,6 +354,10 @@ jobs:
                   `said about coverage quality from this run. Read the log before touching any`,
                   `test. The usual cause is the toolchain rather than this repository, since`,
                   `the job resolves its dependencies unpinned on every run.`,
+                  ``,
+                  `If the log ends in \`No mutations created\`, read the matrix first: a namespace`,
+                  `with no directory behind it mutates nothing and scores 0.00%, which is a`,
+                  `spelling mistake rather than anything about the tests.`,
                 ].join('\n')
               : [
                   `\`src/${NAMESPACE}\` scored **${SCORE}%** against a floor of **${FLOOR}**.`,
