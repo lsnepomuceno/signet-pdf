@@ -109,11 +109,19 @@ arch('value objects stay on the shared base')
  * are natural integers, like an ASN.1 tag, is exempted here rather than by
  * weakening the rule for every enum
  * (docs/decisions/0018-prefer-the-platforms-own-constructs.md).
+ *
+ * `ExtendExitCode` is exempt for the same reason. A process exit status is an
+ * integer the operating system defines, nobody configures one, and its
+ * retryable case carries `EX_TEMPFAIL` from sysexits.h rather than a number
+ * this package chose.
  */
 arch('enums are string-backed, so configuration can express them as plain strings')
     ->expect('LSNepomuceno\Signet\Enums')
     ->toBeStringBackedEnums()
-    ->ignoring('LSNepomuceno\Signet\Enums\Asn1Tag');
+    ->ignoring([
+        'LSNepomuceno\Signet\Enums\Asn1Tag',
+        'LSNepomuceno\Signet\Enums\ExtendExitCode',
+    ]);
 
 /**
  * The regional layer keeps every guarantee the shared namespaces have.

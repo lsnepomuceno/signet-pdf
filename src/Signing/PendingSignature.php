@@ -28,6 +28,7 @@ use LSNepomuceno\Signet\Exceptions\InvalidPemContentException;
 use LSNepomuceno\Signet\Exceptions\InvalidPFXException;
 use LSNepomuceno\Signet\Exceptions\SealPlacementException;
 use LSNepomuceno\Signet\Exceptions\SignatureFieldException;
+use LSNepomuceno\Signet\Exceptions\SignatureTransportException;
 use LSNepomuceno\Signet\Support\Files;
 use SensitiveParameter;
 
@@ -398,6 +399,8 @@ final class PendingSignature
      * @throws FileNotFoundException
      * @throws SealPlacementException
      * @throws SignatureFieldException
+     * @throws SignatureTransportException From pades-b-t up, when the
+     *          timestamp authority did not answer.
      */
     public function sign(): SignedPdf
     {

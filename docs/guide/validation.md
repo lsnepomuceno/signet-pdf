@@ -52,6 +52,12 @@ signer's own clock. Only an RFC 3161 timestamp, which `pades-b-t` and above
 carry, makes the time attributable to a third party, and that is what
 `attestedAt()` returns.
 
+**An archive timestamp is the token**, so for an entry with `isTimestamp` true
+`attestedAt()` is its own genTime: nothing stamps a DocTimeStamp, and
+`timestampVerified` is null for one by construction. That is what
+`signet extend --if-due` reads to decide whether an archive is old enough to
+renew.
+
 ## Findings
 
 `isValid()` is one boolean over one question. `findings()` is everything else the

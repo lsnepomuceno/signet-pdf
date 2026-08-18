@@ -11,6 +11,7 @@ use LSNepomuceno\Signet\Config\SigningConfig;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
+use LSNepomuceno\Signet\Exceptions\SignatureTransportException;
 use LSNepomuceno\Signet\Support\Bytes;
 use Throwable;
 
@@ -52,6 +53,8 @@ final readonly class DocTimeStampWriter
     /**
      * @throws InvalidPdfFileException
      * @throws ProcessRunTimeException
+     * @throws SignatureTransportException When the authority did not answer,
+     *          which is the one failure here worth retrying.
      */
     public function append(string $pdf): string
     {
@@ -95,6 +98,7 @@ final readonly class DocTimeStampWriter
     /**
      * @throws InvalidPdfFileException
      * @throws ProcessRunTimeException
+     * @throws SignatureTransportException
      */
     private function embedToken(string $pdf, string $url): string
     {
@@ -123,6 +127,7 @@ final readonly class DocTimeStampWriter
 
     /**
      * @throws ProcessRunTimeException
+     * @throws SignatureTransportException
      */
     private function requestToken(string $content, string $url): string
     {
@@ -142,6 +147,15 @@ final readonly class DocTimeStampWriter
                 $timestamp->username,
                 $timestamp->password,
             ));
+        } catch (SignatureTransportException $exception) {
+            // Straight through, deliberately. The transport already names the
+            // real fault, and rewrapping it as a process failure is the exact
+            // defect docs/decisions/0008-exceptions-name-the-real-fault.md
+            // exists for: no process is run to fetch a timestamp. A scheduled
+            // job renewing an archive has to tell "the authority did not
+            // answer, retry tomorrow" from "this document will never accept
+            // one", and both arrived here as the same class.
+            throw $exception;
         } catch (Throwable $exception) {
             throw new ProcessRunTimeException('archive timestamp failed: ' . $exception->getMessage());
         }

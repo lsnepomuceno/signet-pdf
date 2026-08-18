@@ -10,6 +10,7 @@ use LSNepomuceno\Signet\Exceptions\CertificationException;
 use LSNepomuceno\Signet\Exceptions\HasNoSignatureOrInvalidPkcs7Exception;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
+use LSNepomuceno\Signet\Exceptions\SignatureTransportException;
 use LSNepomuceno\Signet\Signing\Incremental\CertificationReader;
 use LSNepomuceno\Signet\Signing\Incremental\DocTimeStampWriter;
 use LSNepomuceno\Signet\Signing\Incremental\DocumentReader;
@@ -54,6 +55,9 @@ final readonly class ArchiveExtender
      * @throws HasNoSignatureOrInvalidPkcs7Exception
      * @throws InvalidPdfFileException
      * @throws ProcessRunTimeException
+     * @throws SignatureTransportException When the authority did not answer.
+     *          The only failure here a scheduled job should retry, which is
+     *          why it arrives as itself rather than as a process fault.
      */
     public function extend(string $pdfContents, string $fileName = ''): SignedPdf
     {

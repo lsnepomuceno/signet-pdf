@@ -94,6 +94,16 @@ the signer, so a scheduled job can renew documents with no key material anywhere
 near it. That is the property that makes long-term archives operable rather than
 theoretical ([0022](../decisions/0022-the-archive-timestamp-is-a-chain.md)).
 
+That scheduled job is a cron entry rather than a PHP script, because the command
+line reaches the same call:
+
+```bash
+vendor/bin/signet extend /path/contract-signed.pdf --in-place --if-due=365
+```
+
+It exits `75` when the authority did not answer, which is the only failure worth
+retrying, and [the command line](./cli.md#extend) has the rest of the statuses.
+
 Ask the document how long it is good for:
 
 ```php

@@ -120,7 +120,7 @@ entry point entirely.
 | **Template fields** | fills a signature field a contract already carries, instead of appending beside it |
 | **Certification** | ISO 32000-1 §12.8.2.2 DocMDP, plus field locks that later signatures honour |
 | **Encrypted documents** | AES-128 and AES-256, signed and re-encrypted under the document's own key |
-| **Archive maintenance** | refresh a B-LTA archive with no certificate and no key material involved |
+| **Archive maintenance** | refresh a B-LTA archive with no certificate and no key material involved, from PHP or from a cron entry |
 | **Verification** | the CMS is actually verified, with the timestamp, the profile and revocation reported |
 | **ICP-Brasil identity** | CPF, CNPJ and the rest, read from the certificate rather than parsed out of a name |
 | **PDF/A** | a signed document stays conformant, measured with veraPDF rather than assumed |

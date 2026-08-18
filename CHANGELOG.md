@@ -16,6 +16,44 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`signet extend`, so the archive chain is a cron entry.**
+  `Signing\ArchiveExtender` renews a B-LTA document with no certificate
+  anywhere near it, and until now the only way to call it was a PHP script with
+  a Composer autoload in it. The command takes one path and one destination:
+  `--out` writes a copy, `--in-place` overwrites, and one of the two is
+  required, because in place is the version that can destroy an archive.
+  `--if-due=<days>` leaves an archive that was stamped recently alone, and
+  `--json` reports what was done.
+
+  **The exit status is the report.** `Enums\ExtendExitCode` gives a document
+  with no signature (`3`), one certified `no-changes` (`4`) and an authority
+  that did not answer (`75`, `EX_TEMPFAIL`) distinct statuses, so a scheduled
+  job retries only what is worth retrying
+  ([0022](docs/decisions/0022-the-archive-timestamp-is-a-chain.md)).
+
+### Changed
+
+- **An archive timestamp now reports its own time.**
+  `Data\SignatureDetails::$stampedAt` and `attestedAt()` carry a DocTimeStamp's
+  genTime, where both were null for one before. Nothing stamps an archive
+  timestamp, so `timestampVerified` stays null for it, and `attestedAt()` reads
+  its own `verified` instead. This is additive for a caller reading a
+  signature, and it is what `--if-due` rests on: the one entry whose time comes
+  from an authority was the only entry in a report with no time at all.
+
+- **A timestamp authority that did not answer arrives as
+  `SignatureTransportException` again.** `Signing\Cades\CadesBuilder` and
+  `Signing\Incremental\DocTimeStampWriter` wrapped every `Throwable` from the
+  transport in a `ProcessRunTimeException`, which names a fault that did not
+  occur: no process is run to fetch a timestamp
+  ([0008](docs/decisions/0008-exceptions-name-the-real-fault.md)). Both now let
+  that one class through and keep wrapping everything else. A caller catching
+  `ProcessRunTimeException` around a `pades-b-t` or higher signature to handle
+  an unreachable authority has to catch `SignatureTransportException` instead;
+  both implement `Exceptions\SignetException`.
+
 ### Fixed
 
 - **`Support\TempDirectory` refuses a relative path instead of writing beside

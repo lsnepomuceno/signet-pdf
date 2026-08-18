@@ -26,13 +26,14 @@ src/
 │                                         # ProcessRunner, Encrypter,
 │                                         # PdfSource, PdfDestination
 ├── Data/                                 # final readonly value objects
-├── Enums/                                # seventeen. SignatureProfile, DigestAlgorithm,
+├── Enums/                                # eighteen. SignatureProfile, DigestAlgorithm,
 │                                         # CertificationLevel, FieldLockAction, SealPage,
 │                                         # FontSize, ImageDriver, ValidationFinding,
 │                                         # RevocationStatus, RevisionChange, SigningEvent
 │                                         # are consumer-facing; Asn1Tag, CmsAttribute,
 │                                         # Cipher, EncryptionAlgorithm, SealEncoding and
-│                                         # StreamFilter describe the formats
+│                                         # StreamFilter describe the formats, and
+│                                         # ExtendExitCode is what `signet extend` exits with
 ├── Certificates/                         # readers, parser, vault, factory,
 │                                         # subjectAltName reader
 ├── IcpBrasil/                            # the regional layer, all of it, and
@@ -56,7 +57,7 @@ src/
 │                                         # TempDirectory, SodiumEncrypter,
 │                                         # OpensslEncrypter, SigningLog,
 │                                         # PdfFilters, PngReader, SrgbProfile
-├── Console/                              # sign, verify, fields, check
+├── Console/                              # sign, verify, fields, extend, check
 ├── Exceptions/                           # one class per failure mode, all sharing
 │                                         # the SignetException interface
 └── Testing/                              # certificates, a local timestamp authority,
@@ -545,12 +546,23 @@ forcing every call site to repeat an infrastructure decision.
 
 ## Console
 
+`bin/signet`, on `symfony/console`, with five commands:
+
 ```
-pdf:sign {pdfPath} {certificatePath} {password} {fileName?} {--key=}
-pdf:validate-signature {pdfPath}
+sign   {pdf} --certificate= --password-env= [--out=] [--profile=] [--tsa=]
+verify {pdf} [--json] [--trust=]
+fields {pdf} [--json]
+extend {pdf} (--out=|--in-place) [--tsa=] [--if-due=] [--json]
+check  [--tsa] [--tsa-url=]
 ```
 
-Both map a `Throwable` to a failure exit code, so they compose in a pipeline.
+Each maps a `Throwable` to a failure exit code, so they compose in a pipeline.
+`verify` and `extend` put the verdict in the status rather than only in the
+output: `verify` uses Symfony's three codes, and `extend` adds three of its own
+in `Enums\ExtendExitCode`, because an unsigned document, a certified one and an
+authority that did not answer are three different problems and only the last is
+worth retrying. Renaming a command or changing what a status means is a major
+release, the same as any other public promise.
 
 ## Stability
 
