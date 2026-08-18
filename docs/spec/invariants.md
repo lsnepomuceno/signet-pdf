@@ -140,7 +140,7 @@ ships, and a host application can bind its own.
 
 Two places legitimately reach a process, both through the contract:
 `Certificates\OpenSslCliCertificateReader` (legacy PFX under OpenSSL 3.x) and
-`Validation\SignatureVerifier`.
+`Validation\OpenSslCliSignatureVerifier`.
 
 **Being unable to run is not the same as running and failing.** The verifier
 reads a non-zero exit as "this signature does not verify", which is correct for

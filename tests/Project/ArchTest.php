@@ -450,7 +450,7 @@ it('names every entry point on the front page', function () {
         // appears in every example rather than by name.
         $infrastructure = [
             '__construct', 'newSignature', 'temp', 'processes', 'transport',
-            'signer', 'validator', 'sealRenderer', 'certificateReader',
+            'signer', 'validator', 'verifier', 'sealRenderer', 'certificateReader',
         ];
 
         if (! $method->isPublic() || in_array($method->getName(), $infrastructure, true)) {

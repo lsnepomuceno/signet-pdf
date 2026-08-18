@@ -80,7 +80,7 @@ configuration. It lives in `tests/` and must stay there.
 `openssl` on `PATH` is **not** required to run the suite: `Testing\DebugCertificate`
 generates throwaway PKCS#12 bundles through the ext-openssl functions. The
 binary is only needed by `OpenSslCliCertificateReader` and
-`Validation\SignatureVerifier`.
+`Validation\OpenSslCliSignatureVerifier`.
 
 Tests in the `network` group hit a live timestamp authority (freetsa.org) and
 fail offline. Everything they cover is also gated offline through

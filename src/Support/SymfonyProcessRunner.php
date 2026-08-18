@@ -18,7 +18,7 @@ use Throwable;
  *
  * Two callers legitimately reach it, both through the `ProcessRunner`
  * contract: `Certificates\OpenSslCliCertificateReader` (legacy PFX under
- * OpenSSL 3.x) and `Validation\SignatureVerifier`.
+ * OpenSSL 3.x) and `Validation\OpenSslCliSignatureVerifier`.
  *
  * `Process::fromShellCommandline()` rather than the array constructor: the
  * commands this package builds are already assembled strings, and that is the

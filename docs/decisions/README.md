@@ -89,4 +89,5 @@ guarantee two records with the same number within a release or two.
 | [0111](0111-a-field-can-be-created-not-only-filled.md) | A field can be created, not only filled |
 | [0112](0112-the-site-documents-one-release-line.md) | The site documents one release line, and says which |
 | [0113](0113-the-seal-joins-the-structure-tree.md) | The seal joins the structure tree |
+| [0114](0114-verification-has-two-implementations.md) | Verification has two implementations, and the binary stays the default |
 

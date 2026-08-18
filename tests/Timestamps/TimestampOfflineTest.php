@@ -72,7 +72,7 @@ it('refuses a token that stamps something else, offline', function () {
 
     assert($token !== null);
 
-    $verifier = resolve(LSNepomuceno\Signet\Validation\SignatureVerifier::class);
+    $verifier = resolve(LSNepomuceno\Signet\Validation\OpenSslCliSignatureVerifier::class);
 
     expect($verifier->verifiedTimestampInfo($token['token'], $token['stamped']))->not->toBeNull()
         ->and($verifier->verifiedTimestampInfo($token['token'], 'not what was stamped'))->toBeNull();

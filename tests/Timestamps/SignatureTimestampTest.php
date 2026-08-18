@@ -6,7 +6,7 @@ use LSNepomuceno\Signet\Contracts\SignatureValidator;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Support\Files;
 use LSNepomuceno\Signet\Validation\Asn1Reader;
-use LSNepomuceno\Signet\Validation\SignatureVerifier;
+use LSNepomuceno\Signet\Validation\OpenSslCliSignatureVerifier;
 use LSNepomuceno\Signet\Validation\TimestampTokenReader;
 
 /**
@@ -89,7 +89,7 @@ it('refuses a token that stamps something else', function () {
     // Narrowed above; PHPStan cannot follow Pest's expectation chain.
     assert($token !== null);
 
-    $verifier = resolve(SignatureVerifier::class);
+    $verifier = resolve(OpenSslCliSignatureVerifier::class);
 
     expect($verifier->verifiedTimestampInfo($token['token'], 'not what was stamped'))->toBeNull()
         ->and($verifier->verifiedTimestampInfo($token['token'], $token['stamped']))->not->toBeNull();

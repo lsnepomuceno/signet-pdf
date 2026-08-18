@@ -13,7 +13,7 @@ use Symfony\Component\Process\Process;
 /**
  * Being unable to run a command, against running one that fails.
  *
- * The two used to be the same thing. `Validation\SignatureVerifier` caught
+ * The two used to be the same thing. `Validation\OpenSslCliSignatureVerifier` caught
  * every throwable and returned false, on the correct reasoning that a non-zero
  * exit from `openssl smime -verify` means the signature does not verify. The
  * catch was wider than the reasoning, so a missing binary, `proc_open` in

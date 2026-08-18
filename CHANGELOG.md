@@ -24,6 +24,27 @@ tag, and the section is dated on the day the stable one is cut (#18).
 
 ### Added
 
+- **Validation no longer needs a process.** `Contracts\SignatureVerifier` is a
+  seam like every other one here, with two implementations behind it:
+  `Validation\OpenSslCliSignatureVerifier`, which asks the `openssl` binary and
+  **stays the default**, and `Validation\NativeSignatureVerifier`, which answers
+  through ext-openssl and spawns nothing.
+
+  The point is a host where `proc_open` is disabled, where this package signed
+  perfectly well and could not validate at all. Selecting the native one is the
+  application's decision rather than a fallback, because an environment change
+  should not silently change which code decides whether a signature is valid.
+
+  It checks the signature over the re-tagged `signedAttrs`, the `message-digest`
+  attribute against the covered bytes, the `content-type`, and the ESS
+  `signing-certificate-v2` attribute against the certificate that verified;
+  every one of those is a way to produce a false valid by omission. An algorithm
+  it cannot express, RSASSA-PSS, raises
+  `Exceptions\VerificationUnsupportedException` rather than reporting the
+  signature bad. The two implementations are put to every sample, the foreign
+  pyHanko document and three tamper cases, and a disagreement fails the build
+  ([0114](docs/decisions/0114-verification-has-two-implementations.md)).
+
 - **A visible seal keeps PDF/UA conformance.** It cost two clauses of
   ISO 14289-1, and both were a set of keys this package did not write rather
   than anything inherent to signing. The widget is now nested in a `Form`
@@ -236,6 +257,13 @@ tag, and the section is dated on the day the stable one is cut (#18).
   `Support\OpensslEncrypter` stays as the reader for the earlier envelope.
 
 ### Changed
+
+- **`Validation\SignatureVerifier` is `Validation\OpenSslCliSignatureVerifier`,
+  behind `Contracts\SignatureVerifier`.** The class is unchanged and the name
+  says which of the two implementations it is, the way
+  `Certificates\OpenSslCliCertificateReader` does. `PdfSignatureValidator` takes
+  the contract, so anyone constructing it by hand is affected; nothing changes
+  for a caller going through `Signet`. `UPGRADE.md` carries the replacement.
 
 - **An archive timestamp now reports its own time.**
   `Data\SignatureDetails::$stampedAt` and `attestedAt()` carry a DocTimeStamp's

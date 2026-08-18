@@ -25,6 +25,20 @@ against the bytes they cover.
 | `MissingBinaryException` | the binary is not on `PATH` |
 | `ProcessUnavailableException` | `proc_open` is disabled in this PHP |
 
+**Neither has to be fixed to validate.** `Validation\NativeSignatureVerifier`
+answers the same questions through ext-openssl, with no process at all:
+
+```php
+new Signet(verifier: new NativeSignatureVerifier())->validate($path);
+```
+
+It is opt in rather than a fallback, because an environment change should not
+silently change which code decides whether a signature is valid, and the binary
+is the conservative answer to that question
+([0114](../decisions/0114-verification-has-two-implementations.md)). It raises
+`VerificationUnsupportedException` for an RSASSA-PSS signature, which
+`openssl_verify()` cannot express, rather than reporting it bad.
+
 ## `InvalidCertificatePasswordException`
 
 The password is wrong for this bundle. It is its own class precisely so this

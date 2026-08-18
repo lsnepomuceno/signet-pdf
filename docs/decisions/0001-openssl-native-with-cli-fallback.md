@@ -35,7 +35,7 @@ that need it keep working, while the majority of cases stop touching disk and
 - The `openssl` binary is no longer a hard requirement. The test suite does not
   need it at all.
 - Two places still reach a process, both through `Support\ProcessRunner`: this
-  reader and `Validation\SignatureVerifier`.
+  reader and `Validation\OpenSslCliSignatureVerifier`.
 - `ReaderFactory` holds the container rather than the `A1PdfSign` contract.
   Resolving the contract there creates a cycle that recurses until the process
   segfaults with no output. See [the invariants](../spec/invariants.md).

@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace LSNepomuceno\Signet\Validation;
 
 use LSNepomuceno\Signet\Contracts\ProcessRunner;
+use LSNepomuceno\Signet\Contracts\SignatureVerifier;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
 use LSNepomuceno\Signet\Support\TempDirectory;
 use LSNepomuceno\Signet\Support\TemporaryFile;
 
 /**
- * Decides whether a detached CMS matches the bytes it covers.
+ * Decides whether a detached CMS matches the bytes it covers, by asking
+ * OpenSSL.
  *
- * This is the one part of validation that shells out, and deliberately so.
+ * The default implementation, and the one that shells out, deliberately so.
  * PHP's openssl_pkcs7_verify() cannot take detached content (it only writes
  * the verified content out) and reconstructing an S/MIME envelope around
  * binary PDF bytes fails on MIME canonicalisation. The alternative is walking
@@ -24,14 +26,20 @@ use LSNepomuceno\Signet\Support\TemporaryFile;
  * conservative choice. The call is confined to the audited ProcessRunner, and
  * -purpose any with no CA file means this answers "does the signature match
  * the content", not "is the issuer trusted".
+ *
+ * The cost of that choice is an environment that cannot run a process, where
+ * this package signs and cannot validate. `NativeSignatureVerifier` answers the
+ * same three questions without one, and the two are checked against each other
+ * (docs/decisions/0114-verification-has-two-implementations.md).
  */
-final readonly class SignatureVerifier
+final readonly class OpenSslCliSignatureVerifier implements SignatureVerifier
 {
     public function __construct(
         private ProcessRunner $processes,
         private TempDirectory $temp,
     ) {}
 
+    #[\Override]
     public function verify(string $cms, string $coveredBytes): bool
     {
         $directory = $this->temp->path();
@@ -83,6 +91,7 @@ final readonly class SignatureVerifier
      *
      * See docs/decisions/0010-validation-consumes-what-signing-writes.md.
      */
+    #[\Override]
     public function verifyTimestamp(string $token, string $coveredBytes): bool
     {
         return $this->verifiedTimestampInfo($token, $coveredBytes) !== null;
@@ -98,6 +107,7 @@ final readonly class SignatureVerifier
      * it is the only time in a signed document attributable to anyone other
      * than the signer.
      */
+    #[\Override]
     public function verifiedTimestampInfo(string $token, string $stampedBytes): ?string
     {
         try {

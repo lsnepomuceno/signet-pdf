@@ -26,7 +26,7 @@ use LSNepomuceno\Signet\Exceptions\{MissingBinaryException,
  * (docs/spec/invariants.md, rule 8).
  *
  * **Being unable to run is not the same as running and failing.** Downstream,
- * `Validation\SignatureVerifier` reads a non-zero exit as "this signature does
+ * `Validation\OpenSslCliSignatureVerifier` reads a non-zero exit as "this signature does
  * not verify", which is correct for a real verdict and catastrophic for an
  * environment problem: a missing binary would make every signature report as
  * invalid, silently. Implementations must therefore raise

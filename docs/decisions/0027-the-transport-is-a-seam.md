@@ -83,7 +83,7 @@ to OpenSSL for signature verification anyway.
   production path changes.
 - `Testing\LocalTimestampAuthority` is test-only and kept out of the production
   classes, exactly as `Testing\DebugCertificate` is. It needs the `openssl`
-  binary, which `Validation\SignatureVerifier` already does.
+  binary, which `Validation\OpenSslCliSignatureVerifier` already does.
 - The offline tests are **not** in a group. They run in the ordinary suite,
   which is the point.
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LSNepomuceno\Signet\Validation;
 
 use LSNepomuceno\Signet\Contracts\SignatureValidator;
+use LSNepomuceno\Signet\Contracts\SignatureVerifier;
 use LSNepomuceno\Signet\Data\SignatureDetails;
 use LSNepomuceno\Signet\Data\SignatureReport;
 use LSNepomuceno\Signet\Enums\CertificationLevel;

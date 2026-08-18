@@ -45,7 +45,7 @@ rarely a reason to reach for one.
 
 ## Contracts
 
-Nine interfaces, and nothing binds them: `Signet` wires the default graph by
+Ten interfaces, and nothing binds them: `Signet` wires the default graph by
 hand and its constructor is where a replacement goes.
 
 | Contract | Replacing it buys |
@@ -59,6 +59,7 @@ hand and its constructor is where a replacement goes.
 | `PdfSource` | documents that are not local files |
 | `PdfDestination` | somewhere to write that is not a path |
 | `SignatureValidator` | the validator behind `Signet::validate()` |
+| `SignatureVerifier` | which implementation decides that a signature matches its bytes: the `openssl` binary by default, or `Validation\NativeSignatureVerifier`, which needs no process |
 
 ```php
 $signet = new Signet(
@@ -67,6 +68,7 @@ $signet = new Signet(
     transport: $transport,
     signer: $signer,
     certificateReader: $reader,
+    verifier: $verifier,
 );
 ```
 
