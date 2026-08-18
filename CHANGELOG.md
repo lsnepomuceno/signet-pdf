@@ -16,11 +16,12 @@ consumers test their own signing paths with it.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [2.0.0]
+## [2.0.0] - 2026-08-18
 
-**Not tagged yet.** The open issues are being closed first, so everything below
-ships in this release rather than in a series after it: `2.0.0-rc.1` is the only
-tag, and the section is dated on the day the stable one is cut (#18).
+The first stable release of the standalone package. Everything below shipped in
+one release rather than in a series after it, because the backlog was closed
+first: what remains open needs a change in `tecnickcom/tc-lib-pdf-sign` that no
+work here can substitute for (#44, #48, #56, #59).
 
 ### Added
 
@@ -539,7 +540,7 @@ guarantee and an encryption envelope rather than a dependency.
   in `lsnepomuceno/laravel-a1-pdf-sign`, which remains a separate
   implementation rather than a consumer of this one.
 
-[2.0.0]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.1...main
+[2.0.0]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.1...2.0.0
 [1.0.1]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/lsnepomuceno/signet-pdf/releases/tag/1.0.0
 
