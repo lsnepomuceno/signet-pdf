@@ -34,13 +34,16 @@ final readonly class TempDirectory
     /**
      * The directory, created if it does not exist, with a trailing separator.
      *
-     * @throws ProcessRunTimeException When the directory could not be created.
+     * @throws ProcessRunTimeException When the directory could not be created,
+     *          or when the configured path is relative.
      */
     public function path(): string
     {
         $path = $this->path !== null && $this->path !== ''
             ? rtrim($this->path, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR
             : rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+
+        self::anchor($path);
 
         Files::makeDirectory($path);
 
@@ -50,10 +53,47 @@ final readonly class TempDirectory
     /**
      * A unique path inside the directory. Nothing is written to it.
      *
-     * @throws ProcessRunTimeException When the directory could not be created.
+     * @throws ProcessRunTimeException When the directory could not be created,
+     *          or when the resulting path is relative.
      */
     public function file(string $extension = '.pfx'): string
     {
-        return $this->path() . Uuid::v7()->toRfc4122() . $extension;
+        $file = $this->path() . Uuid::v7()->toRfc4122() . $extension;
+
+        // Checked again rather than trusted from path(): the concatenation
+        // above is what actually decides, and losing its left operand yields a
+        // bare name that every caller would then write to the working
+        // directory (docs/spec/quality-policy.md).
+        self::anchor($file);
+
+        return $file;
+    }
+
+    /**
+     * Refuses a path the filesystem would resolve against the working
+     * directory.
+     *
+     * A relative path here is never what the caller meant. Both writers behind
+     * this class hand the result to `openssl` as a path, and a temporary file
+     * that lands wherever the process happens to have started is a private key
+     * written somewhere nobody is watching. Failing is the only safe answer,
+     * because there is no correct directory to guess.
+     *
+     * A Windows drive letter counts as anchored. That is not a claim the
+     * package runs there, it is a refusal to reject a path that is absolute.
+     *
+     * @throws ProcessRunTimeException
+     */
+    private static function anchor(string $path): void
+    {
+        $anchored = str_starts_with($path, DIRECTORY_SEPARATOR)
+            || str_starts_with($path, '/')
+            || preg_match('#^[A-Za-z]:[\\\\/]#', $path) === 1;
+
+        if (! $anchored) {
+            throw new ProcessRunTimeException(
+                "the temporary path must be absolute, got \"{$path}\"",
+            );
+        }
     }
 }
