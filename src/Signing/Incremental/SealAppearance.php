@@ -6,6 +6,7 @@ namespace LSNepomuceno\Signet\Signing\Incremental;
 
 use LSNepomuceno\Signet\Data\SealImage;
 use LSNepomuceno\Signet\Data\SealPlacement;
+use LSNepomuceno\Signet\Exceptions\SealPlacementException;
 use LSNepomuceno\Signet\Signing\Encryption\ObjectCipher;
 
 /**
@@ -167,15 +168,29 @@ final class SealAppearance
      * The rectangle the widget occupies, in PDF user space.
      *
      * @return array{0: float, 1: float, 2: float, 3: float}
+     *
+     * @throws SealPlacementException When the seal would land outside the area
+     *          the page displays. Named rather than clamped, which is the same
+     *          line 0017 draws for a page that does not exist: a signed
+     *          document with the seal somewhere nobody chose looks deliberate
+     *          and is not.
      */
     public function rectangle(SealPlacement $placement, SealImage $seal, ?PageGeometry $geometry = null): array
     {
         [$width, $height] = $this->size($placement, $seal);
 
+        $page = $geometry ?? new PageGeometry();
+
         // The placement is where the seal appears, and on a rotated page that
-        // is not where its coordinates are (docs/decisions/0033-the-seal-honours-page-rotation.md).
-        return ($geometry ?? new PageGeometry())
-            ->toUserSpace($placement->x, $placement->y, $width, $height);
+        // is not where its coordinates are (docs/decisions/0033-the-seal-honours-page-rotation.md),
+        // nor on a page whose crop box is inset from the sheet.
+        $rectangle = $page->toUserSpace($placement->x, $placement->y, $width, $height);
+
+        if (! $page->contains($rectangle)) {
+            throw SealPlacementException::outsideVisibleArea($rectangle, $page->visibleBox());
+        }
+
+        return $rectangle;
     }
 
     /**

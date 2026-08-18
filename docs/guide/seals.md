@@ -32,6 +32,29 @@ A page the document does not have raises `SealPlacementException` rather than
 clamping to the nearest one. Clamping puts a signature somewhere nobody asked
 for and nobody notices ([0017](../decisions/0017-the-seal-goes-where-it-was-asked-for.md)).
 
+### Where the page actually is
+
+**Coordinates are measured from the region the reader displays**, which is not
+always the sheet. Two entries decide it, and both turn up in the documents this
+matters most for: architectural drawings, engineering plots, anything printed at
+A1 or A0.
+
+| Entry | What it does | What the seal does about it |
+|---|---|---|
+| `/CropBox` (§7.7.3.3) | the region a viewer displays and prints, often inset from the sheet by a CAD or plotter export | `x` and `y` are measured from **its** corner, and it is intersected with `/MediaBox` as the clause requires |
+| `/UserUnit` (§14.11.1) | multiplies every coordinate on the page, because a PDF unit is 1/72 inch and that caps a page at 200 inches | sizes and offsets are divided by it, so `width: 120` is 120 points **on paper** |
+
+Nothing has to be passed for either: a page that declares neither behaves
+exactly as it did before they were read, byte for byte.
+
+::: warning A seal outside the visible area raises
+It does not get clamped to the edge, for the same reason a page that does not
+exist raises rather than resolving to the nearest one: a signed document with
+the seal somewhere nobody chose looks deliberate and is not
+([0017](../decisions/0017-the-seal-goes-where-it-was-asked-for.md)). The message
+names both rectangles, the one asked for and the one the page shows.
+:::
+
 ### One signature, many pages
 
 `onEveryPage` still produces **one** signature. The widget annotation goes on the

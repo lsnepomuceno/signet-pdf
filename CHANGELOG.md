@@ -22,6 +22,23 @@ tag, and the section is dated on the day the stable one is cut (#18).
 
 ### Added
 
+- **The seal is placed against `/CropBox` and `/UserUnit`, not only
+  `/MediaBox`.** `grep -rn 'CropBox\|UserUnit' src/` used to return nothing, and
+  both entries turn up in the documents this matters most for: architectural
+  drawings, engineering plots, anything printed at A1 or A0.
+
+  `/CropBox` is the region a reader displays (§7.7.3.3), so `x` and `y` are now
+  measured from its corner and it is intersected with `/MediaBox` as the clause
+  requires. `/UserUnit` multiplies every coordinate on the page (§14.11.1), so
+  sizes and offsets are divided by it and `width: 120` means 120 points on
+  paper rather than 60 on an A0 plot at `/UserUnit 2`.
+
+  **A page declaring neither produces exactly the bytes it did before**, which
+  is asserted rather than assumed. A seal that would fall outside the visible
+  area raises `SealPlacementException` rather than being written off the page,
+  which is [0017](docs/decisions/0017-the-seal-goes-where-it-was-asked-for.md)'s
+  rule one level down from the page it settled.
+
 - **`signet sign` reaches what the library reaches.** It took five options while
   the builder took considerably more, so a team wanting a stamped, certified
   signature had to write PHP and a Composer autoload for something the library

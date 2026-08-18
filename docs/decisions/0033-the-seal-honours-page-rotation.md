@@ -83,3 +83,34 @@ neither distorted nor turned on screen.
 | `/MK <</R 90>>` on the widget | Readers vary in whether they honour it. A matrix on the appearance is what the rendering algorithm is specified to apply |
 | Read `/Rotate` from the page only | Misses the document declared landscape once on `/Pages`, which is the common shape |
 | Fix the rectangle and leave the appearance | The seal lands correctly and reads sideways, which looks like a different bug |
+
+## Outcome, 2026-08-18
+
+`Signing\Incremental\PageGeometry` was built here to answer "where does a
+displayed point live in user space", and it read `/Rotate` and `/MediaBox`.
+Two entries that decide the same question were not read at all, which
+`grep -rn 'CropBox\|UserUnit' src/` said plainly: it returned `/MediaBox` and
+nothing else.
+
+- **`/CropBox`** is the region a reader displays (§7.7.3.3), and a CAD or
+  plotter export routinely crops smaller than the sheet. A placement resolved
+  against the sheet then lands somewhere other than the corner that was asked
+  for, and at worst outside the visible area while the code reports a placed
+  seal. The effective box is the intersection of crop and media, which the same
+  clause requires, and `x` and `y` are measured from its corner.
+- **`/UserUnit`** multiplies every coordinate on the page (§14.11.1). A seal
+  sized in points on an A0 plot at `/UserUnit 2` came out half the intended
+  physical size. Sizes and offsets are divided by it.
+
+The order is the load-bearing part, and it is the combination this record's own
+subject makes delicate: **scale, then rotate inside the visible box, then move
+by the box's origin**. A rotated page with an inset crop box is where an
+off-by-one origin hides, and it has a test of its own.
+
+A seal that would fall outside the visible area now raises rather than being
+written off the page, which is [0017](0017-the-seal-goes-where-it-was-asked-for.md)'s
+rule one level down from the page it settled.
+
+A page declaring neither entry produces exactly the bytes it did before, which
+is asserted rather than assumed.
+
