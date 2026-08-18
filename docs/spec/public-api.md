@@ -234,7 +234,7 @@ without a container.
 `download()` and `toResponse()` are **not** here, and this list said otherwise
 until 2026-08-18. They were removed with the framework
 ([0100](../decisions/0100-the-core-is-framework-agnostic.md)) and
-[UPGRADE.md](../../UPGRADE.md) has always said so, but this page kept
+[UPGRADE.md](../releases/upgrade.md) has always said so, but this page kept
 documenting a return type the package cannot construct: `symfony/http-foundation`
 is not a dependency. Build the response in the application, from `contents()`
 and `name()`.

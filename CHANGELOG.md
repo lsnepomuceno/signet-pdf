@@ -1,5 +1,7 @@
 # Changelog
 
+<!-- #region body -->
+
 Every release, and what it costs to move to it.
 
 This file is the summary. The reasoning behind a change lives in
@@ -21,6 +23,18 @@ ships in this release rather than in a series after it: `2.0.0-rc.1` is the only
 tag, and the section is dated on the day the stable one is cut (#18).
 
 ### Added
+
+- **The documentation site says which release it documents.** It publishes
+  nineteen pages off `main` and not one of them named a version, so a reader who
+  installed `^1` was reading pages written against `2.x` with nothing on the page
+  to say so. Every page now carries a banner naming the line, read from this
+  file's own topmost heading rather than from a literal that would drift.
+
+  `CHANGELOG.md` and `UPGRADE.md` are pages of the site as well, under
+  `/releases/`, and stay canonical in the repository root where GitHub renders
+  them. The four pages that linked to `../../UPGRADE.md` and reached nothing now
+  point at a page, and the `ignoreDeadLinks` exception that excused that shape of
+  link is gone ([0112](docs/decisions/0112-the-site-documents-one-release-line.md)).
 
 - **A signature field can be created, not only filled.** `intoField()` filled a
   field a template already carried and `signatureFields()` listed them, which is
@@ -486,3 +500,5 @@ guarantee and an encryption envelope rather than a dependency.
 [2.0.0]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.1...main
 [1.0.1]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/lsnepomuceno/signet-pdf/releases/tag/1.0.0
+
+<!-- #endregion body -->

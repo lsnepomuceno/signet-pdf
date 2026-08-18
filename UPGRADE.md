@@ -1,5 +1,7 @@
 # Upgrading
 
+<!-- #region body -->
+
 Every breaking change is answered here, in the release notes, and in the version
 number (`docs/spec/quality-policy.md`).
 
@@ -250,3 +252,5 @@ are for.
   from and go anywhere (`docs/decisions/0102-documents-arrive-as-sources.md`).
 - `Testing\FakeProcessRunner`, the replacement for `Process::fake()`.
 - `bin/signet`, a command line that does not need an application around it.
+
+<!-- #endregion body -->

@@ -29,6 +29,19 @@ It is also the documentation site: `docs/.vitepress/` builds `docs/` into a
 static site, and `npm --prefix docs/.vitepress run dev` serves it locally. None
 of it ships, since `/docs` is `export-ignore`.
 
+**The site documents one release line and names it on every page**, reading the
+version from the topmost heading of `CHANGELOG.md`
+(docs/decisions/0112-the-site-documents-one-release-line.md). The two release
+documents are pages of it as well, and stay canonical in the repository root:
+
+| | |
+|---|---|
+| [docs/releases/changelog.md](docs/releases/changelog.md) | `CHANGELOG.md`, published. Every release and what it costs to move to it. |
+| [docs/releases/upgrade.md](docs/releases/upgrade.md) | `UPGRADE.md`, published. The path across each breaking change. |
+
+What moves together when a release is cut is the checklist in
+[docs/spec/quality-policy.md](docs/spec/quality-policy.md).
+
 ## Decisions: why the design is what it is
 
 [docs/decisions/](docs/decisions/README.md), one numbered file per decision.

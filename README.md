@@ -149,7 +149,8 @@ command line, testing your own code, and every exception this package raises.
 
 | Package | PHP | Notes |
 |---|---|---|
-| **^1** | 8.4.1 – 8.5 | the current line |
+| **^2** | 8.4.1 – 8.5 | the current line, and what this page documents |
+| **^1** | 8.4.1 – 8.5 | the previous line; [UPGRADE.md](UPGRADE.md) is the path across |
 
 `ext-openssl`, `ext-gd`, `ext-mbstring`, `ext-zlib`, `ext-fileinfo` and
 `ext-json` are required. The `openssl` **binary** on `PATH` is needed only by the

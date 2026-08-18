@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress'
+import { release } from './release'
 import { index, pages, sections } from './sidebar'
 
 /**
@@ -36,16 +37,64 @@ export default defineConfig({
   // whether a path exists in the repository and this asks whether it exists as
   // a page.
   //
-  // The exception is a link that climbs out of `docs/`, which today is exactly
-  // one: `docs/spec/quality-policy.md` points at `UPGRADE.md` in the root.
-  // Those files are correct where they are, GitHub renders them, and
-  // `SpecTest` already proves they exist. The exception goes away when the
-  // root documents become pages of this site rather than neighbours of it.
-  ignoreDeadLinks: [/^(\.\/)?(\.\.\/)+/],
+  // There is no exception any more. There used to be one, for a link climbing
+  // out of `docs/` to `UPGRADE.md` in the root, and it is gone the way the
+  // comment said it would go: those documents are pages of this site now
+  // (`releases/`), so the links point at pages and are checked like every other
+  // (docs/decisions/0112-the-site-documents-one-release-line.md).
+  //
+  // The two `releases/` pages still climb out, deliberately, to name the
+  // canonical file GitHub renders. They are the only ones, and they are
+  // allowed here rather than by turning the check off.
+  ignoreDeadLinks: [/^(\.\/)?(\.\.\/)+(CHANGELOG|UPGRADE)(\.md)?$/],
+
+  markdown: {
+    config(md) {
+      // The two `releases/` pages include files that live in the repository
+      // root, and those files' own links are written from there:
+      // `docs/decisions/0030-....md`, `UPGRADE.md`. Correct where they are
+      // authored, and pointing at nothing once the same text is a page under
+      // `/releases/`.
+      //
+      // So they are rewritten as they render, on those two pages only. This
+      // wraps VitePress's own link rule rather than replacing it, and rewrites
+      // before calling it, so the dead-link check sees the rewritten target and
+      // still fails a link that goes nowhere. Ignoring them instead would have
+      // left a reader of the site clicking into a 404
+      // (docs/decisions/0112-the-site-documents-one-release-line.md).
+      const included = ['releases/changelog.md', 'releases/upgrade.md']
+      const previous = md.renderer.rules.link_open
+
+      md.renderer.rules.link_open = (tokens, index, options, env, self) => {
+        if (included.includes(env?.relativePath)) {
+          const token = tokens[index]
+          const href = token.attrGet('href')
+
+          if (href) {
+            token.attrSet(
+              'href',
+              href
+                .replace(/^(\.\/)?CHANGELOG\.md/, '/releases/changelog.md')
+                .replace(/^(\.\/)?UPGRADE\.md/, '/releases/upgrade.md')
+                .replace(/^(\.\/)?docs\//, '/'),
+            )
+          }
+        }
+
+        return previous
+          ? previous(tokens, index, options, env, self)
+          : self.renderToken(tokens, index, options)
+      }
+    },
+  },
 
   head: [['meta', { name: 'theme-color', content: '#cf222e' }]],
 
   themeConfig: {
+    // Handed to the client so the banner every page carries can name the line
+    // this build documents (docs/decisions/0112-the-site-documents-one-release-line.md).
+    release: release(),
+
     // `activeMatch` on every entry, because the default is an exact match
     // against `link`: without it "Guide" highlights on the one page it points
     // at and goes dark on the other sixteen, which reads as having left the
@@ -55,6 +104,19 @@ export default defineConfig({
       { text: 'Specification', link: '/spec/public-api', activeMatch: '^/spec/' },
       { text: 'Decisions', link: '/decisions/README', activeMatch: '^/decisions/' },
       { text: 'History', link: '/history/decision-log', activeMatch: '^/history/' },
+      {
+        // The version in the navigation, read from the changelog rather than
+        // typed here, so it cannot drift from the release it names.
+        text: `v${release().version}`,
+        items: [
+          { text: 'Changelog', link: '/releases/changelog' },
+          { text: 'Upgrading', link: '/releases/upgrade' },
+          {
+            text: 'All releases',
+            link: 'https://github.com/lsnepomuceno/signet-pdf/releases',
+          },
+        ],
+      },
       {
         text: 'Packagist',
         link: 'https://packagist.org/packages/lsnepomuceno/signet-pdf',
@@ -88,6 +150,7 @@ export default defineConfig({
       ]),
 
       '/spec/': [{ text: 'Specification', items: pages('spec') }],
+      '/releases/': [{ text: 'Releases', items: pages('releases') }],
       '/history/': [{ text: 'History', items: pages('history') }],
 
       '/decisions/': [

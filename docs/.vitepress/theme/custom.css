@@ -133,3 +133,28 @@
   flex-grow: 1;
   justify-content: flex-start;
 }
+
+/*
+ * The release banner, above the navigation on every page.
+ *
+ * Styled with the theme's own tokens rather than with colours of its own, so it
+ * follows the light and dark palettes without knowing which is on. It sits in
+ * the `layout-top` slot, which is above the fixed navigation bar, so it scrolls
+ * away with the page rather than eating a strip of every screen.
+ */
+.release-banner {
+  padding: 8px 24px;
+  background-color: var(--vp-c-default-soft);
+  border-bottom: 1px solid var(--vp-c-divider);
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.release-banner a {
+  color: var(--vp-c-brand-1);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
