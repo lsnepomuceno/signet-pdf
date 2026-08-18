@@ -216,8 +216,11 @@ can be pointed at them
   replaces the error handler for that one expression: `@` does **not** do this,
   because a custom handler is still invoked for a suppressed diagnostic and
   PHPUnit installs one. `tests/Project/ArchTest.php` fails on any `@` in `src/`.
-- **Mutation testing** covers `src/Certificates`, `src/Signing`, `src/Support`
-  and `src/Validation`, nightly rather than on pull requests.
+- **Mutation testing** covers `src/Certificates`, `src/IcpBrasil`,
+  `src/Signing`, `src/Support` and `src/Validation`, nightly rather than on pull
+  requests. `Signing` and `Support` run as two legs each: a job is killed at six
+  hours and reports as cancelled rather than failed, so an over-long leg gates
+  nothing while looking green.
 - **Do not split mutation runs with `--shard`.** It divides the test suite, and
   every mutation needs the whole suite.
 - **Mutation runs through `.docker/mutate.sh`**, which `composer test:mutate`
