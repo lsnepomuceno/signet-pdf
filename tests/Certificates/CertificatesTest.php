@@ -507,14 +507,28 @@ it('names the file at fault when the certificate and the key arrive separately',
 it('joins a separate certificate and key with no blank line between them', function () {
     [$certificate, $key] = DebugCertificate::makePem(encryptKey: false);
 
-    // Both arrive ending in a newline, so joining them without trimming first
-    // leaves a blank line between the blocks. The result still parses, which is
-    // why nothing caught it: it stops matching NativeCertificateReader's
-    // output, which is the promise readPair() is written against.
+    // OpenSSL ends each block with exactly one newline, so concatenation alone
+    // already produces the right shape here. That is the case below.
     $joined = resolve(PemCertificateReader::class)->readPair($certificate, $key)->original;
 
     expect($joined)->toStartWith('-----BEGIN CERTIFICATE-----')
         ->and(substr_count($joined, "\n\n"))->toBe(0)
+        ->and($joined)->toEndWith("\n")
+        ->and(strpos($joined, 'BEGIN CERTIFICATE'))->toBeLessThan((int) strpos($joined, 'PRIVATE KEY'));
+});
+
+it('normalises a certificate file that ends in a blank line', function () {
+    [$certificate, $key] = DebugCertificate::makePem(encryptKey: false);
+
+    // A PEM pasted into an editor and saved comes back with a trailing blank
+    // line, and that is the input the trimming in join() exists for: without
+    // it the blank line survives into the assembled bundle and the output
+    // stops matching NativeCertificateReader's, which is the promise
+    // readPair() is written against. The previous test cannot see this,
+    // because OpenSSL's own output needs no normalising at all.
+    $joined = resolve(PemCertificateReader::class)->readPair($certificate . "\n", $key)->original;
+
+    expect(substr_count($joined, "\n\n"))->toBe(0)
         ->and($joined)->toEndWith("\n")
         ->and(strpos($joined, 'BEGIN CERTIFICATE'))->toBeLessThan((int) strpos($joined, 'PRIVATE KEY'));
 });
