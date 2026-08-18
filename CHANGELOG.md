@@ -18,6 +18,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`signet sign` reaches what the library reaches.** It took five options while
+  the builder took considerably more, so a team wanting a stamped, certified
+  signature had to write PHP and a Composer autoload for something the library
+  does in one call. Seventeen options now, each named after the call it maps
+  onto: `--name`, `--reason`, `--location`, `--contact`; `--seal`,
+  `--seal-image`, `--seal-page`, `--seal-every-page` and the four coordinates;
+  `--certify`, `--lock`, `--into-field`, `--field-name`; and
+  `--document-password-env`, which follows the existing `--password-env`
+  precedent rather than taking a second secret on a command line where `ps` can
+  read it.
+
+  `--into-field` and `--field-name` are refused together rather than resolved by
+  precedence, which would create a field beside the one the caller meant to
+  fill. **There is no `--seal-placement=<corner>`**, which the issue asked for:
+  `Data\SealPlacement` is absolute user space, resolving a named corner needs
+  the page box, and that arithmetic belongs with the crop box and `/UserUnit`
+  work rather than in a command.
+
 - **`/DocMDP` and field locks are evaluated at validation time, not only at
   signing time.** The signing side has enforced both since 2.0; validation
   reported the inputs and stopped, so a document certified as `no-changes` and
