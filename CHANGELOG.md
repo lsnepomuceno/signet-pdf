@@ -18,6 +18,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The alphanumeric CNPJ is no longer rejected as malformed.**
+  `IcpBrasil\NationalRegistry::isCnpj()` tested `/^\d{14}$/` and
+  `IcpBrasil\Reader` read the field through a fourteen-digit test, both of
+  which predate Instrução Normativa RFB nº 2.229/2024: the first twelve
+  positions now take `A` to `Z` as well as `0` to `9`, and only the two check
+  digits stay numeric. A valid e-CNPJ issued to a company with an alphanumeric
+  registry therefore read as carrying no CNPJ, and was then reported as
+  `InvalidCnpjCheckDigits`.
+
+  Modulus eleven over the same weights, with each character contributing its
+  ASCII value minus 48, so every all-numeric CNPJ answers exactly as before.
+  `Identity::formattedRegistry()` punctuates the new shape as
+  `12.ABC.345/01DE-35`. **Lowercase is refused rather than uppercased**, since
+  the specification gives a value for `A` and none for `a`. Confirmed against
+  the Receita Federal's published example, `12ABC34501DE35`, which is a case in
+  the suite ([0029](docs/decisions/0029-the-identity-a-brazilian-signer-is-known-by.md)).
+
 - **`Support\TempDirectory` refuses a relative path instead of writing beside
   the caller.** `path()` and `file()` now raise `ProcessRunTimeException` when
   the directory they would hand back is not absolute. A relative path is valid

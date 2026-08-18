@@ -44,7 +44,7 @@ final readonly class Reader
         return new Identity(
             type: $type,
             cpf: $this->digits($fields['cpf'] ?? null, 11),
-            cnpj: $this->digits($fields['cnpj'] ?? null, 14),
+            cnpj: $this->companyRegistry($fields['cnpj'] ?? null),
             birthDate: $this->birthDate($fields['birthDate'] ?? null),
             socialIdentity: $this->digits($fields['socialIdentity'] ?? null, 11),
             nationalId: $this->unpadded($fields['nationalId'] ?? null),
@@ -126,6 +126,28 @@ final readonly class Reader
     private function digits(?string $value, int $length): ?string
     {
         if ($value === null || preg_match('/^\d{' . $length . '}$/', $value) !== 1) {
+            return null;
+        }
+
+        return trim($value, '0') === '' ? null : $value;
+    }
+
+    /**
+     * A CNPJ as written: twelve alphanumeric characters and two numeric check
+     * digits, or null.
+     *
+     * **Not `digits()`, and that is the whole point.** The Receita Federal's
+     * alphanumeric CNPJ (Instrução Normativa RFB nº 2.229/2024) opens the first
+     * twelve positions to A to Z, so a perfectly valid e-CNPJ read through a
+     * fourteen-digit test came back null and the certificate reported as
+     * carrying no registry at all.
+     *
+     * The zero-filled "unavailable" rule is the same one every other field
+     * follows.
+     */
+    private function companyRegistry(?string $value): ?string
+    {
+        if ($value === null || preg_match('/^[0-9A-Z]{12}\d{2}$/', $value) !== 1) {
             return null;
         }
 
