@@ -18,6 +18,36 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **The certificate chain can be supplied from outside the bundle.**
+  `Signing\PendingSignature::chain(...$paths)` and `chainContents(...$bytes)`
+  take PEM or DER, one certificate per blob or a concatenated bundle, in any
+  order. **This is the normal case for an ICP-Brasil e-CPF exported from a
+  browser or a token**, which holds the leaf and nothing else: the intermediates
+  are published by the AC and are not in the file, so the DSS a `pades-b-lt`
+  document carried was incomplete, revocation could not be checked for a signer
+  whose issuer was absent, and validation reported `ChainDoesNotReachRoot` for a
+  signature that would otherwise be fine.
+
+  The supplied certificates are put in issuer order by
+  `Validation\ChainBuilder`, since the store's collector reads each
+  certificate's neighbour as its issuer, and deduplicated against the bundle by
+  the digest of their DER. **One that issued nothing in the signer's chain is
+  refused rather than embedded.** `Config\CertificateConfig::$chainPaths`
+  configures it once for an application whose signers share an AC, and
+  `signet sign --chain` is repeatable.
+
+### Fixed
+
+- **`Testing\DebugCertificate::makeChain()` issued two certificates with the
+  same serial**, both defaulting to `0` under the same issuer name. A CMS
+  identifies its signer by exactly that pair (RFC 5652 §5.3), so pyHanko
+  resolved the SignerInfo to the root, found the ESS signing-certificate-v2
+  attribute describing the leaf, and refused every chained signature outright.
+  The leaf now also declares `keyUsage` and the key identifiers, without which
+  pyHanko applies its key usage policy and builds no path at all. Both were
+  fixture defects rather than library ones, and between them they had made the
+  chain gate unable to check a chain.
+
 - **Signing with an ECDSA certificate is gated rather than assumed.**
   `Testing\DebugCertificate` generated `OPENSSL_KEYTYPE_RSA` and nothing else,
   so no test in the suite had ever signed with an elliptic-curve key and the

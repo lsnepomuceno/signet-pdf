@@ -51,7 +51,13 @@ final class SignCommand extends Command
                 'legacy, pades-b-b, pades-b-t, pades-b-lt or pades-b-lta',
                 SignatureProfile::PadesBB->value,
             )
-            ->addOption('tsa', null, InputOption::VALUE_REQUIRED, 'Timestamp authority URL, required from pades-b-t up');
+            ->addOption('tsa', null, InputOption::VALUE_REQUIRED, 'Timestamp authority URL, required from pades-b-t up')
+            ->addOption(
+                'chain',
+                null,
+                InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
+                'A PEM or DER certificate to fold into the chain. Repeatable, for a bundle that carries only the leaf',
+            );
     }
 
     #[\Override]
@@ -94,6 +100,7 @@ final class SignCommand extends Command
             $signed = new Signet($this->config($input))
                 ->newSignature()
                 ->certificate($certificate, $password)
+                ->chain(...self::chain($input))
                 ->pdf($pdf)
                 ->profile($profile)
                 ->sign();
@@ -138,5 +145,21 @@ final class SignCommand extends Command
         $value = $input->getOption($name);
 
         return is_string($value) ? $value : '';
+    }
+
+    /**
+     * The repeated `--chain` values, narrowed.
+     *
+     * @return list<string>
+     */
+    private static function chain(InputInterface $input): array
+    {
+        $value = $input->getOption('chain');
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter($value, static fn(mixed $path): bool => is_string($path) && $path !== ''));
     }
 }

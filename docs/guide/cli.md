@@ -23,6 +23,7 @@ Signs a document with an A1 certificate.
 | `--out`, `-o` | | where to write the signed document |
 | `--profile`, `-p` | default `pades-b-b` | `legacy`, `pades-b-b`, `pades-b-t`, `pades-b-lt`, `pades-b-lta` |
 | `--tsa` | | timestamp authority URL, required from `pades-b-t` up |
+| `--chain` | repeatable | a PEM or DER certificate to fold into the chain, for a bundle that carries only the leaf |
 
 ```bash
 export SIGNET_PASSWORD='the certificate password'
