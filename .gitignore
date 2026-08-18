@@ -32,3 +32,11 @@ composer.lock
 # narrowed here rather than weakened.
 # See docs/decisions/0024-revocation-is-evaluated-not-counted.md.
 !/tests/Resources/revocation/*.pem
+
+# The documentation site: dependencies and build output, none of it committed.
+# `/docs/node_modules` is the link postinstall.mjs creates, and the real
+# directory it points at is the line above it.
+/docs/.vitepress/node_modules/
+/docs/node_modules
+/docs/.vitepress/dist/
+/docs/.vitepress/cache/
