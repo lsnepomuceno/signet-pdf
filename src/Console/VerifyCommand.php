@@ -46,6 +46,12 @@ final class VerifyCommand extends Command
                 null,
                 InputOption::VALUE_REQUIRED,
                 'A PEM file or a directory of them to trust as anchors',
+            )
+            ->addOption(
+                'document-password-env',
+                null,
+                InputOption::VALUE_REQUIRED,
+                "Name of the environment variable holding the document's password, when it is encrypted",
             );
     }
 
@@ -55,9 +61,22 @@ final class VerifyCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $path = self::argument($input, 'pdf');
         $asJson = $input->getOption('json') === true;
+        $password = self::documentPassword($input);
+
+        if ($password === false) {
+            $message = 'The environment variable ' . self::option($input, 'document-password-env') . ' is not set.';
+
+            if ($asJson) {
+                $this->printJson($output, ['readable' => false, 'error' => $message]);
+            } else {
+                $io->error($message);
+            }
+
+            return self::INVALID;
+        }
 
         try {
-            $report = new Signet()->validate($path, $this->trustStore($input));
+            $report = new Signet()->validate($path, $this->trustStore($input), $password);
         } catch (Throwable $exception) {
             if ($asJson) {
                 $this->printJson($output, ['readable' => false, 'error' => $exception->getMessage()]);
@@ -176,6 +195,31 @@ final class VerifyCommand extends Command
     private static function argument(InputInterface $input, string $name): string
     {
         $value = $input->getArgument($name);
+
+        return is_string($value) ? $value : '';
+    }
+
+    /**
+     * The document's own password, or false when the named variable is unset.
+     *
+     * The same shape as `signet sign`, and never an argument: a command line is
+     * visible in `ps` and in shell history. False rather than an empty string,
+     * because a variable that was named and is not set is a mistake worth
+     * saying out loud.
+     */
+    private static function documentPassword(InputInterface $input): string|false
+    {
+        $variable = self::option($input, 'document-password-env');
+
+        return $variable === '' ? '' : getenv($variable);
+    }
+
+    /**
+     * Symfony types every option as `mixed`, so each read needs narrowing.
+     */
+    private static function option(InputInterface $input, string $name): string
+    {
+        $value = $input->getOption($name);
 
         return is_string($value) ? $value : '';
     }

@@ -88,6 +88,26 @@ final readonly class ObjectCipher
     }
 
     /**
+     * The same rule as a callable, for an emitter that lives outside this
+     * package.
+     *
+     * `Com\Tecnick\Pdf\Sign\Output\Dss` takes one so it does not have to know
+     * what encrypts a document, and it computes `/Length` from what comes back
+     * rather than from what went in, which is the half that has to agree with
+     * `stream()` below. Handing it this keeps one implementation of the rule
+     * instead of two that can drift.
+     *
+     * Identity when the document is not encrypted, so the caller passes it
+     * either way and the null object stays a null object.
+     *
+     * @return callable(string, int): string
+     */
+    public function streamEncryptor(): callable
+    {
+        return fn(string $bytes, int $object): string => $this->stream($bytes, $object)[0];
+    }
+
+    /**
      * A stream's bytes, ready to write, with the length the dictionary must
      * declare.
      *

@@ -9,6 +9,7 @@ use Com\Tecnick\Pdf\Sign\Signer;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
+use LSNepomuceno\Signet\Signing\Encryption\ObjectCipher;
 use LSNepomuceno\Signet\Support\Pem;
 use Throwable;
 
@@ -35,11 +36,20 @@ final readonly class DssWriter
     ) {}
 
     /**
+     * @param  string  $documentPassword  The password the document was opened
+     *          with. The store's streams are encrypted like everything else in
+     *          an encrypted document (ISO 32000-1 §7.6.2), so writing one
+     *          without it produces evidence no reader can decode.
+     *
      * @throws InvalidPdfFileException
      */
-    public function append(string $pdf, Certificate $certificate): string
-    {
-        return $this->write($pdf, $this->collect(Pem::certificates($certificate->original)));
+    public function append(
+        string $pdf,
+        Certificate $certificate,
+        #[\SensitiveParameter]
+        string $documentPassword = '',
+    ): string {
+        return $this->write($pdf, $this->collect(Pem::certificates($certificate->original)), $documentPassword);
     }
 
     /**
@@ -57,11 +67,16 @@ final readonly class DssWriter
      *                                      the next one as its issuer, so a
      *                                      mixed pile would build OCSP requests
      *                                      against the wrong issuer.
+     * @param  string  $documentPassword  The password the document was opened with.
      *
      * @throws InvalidPdfFileException
      */
-    public function refresh(string $pdf, array $chains): string
-    {
+    public function refresh(
+        string $pdf,
+        array $chains,
+        #[\SensitiveParameter]
+        string $documentPassword = '',
+    ): string {
         $material = ['certs' => [], 'ocsp' => [], 'crls' => []];
 
         foreach ($chains as $chain) {
@@ -83,6 +98,7 @@ final readonly class DssWriter
         return $this->write(
             $pdf,
             $material['certs'] === [] && $material['ocsp'] === [] && $material['crls'] === [] ? null : $material,
+            $documentPassword,
         );
     }
 
@@ -91,18 +107,30 @@ final readonly class DssWriter
      *
      * @throws InvalidPdfFileException
      */
-    private function write(string $pdf, ?array $material): string
-    {
+    private function write(
+        string $pdf,
+        ?array $material,
+        #[\SensitiveParameter]
+        string $documentPassword,
+    ): string {
         if ($material === null) {
             return $pdf;
         }
 
-        $document = $this->reader->read($pdf);
+        $document = $this->reader->read($pdf, $documentPassword);
 
         // The store is keyed by the signature it vouches for, so the emitter
         // needs the /Contents bytes of the signature just written.
         $objectNumber = $document->size;
-        $emitted = $this->dss->emit($material, $this->signatureContents($pdf), $objectNumber);
+        $emitted = $this->dss->emit(
+            $material,
+            $this->signatureContents($pdf),
+            $objectNumber,
+            // Every certificate, OCSP response and CRL goes in as a stream, and
+            // a stream in an encrypted document is encrypted under its own
+            // object number. The emitter takes the rule rather than the key.
+            ObjectCipher::for($document)->streamEncryptor(),
+        );
 
         $objects = $emitted['objects'];
         $objects[$document->root] = $this->writer->catalogWithDss($pdf, $document, $emitted['object_id']);

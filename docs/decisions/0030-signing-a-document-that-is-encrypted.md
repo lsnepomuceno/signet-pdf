@@ -164,3 +164,37 @@ broken".
 
 RC4 stays refused, and a test proves the refusal did not move.
 
+
+## Outcome, 2026-08-18, later the same day
+
+**`pades-b-lt` and `pades-b-lta` sign an encrypted document.** This was the
+second refusal in the record and it was accurate: B-LT appends a Document
+Security Store and B-LTA an archive timestamp, each as a revision of its own,
+and neither ran what it wrote through `Signing\Encryption\ObjectCipher`.
+
+The fix is the cipher reaching those two writers, which is what the null object
+was for. `Com\Tecnick\Pdf\Sign\Output\Dss::emit()` already takes an encryptor
+callable and computes `/Length` from what comes back, so `ObjectCipher` hands it
+one instead of growing a second implementation of the same rule.
+
+**The exception is the whole trap, and it points the other way from the object
+streams above.** ISO 32000-1 §7.6.2 exempts the `/Contents` string of a
+signature dictionary, and an archive timestamp is a signature dictionary: the
+token stays in the clear while the field name and appearance around it are
+encrypted. The signing path had always got this right by never having had the
+choice, since it writes the placeholder and overwrites it in place.
+
+**The password reaches validation too, and that is a consequence rather than a
+feature.** A signature's own bytes are never encrypted, so an encrypted document
+verifies without one, and it always did. The store's OCSP responses and CRLs are
+encrypted like every other stream, so `Validation\RevocationReader` cannot read
+them without the password: `validate()` and `extendArchive()` take an optional
+one, and without it the material is reported as present and undecidable rather
+than as absent. Saying "the document carries no evidence" when the truth is
+"this caller cannot read it" would name a fault in the document that is not
+there (0008).
+
+`Console\VerifyCommand` and `Console\ExtendCommand` gained
+`--document-password-env`, matching `sign` rather than inventing a second
+convention, and for the same reason: a password on a command line is visible in
+`ps` and lands in shell history.

@@ -55,12 +55,22 @@ final readonly class ArchiveExtender
      * @throws HasNoSignatureOrInvalidPkcs7Exception
      * @throws InvalidPdfFileException
      * @throws ProcessRunTimeException
+     * @param  string  $documentPassword  The password an encrypted document
+     *          was produced with. Both revisions this appends carry encrypted
+     *          objects, so a scheduled job renewing an encrypted archive needs
+     *          it exactly as signing did
+     *          (docs/decisions/0030-signing-a-document-that-is-encrypted.md).
+     *
      * @throws SignatureTransportException When the authority did not answer.
      *          The only failure here a scheduled job should retry, which is
      *          why it arrives as itself rather than as a process fault.
      */
-    public function extend(string $pdfContents, string $fileName = ''): SignedPdf
-    {
+    public function extend(
+        string $pdfContents,
+        string $fileName = '',
+        #[\SensitiveParameter]
+        string $documentPassword = '',
+    ): SignedPdf {
         $signatures = $this->extractor->extract($pdfContents);
 
         // Timestamping an unsigned document is legal and pointless: it attests
@@ -70,7 +80,7 @@ final readonly class ArchiveExtender
             throw new HasNoSignatureOrInvalidPkcs7Exception($fileName === '' ? 'the document' : $fileName);
         }
 
-        $document = $this->reader->read($pdfContents);
+        $document = $this->reader->read($pdfContents, $documentPassword);
         $level = $this->certifications->level($pdfContents, $document);
 
         // An archive timestamp is a further revision, which is exactly what
@@ -85,7 +95,10 @@ final readonly class ArchiveExtender
         // archive timestamp covers it. Extending without this produced a longer
         // chain of timestamps over evidence that was ageing out.
         return new SignedPdf(
-            $this->timestamps->append($this->store->refresh($pdfContents, $this->certificateChains($signatures))),
+            $this->timestamps->append(
+                $this->store->refresh($pdfContents, $this->certificateChains($signatures), $documentPassword),
+                $documentPassword,
+            ),
             $fileName,
         );
     }

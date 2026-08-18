@@ -22,6 +22,25 @@ tag, and the section is dated on the day the stable one is cut (#18).
 
 ### Added
 
+- **`pades-b-lt` and `pades-b-lta` sign an encrypted document.** They were
+  refused, accurately: both append a revision of their own, the security store
+  and the archive timestamp, and neither ran what it wrote through the cipher
+  that already encrypted everything else a revision emits. The cipher now
+  reaches both writers, so an AES-128 or AES-256 document signs at every profile
+  and `qpdf --check` decodes the result with its password.
+
+  **One thing stays in the clear on purpose**: ISO 32000-1 §7.6.2 exempts the
+  `/Contents` string of a signature dictionary, and an archive timestamp is a
+  signature dictionary, so the token is readable while the field around it is
+  encrypted.
+
+  `Signet::validate()` and `Signet::extendArchive()` take an optional document
+  password, and `signet verify` and `signet extend` take
+  `--document-password-env`. A signature verifies without one, because its own
+  bytes are never encrypted; the store's OCSP responses and CRLs are encrypted
+  like every other stream, so without the password the report says revocation is
+  unknown rather than that the document carries nothing.
+
 - **An encrypted document that packs its objects into object streams can be
   signed.** That is what a password-protected export from a word processor looks
   like, and `Signing\Incremental\DocumentReader` refused it. Both halves

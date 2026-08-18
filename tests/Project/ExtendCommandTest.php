@@ -164,6 +164,64 @@ it('refuses two destinations at once', function () {
     deleteFiles($path);
 });
 
+it('renews an encrypted archive when it is given the password', function () {
+    // The shape a retention job actually has for an encrypted archive: the
+    // password is in the environment, not on the command line, so it is not in
+    // `ps` and not in the shell history of whoever set the job up.
+    [$pfxPath, $certificatePassword] = debugCertificate();
+
+    $path = signet()->newSignature()
+        ->certificate($pfxPath, $certificatePassword)
+        ->pdf(resource('encrypted-aes256.pdf'), 'secret')
+        ->profile(SignatureProfile::PadesBLTA)
+        ->sign()
+        ->save(tempFile('.pdf'));
+
+    putenv('SIGNET_TEST_DOCUMENT_PASSWORD=secret');
+
+    $tester = extendCommand();
+    $status = $tester->execute([
+        'pdf' => $path,
+        '--in-place' => true,
+        '--tsa' => 'https://timestamp.invalid/tsr',
+        '--document-password-env' => 'SIGNET_TEST_DOCUMENT_PASSWORD',
+    ]);
+
+    putenv('SIGNET_TEST_DOCUMENT_PASSWORD');
+
+    expect($status)->toBe(ExtendExitCode::Success->value)
+        ->and(resolve(SignatureValidator::class)
+            ->validate(Files::read($path), 'the document', null, 'secret')
+            ->timestamps())->toHaveCount(2);
+
+    deleteFiles($pfxPath, $path);
+});
+
+it('exits two on an encrypted archive it was given no password for', function () {
+    // Unreadable, which is what it is: the document opens for nobody without
+    // the password, and saying so beats a document whose newest revision no
+    // reader can decode.
+    [$pfxPath, $certificatePassword] = debugCertificate();
+
+    $path = signet()->newSignature()
+        ->certificate($pfxPath, $certificatePassword)
+        ->pdf(resource('encrypted-aes256.pdf'), 'secret')
+        ->profile(SignatureProfile::PadesBLTA)
+        ->sign()
+        ->save(tempFile('.pdf'));
+
+    $tester = extendCommand();
+
+    expect($tester->execute([
+        'pdf' => $path,
+        '--in-place' => true,
+        '--tsa' => 'https://timestamp.invalid/tsr',
+    ]))->toBe(ExtendExitCode::Unreadable->value)
+        ->and($tester->getDisplay())->toContain('the password does not open this document');
+
+    deleteFiles($pfxPath, $path);
+});
+
 it('exits three on a document that carries no signature', function () {
     // Timestamping an unsigned document is legal and pointless: it attests
     // bytes nobody vouched for.

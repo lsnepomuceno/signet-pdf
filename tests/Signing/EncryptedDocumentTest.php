@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use LSNepomuceno\Signet\Enums\EncryptionAlgorithm;
-use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Signing\Incremental\DocumentReader;
 use LSNepomuceno\Signet\Support\Files;
@@ -23,6 +22,11 @@ use LSNepomuceno\Signet\Support\Files;
  * implementation that is not this one. qpdf then reads the signed result back,
  * which is the half that matters: our own reader agreeing with our own writer
  * would prove nothing.
+ *
+ * B-LT and above were refused here until 2.4, because the revisions they append
+ * carried streams nothing encrypted. They are covered in
+ * tests/Signing/EncryptedArchiveTest.php, which needs a timestamp authority and
+ * therefore a transport of its own.
  */
 
 /**
@@ -134,21 +138,6 @@ it('encrypts the seal it draws', function () {
     expect(qpdfComplaintsAbout($path, 'secret'))->toBe([]);
 
     unlink($path);
-});
-
-it('refuses the profiles that append streams it does not encrypt', function () {
-    // B-LT and above append a security store and an archive timestamp of their
-    // own, built by tc-lib rather than here, so their streams would go in
-    // unencrypted. Refusing beats writing revisions no reader can decode, which
-    // is the same reasoning 0014 applied to the whole document.
-    [$pfxPath, $certificatePassword] = debugCertificate();
-
-    expect(fn() => signet()->newSignature()
-        ->certificate($pfxPath, $certificatePassword)
-        ->pdf(resource('encrypted-aes256.pdf'), 'secret')
-        ->profile(SignatureProfile::PadesBLT)
-        ->sign())
-        ->toThrow(InvalidPdfFileException::class, 'can be signed up to pades-b-t');
 });
 
 it('says what is wrong when no password is given at all', function () {

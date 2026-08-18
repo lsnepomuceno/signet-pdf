@@ -91,6 +91,12 @@ vendor/bin/signet verify contract-signed.pdf --json
 |---|---|
 | `--json` | print a machine-readable report |
 | `--trust` | a PEM file or a directory of roots to validate the chain against |
+| `--document-password-env` | names the environment variable holding an encrypted document's password |
+
+A signature verifies without the document's password, because a signature's own
+bytes are never encrypted. What the password buys is the validation material a
+`pades-b-lt` document carries: without it the store's OCSP responses and CRLs
+are present and unreadable, and revocation reports as unknown.
 
 **The verdict is in the exit status**, so a build can gate on it without parsing
 anything:
@@ -140,6 +146,7 @@ vendor/bin/signet extend archive.pdf --in-place --if-due=365 --json
 | `--tsa` | timestamp authority URL |
 | `--if-due` | extend only when the newest archive timestamp is older than this many days |
 | `--json` | print a machine-readable report |
+| `--document-password-env` | names the environment variable holding an encrypted document's password |
 
 ::: warning The destination is never guessed
 One of `--out` and `--in-place` is required. Writing in place is what a

@@ -85,9 +85,22 @@ signature silently stopped verifying.
 | Case | Status |
 |---|---|
 | RC4 | refused deliberately |
-| `pades-b-lt` or above on an encrypted document | not supported |
+| A security handler other than the standard one | refused: its key is somewhere this package cannot reach |
 
-See [Encrypted documents](./encrypted-documents.md).
+Every profile works on an AES-encrypted document, `pades-b-lta` included. See
+[Encrypted documents](./encrypted-documents.md).
+
+## An encrypted document validates, but reports revocation as unknown
+
+Pass the document's password to `validate()`. The signature verifies without it,
+because a signature's own bytes are never encrypted, but the OCSP responses and
+CRLs a `pades-b-lt` document carries are encrypted like every other stream. With
+no password they are present and unreadable, which the report says as "unknown"
+rather than as "the document carries nothing".
+
+```php
+$signet->validate($path, documentPassword: 'the document password');
+```
 
 ## The timestamp authority times out
 

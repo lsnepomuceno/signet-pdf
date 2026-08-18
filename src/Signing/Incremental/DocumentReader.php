@@ -192,7 +192,12 @@ final class DocumentReader
     }
 
     /**
-     * How to decrypt one object stream, or null for a document in the clear.
+     * How to decrypt one stream, or null for a document in the clear.
+     *
+     * Public because the security store is read from outside this class:
+     * `Validation\RevocationReader` resolves the OCSP and CRL streams a B-LT
+     * document carries, and in an encrypted document those are ciphertext like
+     * every other stream.
      *
      * **Keyed by the container's own object number**, which is the half of
      * §7.6.2 that is easy to get backwards: an object stream is encrypted as a
@@ -202,7 +207,7 @@ final class DocumentReader
      *
      * @return (callable(string): ?string)|null
      */
-    private function decryptor(DocumentInfo $document, int $stream): ?callable
+    public function decryptor(DocumentInfo $document, int $stream): ?callable
     {
         $security = $document->security;
 

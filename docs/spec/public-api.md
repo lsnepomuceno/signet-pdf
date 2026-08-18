@@ -158,7 +158,15 @@ Certificate input, one of:
 `pdf($path, $password)` takes the **document's** password as its second
 argument, when the document is encrypted. It is unrelated to the certificate's:
 one opens the file, the other unlocks the key that signs it
-([0030](../decisions/0030-signing-a-document-that-is-encrypted.md)).
+([0030](../decisions/0030-signing-a-document-that-is-encrypted.md)). Every
+profile accepts one, `pades-b-lta` included: the security store and the archive
+timestamp are encrypted along with everything else the revision writes, and only
+the timestamp token itself stays in the clear, which ISO 32000-1 §7.6.2
+requires.
+
+The same password is optional on the reading side, `validate()` and
+`extendArchive()`, and it is what makes an encrypted document's validation
+material readable rather than merely present.
 
 Document input: `pdf($path)`, `pdfContents($bytes, $fileName)`, or `from($source)`
 for anything that is not a local file
@@ -183,8 +191,10 @@ $signet->encryptCertificate($pfxPath, $password);
 $signet->decryptCertificate($hashKey, $encrypted, $password, $isBase64);
 
 $signet->validate($pdf);            // Data\SignatureReport
+$signet->validate($pdf, $trust, $documentPassword);   // encrypted: reads its store too
 $signet->signatureFields($pdf);
 $signet->extendArchive($pdf);       // a further archive timestamp, no certificate
+$signet->extendArchive($pdf, $documentPassword);      // encrypted: the same
 $signet->icpBrasil($pfxPath, $password);     // IcpBrasil\Data\Report
 
 $signet->newSignature();            // Signing\PendingSignature
@@ -329,7 +339,7 @@ $signature->onlyAddedSignatures();      // bool
 
 `onlyAddedSignatures()` is the question `coversWholeDocument` cannot answer: was
 everything appended after this signature itself a signature, or did a revision
-add an annotation, a page or an action. **True is not a verdict of safe** — a
+add an annotation, a page or an action. **True is not a verdict of safe**: a
 counter-signer produces the same shape, and so does anyone able to append a
 signature. It rules out content changes, not the right to sign
 ([0110](../decisions/0110-a-revision-says-what-it-changed.md)).
@@ -518,10 +528,11 @@ Stated here because a public API is also its boundaries, and each has a record.
 
 Entries have left this table rather than being quietly deleted, which is worth
 saying: encrypted documents were refused outright, revocation material was
-counted rather than read, and an encrypted document packed into object streams
-was refused for want of one step, decrypting the container before unpacking it.
-All three were named here as limits, and all three were fixed by the records
-that named them ([0030](../decisions/0030-signing-a-document-that-is-encrypted.md)
+counted rather than read, an encrypted document packed into object streams was
+refused for want of one step, and `pades-b-lt` and above were refused on an
+encrypted document because the revisions they append carried streams nothing
+encrypted. All four were named here as limits, and all four were fixed by the
+records that named them ([0030](../decisions/0030-signing-a-document-that-is-encrypted.md)
 and [0024](../decisions/0024-revocation-is-evaluated-not-counted.md)).
 
 What is left:
@@ -529,7 +540,6 @@ What is left:
 | | |
 |---|---|
 | RC4-encrypted documents | refused, deliberately: signing one means writing RC4 back into it ([0030](../decisions/0030-signing-a-document-that-is-encrypted.md)) |
-| `pades-b-lt` and above, on an encrypted document | they append a security store and an archive timestamp whose streams this does not encrypt |
 | A security handler other than the standard one | its key comes from somewhere this package cannot reach, by definition |
 | Fetching revocation at validation time | evaluated from what the document carries, never from the network. That is a decision rather than a gap ([0024](../decisions/0024-revocation-is-evaluated-not-counted.md)) |
 | Signing with an A3 token, a smart card or an HSM | out of scope: this package signs with A1 material it can hold |

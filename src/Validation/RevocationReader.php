@@ -32,11 +32,17 @@ final readonly class RevocationReader
     /**
      * The OCSP responses and CRLs the latest store carries.
      *
+     * @param  string  $documentPassword  Needed only for an encrypted document,
+     *          where the store's streams are ciphertext like every other
+     *          stream (ISO 32000-1 §7.6.2). Without it the material is present
+     *          and unreadable, which the report says as "revocation unknown"
+     *          rather than as a fault: a validator that was never given the
+     *          password is not a document that lacks evidence.
      * @return array{ocsp: list<string>, crls: list<string>}
      *
      * @throws InvalidPdfFileException
      */
-    public function material(string $pdf): array
+    public function material(string $pdf, #[\SensitiveParameter] string $documentPassword = ''): array
     {
         $dictionary = $this->store($pdf);
 
@@ -44,7 +50,7 @@ final readonly class RevocationReader
             return ['ocsp' => [], 'crls' => []];
         }
 
-        $document = $this->reader->read($pdf);
+        $document = $this->reader->read($pdf, $documentPassword);
 
         return [
             'ocsp' => $this->streamsOf($pdf, $document, $dictionary, 'OCSPs'),
@@ -98,7 +104,9 @@ final readonly class RevocationReader
             }
 
             $body = $this->streams->dictionaryAt($pdf, $offset);
-            $contents = $body === null ? null : $this->streams->contentsAt($pdf, $offset, $body);
+            $contents = $body === null
+                ? null
+                : $this->streams->contentsAt($pdf, $offset, $body, $this->reader->decryptor($document, $number));
 
             if ($contents !== null && $contents !== '') {
                 $material[] = $contents;
