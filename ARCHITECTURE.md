@@ -16,6 +16,17 @@ one drift in the package this was extracted from.
 | [CHANGELOG.md](CHANGELOG.md) | What each release changed. Ships with the package, beside [UPGRADE.md](UPGRADE.md), because "what changed" and "what does it cost me" are the two questions at `composer update`. |
 | [docs/spec/conventions.md](docs/spec/conventions.md) | How the code is written: check for a Symfony component before writing a helper, and use an enum where a set of values exists. |
 
+## The guide: how the package is used
+
+[docs/guide/getting-started.md](docs/guide/getting-started.md) is the entry
+point, and its own last section indexes the sixteen pages beneath it. It is
+written for someone consuming the package rather than changing it, which is the
+one audience the files above do not serve.
+
+It is also the documentation site: `docs/.vitepress/` builds `docs/` into a
+static site, and `npm --prefix docs/.vitepress run dev` serves it locally. None
+of it ships, since `/docs` is `export-ignore`.
+
 ## Decisions: why the design is what it is
 
 [docs/decisions/](docs/decisions/README.md), one numbered file per decision.

@@ -172,15 +172,23 @@ it('every documentation file is reachable from the index', function () {
     }
 
     // The decision records are indexed by their own README rather than by the
-    // root file, so that adding one does not mean editing two indexes.
-    foreach (specDocReferences(specContents(packageRoot() . '/docs/decisions/README.md'), packageRoot() . '/docs/decisions/README.md') as $path) {
-        $linked[] = realpath($path);
+    // root file, so that adding one does not mean editing two indexes. The
+    // guide is indexed by its own first page for the same reason. It is that
+    // page rather than `guide/index.md` because the site publishes the latter
+    // at its root, where a relative link resolves from somewhere else than the
+    // file it was written in. `index.md` joins `README.md` in the exemption
+    // below for the same reason: it is a route rather than a page.
+    foreach ([packageRoot() . '/docs/decisions/README.md', packageRoot() . '/docs/guide/getting-started.md'] as $indexFile) {
+        foreach (specDocReferences(specContents($indexFile), $indexFile) as $path) {
+            $linked[] = realpath($path);
+        }
     }
 
     $orphans = [];
 
     foreach (specScannedFiles(packageRoot() . '/docs') as $file) {
-        if (basename($file) === 'README.md' || in_array(realpath($file), $linked, true)) {
+        if (in_array(basename($file), ['README.md', 'index.md'], true)
+            || in_array(realpath($file), $linked, true)) {
             continue;
         }
 

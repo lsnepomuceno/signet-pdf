@@ -1,0 +1,14 @@
+{
+  "name": "signet-pdf-docs",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "postinstall": "node ./postinstall.mjs",
+    "dev": "vitepress dev .. --port 5173 --strictPort",
+    "build": "vitepress build ..",
+    "preview": "vitepress preview .. --port 5173 --strictPort"
+  },
+  "devDependencies": {
+    "vitepress": "1.6.4"
+  }
+}

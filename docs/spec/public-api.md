@@ -180,12 +180,20 @@ without a container.
 
 **`sign()` does not decide transport.** The same result answers all of these:
 
+`download()` and `toResponse()` are **not** here, and this list said otherwise
+until 2026-08-18. They were removed with the framework
+([0100](../decisions/0100-the-core-is-framework-agnostic.md)) and
+[UPGRADE.md](../../UPGRADE.md) has always said so, but this page kept
+documenting a return type the package cannot construct: `symfony/http-foundation`
+is not a dependency. Build the response in the application, from `contents()`
+and `name()`.
+
 ```php
 $signed->contents();          // string, the signed bytes
 $signed->size();              // int
+$signed->name();              // string, the file name it carries
 $signed->save($path);         // string, the path written
-$signed->download('doc.pdf'); // BinaryFileResponse, forces a download
-$signed->toResponse();        // Response, renders inline
+$signed->writeTo($destination); // string, via a Contracts\PdfDestination
 (string) $signed;             // same as contents()
 ```
 
