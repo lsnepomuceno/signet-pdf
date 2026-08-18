@@ -3,8 +3,14 @@
 What this package was extracted from, at which commit, what changed on the way
 across, and what has not caught up yet.
 
-This file exists to be maintained. `lsnepomuceno/laravel-a1-pdf-sign` continues
-to be developed, and core-side work there has to be brought here; the baseline
+**This file is closing rather than being maintained.**
+`lsnepomuceno/laravel-a1-pdf-sign` is to be rebuilt on top of this package
+([0115](../decisions/0115-laravel-a1-pdf-sign-is-rebuilt-on-this.md)), which
+ends the hand-carrying this document exists to track: what is outstanding below
+is the last catch-up rather than the first of many.
+
+Until that rebuild happens the two remain parallel implementations sharing a
+lineage, so core-side work there still has to be brought here, and the baseline
 below is what a catch-up diffs against.
 
 ---

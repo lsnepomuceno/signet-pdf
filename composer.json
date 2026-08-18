@@ -69,7 +69,7 @@
   "suggest": {
     "ext-gd": "To use GD library based image processing.",
     "ext-imagick": "To use Imagick based image processing.",
-    "lsnepomuceno/laravel-a1-pdf-sign": "Laravel integration for this package."
+    "lsnepomuceno/laravel-a1-pdf-sign": "A Laravel package sharing this one lineage, being rebuilt on top of it."
   },
   "autoload": {
     "psr-4": {

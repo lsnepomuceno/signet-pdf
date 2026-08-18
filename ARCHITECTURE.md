@@ -29,10 +29,13 @@ It is also the documentation site: `docs/.vitepress/` builds `docs/` into a
 static site, and `npm --prefix docs/.vitepress run dev` serves it locally. None
 of it ships, since `/docs` is `export-ignore`.
 
-**The site documents one release line and names it on every page**, reading the
-version from the topmost heading of `CHANGELOG.md`
-(docs/decisions/0112-the-site-documents-one-release-line.md). The two release
-documents are pages of it as well, and stay canonical in the repository root:
+**The site documents one release line at the root and names it on every page**,
+reading the version from the topmost heading of `CHANGELOG.md`, and **publishes
+one archive per superseded line** beside it, built from that line's own tag:
+`/v1/` is `1.0.1`'s documentation as it stood
+(docs/decisions/0112-the-site-documents-one-release-line.md,
+docs/.vitepress/versions.mjs). The two release documents are pages of it as
+well, and stay canonical in the repository root:
 
 | | |
 |---|---|

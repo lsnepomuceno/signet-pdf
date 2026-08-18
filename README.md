@@ -131,9 +131,11 @@ entry point entirely.
 
 Everything else is at
 **[lsnepomuceno.github.io/signet-pdf](https://lsnepomuceno.github.io/signet-pdf/)**:
-nineteen pages covering profiles and timestamps, visible seals, template
-fields, certification, encrypted documents, validation, trust, ICP-Brasil, the
-command line, testing your own code, and every exception this package raises.
+twenty pages covering profiles and timestamps, visible seals, signature fields,
+certification, encrypted documents, validation, trust, ICP-Brasil, the command
+line, testing your own code, and every exception this package raises, plus the
+changelog and the upgrade guide. The `1.x` line is archived at
+[/v1/](https://lsnepomuceno.github.io/signet-pdf/v1/).
 
 <p>
   <a href="https://lsnepomuceno.github.io/signet-pdf/guide/getting-started"><b>Getting started</b></a>
@@ -152,9 +154,10 @@ command line, testing your own code, and every exception this package raises.
 | **^2** | 8.4.1 – 8.5 | the current line, and what this page documents |
 | **^1** | 8.4.1 – 8.5 | the previous line; [UPGRADE.md](UPGRADE.md) is the path across |
 
-`ext-openssl`, `ext-gd`, `ext-mbstring`, `ext-zlib`, `ext-fileinfo` and
-`ext-json` are required. The `openssl` **binary** on `PATH` is needed only by the
-legacy certificate reader and by signature verification.
+`ext-openssl`, `ext-sodium`, `ext-gd`, `ext-mbstring`, `ext-zlib`,
+`ext-fileinfo` and `ext-json` are required. The `openssl` **binary** on `PATH` is
+needed only by the legacy certificate reader and by the default signature
+verifier, which can be swapped for one that starts no process.
 
 The floor is `8.4.1` rather than `8.4` because `symfony/process` 8.1.0 requires
 it, so a platform of 8.4.0 cannot resolve this package at all

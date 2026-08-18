@@ -22,9 +22,9 @@ src/
 ├── Signet.php                            # the entry point: wires the default graph
 ├── Config/                               # value objects; the core reads no file
 ├── Contracts/                            # CertificateReader, PdfSigner, SealRenderer,
-│                                         # SignatureValidator, SignatureTransport,
-│                                         # ProcessRunner, Encrypter,
-│                                         # PdfSource, PdfDestination
+│                                         # SignatureValidator, SignatureVerifier,
+│                                         # SignatureTransport, ProcessRunner,
+│                                         # Encrypter, PdfSource, PdfDestination
 ├── Data/                                 # final readonly value objects
 ├── Enums/                                # nineteen. SignatureProfile, DigestAlgorithm,
 │                                         # CertificationLevel, FieldLockAction, SealPage,
@@ -48,10 +48,12 @@ src/
 │   ├── PendingSignature.php              # the fluent builder
 │   ├── IncrementalSigner.php             # bound to PdfSigner
 │   ├── ArchiveExtender.php               # a further archive timestamp, no key needed
+│   ├── SignatureFieldMaker.php           # an empty field, no certificate needed
 │   ├── Incremental/                      # revision writer, byte range, DSS, timestamps
 │   ├── Encryption/                       # the standard security handler
 │   └── Cades/                            # detached CMS, HTTP transport
-├── Validation/                           # extractor, ASN.1 readers, verifier
+├── Validation/                           # extractor, ASN.1 readers, and two
+│                                         # verifiers: the binary and the native one
 ├── Seal/InterventionSealRenderer.php
 ├── Io/                                   # sources and destinations for documents
 ├── Support/                              # Files, SymfonyProcessRunner, TemporaryFile,
@@ -110,7 +112,7 @@ included. The package does not turn HTML into pixels
 One class per failure mode (0008), and **every one of them implements
 `Exceptions\SignetException`**, which extends `Throwable`. That is what lets
 a consuming application catch the package's failures as a group instead of
-naming nineteen classes or catching `\Exception` and swallowing everything the
+naming twenty classes or catching `\Exception` and swallowing everything the
 runtime throws with them:
 
 ```php
@@ -303,7 +305,7 @@ $signature->has(ValidationFinding::CertificateRevoked);  // bool
 | `KeyUsageDoesNotPermitSigning` | the certificate's `keyUsage` or `extendedKeyUsage` says it is not for signing documents |
 
 **Only `CmsDoesNotVerify` decides validity**, and `decidesValidity()` says so.
-The other fourteen are facts for an application's own policy, which is why the
+The other fifteen are facts for an application's own policy, which is why the
 enum carries no severity: how much `NotTrusted` matters is not this package's
 call ([0016](../decisions/0016-trust-is-the-applications-policy.md),
 [0106](../decisions/0106-validation-reports-findings.md)).

@@ -11,11 +11,15 @@ verifies existing PDF signatures. Published on Packagist as
 `lsnepomuceno/signet-pdf`.
 
 **It was extracted from `lsnepomuceno/laravel-a1-pdf-sign`, which continues to
-exist and has not been rebuilt on top of this package.** The two are separate
-implementations sharing a lineage, so a change here does not reach that one and
-core-side work there has to be brought across by hand:
+exist and has not yet been rebuilt on top of this package.** Until it is, the
+two are separate implementations sharing a lineage, so a change here does not
+reach that one and core-side work there has to be brought across by hand:
 `docs/history/port-from-laravel-a1.md` records the baseline commit and the
 outstanding list. Read it before assuming a feature is missing on purpose.
+
+That is ending: the rebuild is decided
+(docs/decisions/0115-laravel-a1-pdf-sign-is-rebuilt-on-this.md), the work is in
+that repository, and nothing here blocks on it.
 
 The invariants are imported rather than summarised, so they are in context for
 every session instead of being a link someone has to decide to follow:
@@ -143,7 +147,7 @@ Two traps this code has already fallen into, and they must not be reintroduced:
 
 ### Configuration
 
-There is none to read. `Config\SignetConfig` and the four objects under it carry
+There is none to read. `Config\SignetConfig` and the five objects under it carry
 resolved values, and an application that has a configuration file translates it
 at its own edge. `Enums\DigestAlgorithm` replaced a string validated with
 `in_array()` on every call.

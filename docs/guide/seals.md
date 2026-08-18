@@ -148,4 +148,4 @@ never accessible is not made to claim it is.
 
 When you sign into a field the document already declares, the field's own
 rectangle decides where the seal goes, so a `SealPlacement` cannot be combined
-with `intoField()`. See [Signing into existing fields](./templates.md).
+with `intoField()`. See [Signature fields](./templates.md).

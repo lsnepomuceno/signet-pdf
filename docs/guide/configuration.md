@@ -1,7 +1,7 @@
 # Configuration
 
 There is no configuration file to read, and no environment to consult.
-`Config\SignetConfig` and the four objects under it carry **resolved values**,
+`Config\SignetConfig` and the five objects under it carry **resolved values**,
 and an application that has a configuration file translates it at its own edge.
 
 That is deliberate: a library that reads configuration decides where

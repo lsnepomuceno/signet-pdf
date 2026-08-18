@@ -147,6 +147,14 @@ reads a non-zero exit as "this signature does not verify", which is correct for
 a real verdict and catastrophic for an environment problem, so a missing binary
 and a disabled `proc_open` raise their own exceptions instead.
 
+**Neither place is unavoidable any more, and the invariant is unchanged by
+that.** `Validation\NativeSignatureVerifier` answers the same three questions
+through ext-openssl and starts nothing, so an environment with no process can
+validate; the process implementation stays the default, because deferring a
+security decision to OpenSSL's own CMS code is the conservative choice
+(docs/decisions/0114-verification-has-two-implementations.md). What the rule
+governs is where a process may be started, not whether one must be.
+
 *Enforced by* `tests/Project/ArchTest.php` (`only the shell helper opens processes`).
 
 ---

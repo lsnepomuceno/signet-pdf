@@ -158,3 +158,12 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/*
+ * The archive says so louder, because it is the one a reader can land on by
+ * accident: a search result for an old version outlives the version.
+ */
+.release-banner--archived {
+  background-color: var(--vp-c-warning-soft);
+  color: var(--vp-c-text-1);
+}

@@ -48,12 +48,19 @@ repository.
 ```php
 use LSNepomuceno\Signet\Testing\DebugCertificate;
 
-DebugCertificate::make();          // a PKCS#12 bundle
-DebugCertificate::makePem();       // PEM, certificate and key
-DebugCertificate::makeChain();     // a chain, for path validation
-DebugCertificate::icpBrasil();     // one carrying Brazilian identity extensions
-DebugCertificate::makeRevocable(); // one an OCSP or CRL fixture can speak about
+DebugCertificate::make();            // a PKCS#12 bundle
+DebugCertificate::makePem();         // PEM, certificate and key
+DebugCertificate::makeEc();          // an elliptic-curve bundle, P-256 or P-384
+DebugCertificate::makeChain();       // a chain, for path validation
+DebugCertificate::makeWithKeySize(); // a deliberately weak key, to test a finding
+DebugCertificate::makeForPurpose();  // one whose extensions forbid document signing
+DebugCertificate::icpBrasil();       // one carrying Brazilian identity extensions
+DebugCertificate::makeRevocable();   // one an OCSP or CRL fixture can speak about
 ```
+
+The last three exist for the cases a report has to be able to raise: a 1024-bit
+key, an `extendedKeyUsage` that permits everything except signing, and a
+certificate an OCSP response or CRL can be written about.
 
 ## Timestamps, revocation and processes
 
@@ -68,6 +75,18 @@ use LSNepomuceno\Signet\Testing\FakeProcessRunner;
 $signet = new Signet(
     processes: new FakeProcessRunner(),
     transport: new LocalTimestampAuthority(),
+);
+```
+
+**A suite that cannot start a process at all** can validate too, by selecting the
+verifier that needs none:
+
+```php
+use LSNepomuceno\Signet\Validation\NativeSignatureVerifier;
+
+$signet = new Signet(
+    processes: new FakeProcessRunner(),
+    verifier: new NativeSignatureVerifier(),
 );
 ```
 

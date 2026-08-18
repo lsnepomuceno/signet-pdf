@@ -39,6 +39,17 @@ const ReleaseBanner = {
         return null
       }
 
+      // An archive says so first, because a reader who arrived from a search
+      // result has no other way to know these pages describe a line that is no
+      // longer current.
+      if (release.archived) {
+        return h('div', { class: 'release-banner release-banner--archived' }, [
+          h('span', null, `Archived documentation for the ${release.line} line, frozen at ${release.version}.`),
+          ' ',
+          h('a', { href: '/signet-pdf/' }, 'Go to the current documentation.'),
+        ])
+      }
+
       const state = release.released
         ? `Documenting the ${release.line} line, at ${release.version}.`
         : `Documenting the ${release.line} line, ahead of ${release.version}, which is not tagged yet.`
@@ -46,11 +57,7 @@ const ReleaseBanner = {
       return h('div', { class: 'release-banner' }, [
         h('span', null, state),
         ' ',
-        h(
-          'a',
-          { href: 'https://github.com/lsnepomuceno/signet-pdf/releases' },
-          'Reading an older line? Its documentation ships with its tag.',
-        ),
+        h('a', { href: '/signet-pdf/v1/' }, 'Reading the 1.x line? Its documentation is archived here.'),
       ])
     }
   },

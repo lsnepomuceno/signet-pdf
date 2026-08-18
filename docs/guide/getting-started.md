@@ -11,17 +11,23 @@ nothing to register.
 `symfony/process` 8.1.0 requires it, so a platform of 8.4.0 cannot resolve this
 package at all.
 
-**Six extensions**, all of them commonly present: `ext-openssl`, `ext-gd`,
-`ext-mbstring`, `ext-zlib`, `ext-fileinfo` and `ext-json`.
+**Seven extensions**, all of them commonly present: `ext-openssl`, `ext-sodium`,
+`ext-gd`, `ext-mbstring`, `ext-zlib`, `ext-fileinfo` and `ext-json`.
 
-**The `openssl` binary, for two things only:** verifying signatures, and reading
-a legacy PFX. Signing needs neither.
+**The `openssl` binary, for two things:** verifying signatures with the default
+verifier, and reading a legacy PFX. Signing needs neither.
 
-That last one is worth reading twice, because it is the environment failure this
-package meets most. `ext-openssl` being loaded is a different thing from the
-binary being installed, and a minimal container commonly has the first without
-the second. Where the binary is needed and missing, the package raises
+That is worth reading twice, because it is the environment failure this package
+meets most. `ext-openssl` being loaded is a different thing from the binary
+being installed, and a minimal container commonly has the first without the
+second. Where the binary is needed and missing, the package raises
 `MissingBinaryException` rather than reporting every signature as invalid.
+
+**Verifying does not have to need it.** `Validation\NativeSignatureVerifier`
+answers the same questions through `ext-openssl` and starts no process, which is
+what makes validation possible where `proc_open` is disabled. The binary stays
+the default deliberately
+([0114](../decisions/0114-verification-has-two-implementations.md)).
 
 ## Installation
 
@@ -112,17 +118,18 @@ general catch still works.
   for, and how an archive is extended without a certificate.
 - [Visible seals](./seals.md): where a seal goes, how it is drawn, and how to
   replace the renderer entirely.
-- [Signing into existing fields](./templates.md): filling the field a template
-  already declares, rather than appending one beside it.
+- [Signature fields](./templates.md): laying out an empty field, and filling the
+  one a template already declares rather than appending another beside it.
 - [Certification and locks](./certification.md): `/DocMDP`, the three levels,
   field locks, and what a reader actually enforces.
 - [Encrypted documents](./encrypted-documents.md): AES-128 and AES-256, the two
-  passwords, and why RC4 is refused.
+  passwords, every profile including `pades-b-lta`, and why RC4 is refused.
 
 **Verifying**
 
-- [Verifying signatures](./validation.md): the report, the ten findings, what
-  changed after each signature, and whether the document works offline.
+- [Verifying signatures](./validation.md): the report, the sixteen findings,
+  what changed after each signature, whether the document works offline, and
+  which implementation decides that a signature matches.
 - [Trust](./trust.md): trust stores, the three answers they give, and why the
   package ships none.
 - [Sample documents](./samples.md): eleven signed PDFs, one per profile plus the
@@ -138,7 +145,7 @@ general catch still works.
 **Tooling**
 
 - [Configuration](./configuration.md): the five configuration objects, their
-  defaults, and the four collaborators you can substitute.
+  defaults, and the five collaborators you can substitute.
 - [Command line](./cli.md): `sign`, `verify`, `fields`, `field:add`, `extend`
   and `check`, and the exit status a build can gate on.
 - [Testing your own code](./testing.md): signing in a test suite with no
