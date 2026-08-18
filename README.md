@@ -98,6 +98,7 @@ offers one-shot entry points, and each is covered in the guide:
 | `signFromPem()` | sign with PEM, key combined or separate |
 | `validate()` | a `Data\SignatureReport` for a document |
 | `signatureFields()` | the signature fields a document declares, signed or not |
+| `addSignatureField()` | lay out an empty field, so a template can be prepared here rather than in a word processor |
 | `extendArchive()` | a further archive timestamp, with no certificate involved |
 | `encryptCertificate()` | seal a bundle and its password at rest |
 | `decryptCertificate()` | open what was sealed |

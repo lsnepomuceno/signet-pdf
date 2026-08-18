@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace LSNepomuceno\Signet;
 
+use LSNepomuceno\Signet\Console\AddFieldCommand;
 use LSNepomuceno\Signet\Console\CheckCommand;
 use LSNepomuceno\Signet\Console\ExtendCommand;
 use LSNepomuceno\Signet\Console\FieldsCommand;
@@ -62,5 +63,6 @@ $application->addCommand(new VerifyCommand());
 $application->addCommand(new FieldsCommand());
 $application->addCommand(new CheckCommand());
 $application->addCommand(new ExtendCommand());
+$application->addCommand(new AddFieldCommand());
 
 $application->run();

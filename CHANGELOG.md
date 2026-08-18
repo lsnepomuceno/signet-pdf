@@ -22,6 +22,23 @@ tag, and the section is dated on the day the stable one is cut (#18).
 
 ### Added
 
+- **A signature field can be created, not only filled.** `intoField()` filled a
+  field a template already carried and `signatureFields()` listed them, which is
+  half a workflow: the layout had to happen in whatever produced the PDF.
+  `Signet::addSignatureField()` and `signet field:add` lay one out here.
+
+  **No certificate is involved**, so a service that prepares documents for
+  signing needs no key material. It is a revision like any other, so a field
+  added to a signed document leaves that signature verifying. The placement
+  vocabulary is the seal's, rotation and crop box included, rather than a second
+  one for the same question.
+
+  The guards are the interesting part: a name already in use is refused, and so
+  is a document certified "form-filling", which permits filling the fields it
+  already carries and not adding one (ISO 32000-1 Table 254). The two refusals
+  have different fixes and say which
+  ([0111](docs/decisions/0111-a-field-can-be-created-not-only-filled.md)).
+
 - **`pades-b-lt` and `pades-b-lta` sign an encrypted document.** They were
   refused, accurately: both append a revision of their own, the security store
   and the archive timestamp, and neither ran what it wrote through the cipher

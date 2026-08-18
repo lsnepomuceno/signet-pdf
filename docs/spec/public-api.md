@@ -193,6 +193,7 @@ $signet->decryptCertificate($hashKey, $encrypted, $password, $isBase64);
 $signet->validate($pdf);            // Data\SignatureReport
 $signet->validate($pdf, $trust, $documentPassword);   // encrypted: reads its store too
 $signet->signatureFields($pdf);
+$signet->addSignatureField($pdf, 'Approval', $placement);   // an empty field, no certificate
 $signet->extendArchive($pdf);       // a further archive timestamp, no certificate
 $signet->extendArchive($pdf, $documentPassword);      // encrypted: the same
 $signet->icpBrasil($pfxPath, $password);     // IcpBrasil\Data\Report
@@ -630,14 +631,15 @@ forcing every call site to repeat an infrastructure decision.
 
 ## Console
 
-`bin/signet`, on `symfony/console`, with five commands:
+`bin/signet`, on `symfony/console`, with six commands:
 
 ```
-sign   {pdf} --certificate= --password-env= [--out=] [--profile=] [--tsa=]
-verify {pdf} [--json] [--trust=]
-fields {pdf} [--json]
-extend {pdf} (--out=|--in-place) [--tsa=] [--if-due=] [--json]
-check  [--tsa] [--tsa-url=]
+sign      {pdf} --certificate= --password-env= [--out=] [--profile=] [--tsa=]
+verify    {pdf} [--json] [--trust=] [--document-password-env=]
+fields    {pdf} [--json]
+field:add {pdf} {name} (--out=|--in-place) [--page=] [--x= --y= --width= --height=]
+extend    {pdf} (--out=|--in-place) [--tsa=] [--if-due=] [--json] [--document-password-env=]
+check     [--tsa] [--tsa-url=]
 ```
 
 Each maps a `Throwable` to a failure exit code, so they compose in a pipeline.

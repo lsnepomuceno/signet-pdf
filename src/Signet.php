@@ -18,6 +18,7 @@ use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Contracts\SignatureValidator;
 use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Data\EncryptedCertificate;
+use LSNepomuceno\Signet\Data\SealPlacement;
 use LSNepomuceno\Signet\Data\SignatureField;
 use LSNepomuceno\Signet\Data\SignatureReport;
 use LSNepomuceno\Signet\Data\SignedPdf;
@@ -26,6 +27,8 @@ use LSNepomuceno\Signet\Exceptions\FileNotFoundException;
 use LSNepomuceno\Signet\Exceptions\HasNoSignatureOrInvalidPkcs7Exception;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
+use LSNepomuceno\Signet\Exceptions\SealPlacementException;
+use LSNepomuceno\Signet\Exceptions\SignatureFieldException;
 use LSNepomuceno\Signet\Exceptions\SignatureTransportException;
 use LSNepomuceno\Signet\IcpBrasil\Data\Report;
 use LSNepomuceno\Signet\IcpBrasil\Validator;
@@ -42,6 +45,7 @@ use LSNepomuceno\Signet\Signing\Incremental\RevisionWriter;
 use LSNepomuceno\Signet\Signing\Incremental\SignatureFieldReader;
 use LSNepomuceno\Signet\Signing\IncrementalSigner;
 use LSNepomuceno\Signet\Signing\PendingSignature;
+use LSNepomuceno\Signet\Signing\SignatureFieldMaker;
 use LSNepomuceno\Signet\Support\Files;
 use LSNepomuceno\Signet\Support\Pem;
 use LSNepomuceno\Signet\Support\SymfonyProcessRunner;
@@ -259,6 +263,49 @@ final class Signet
         return is_string($pdfPath)
             ? $this->validator()->validateFile($pdfPath, $trust, $documentPassword)
             : $this->validator()->validate($pdfPath->contents(), $pdfPath->name(), $trust, $documentPassword);
+    }
+
+    /**
+     * Adds an empty signature field, so a template can be laid out here rather
+     * than in whatever produced the document.
+     *
+     * The counterpart to `PendingSignature::intoField()`, which fills one. No
+     * certificate is involved: laying out a form is not a cryptographic act
+     * (docs/decisions/0111-a-field-can-be-created-not-only-filled.md).
+     *
+     * @param  string|PdfSource  $pdfPath  A path, or a source.
+     * @param  string  $name  The `/T` entry, which is how the field is
+     *          addressed when it is filled.
+     * @param  ?SealPlacement  $placement  Where it goes, in the vocabulary the
+     *          seal already uses. Null makes an invisible field.
+     *
+     * @throws CertificationException When the document's certification forbids
+     *          the revision this appends.
+     * @throws FileNotFoundException
+     * @throws InvalidPdfFileException
+     * @throws SealPlacementException
+     * @throws SignatureFieldException When the name is taken, empty, or given a
+     *          placement with no size.
+     */
+    public function addSignatureField(
+        string|PdfSource $pdfPath,
+        string $name,
+        ?SealPlacement $placement = null,
+        #[\SensitiveParameter]
+        string $documentPassword = '',
+    ): SignedPdf {
+        return new SignatureFieldMaker(
+            $this->documentReader(),
+            $this->revisionWriter(),
+            new SignatureFieldReader($this->documentReader()),
+            new CertificationReader($this->documentReader()),
+        )->add(
+            self::documentBytes($pdfPath),
+            $name,
+            $placement,
+            self::documentName($pdfPath),
+            $documentPassword,
+        );
     }
 
     /**
