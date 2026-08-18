@@ -32,6 +32,9 @@ final class RevisionWriter
         private readonly SealAppearance   $appearance = new SealAppearance(),
         private readonly XrefStreamWriter $streams = new XrefStreamWriter(),
         private readonly XrefSubsections  $subsections = new XrefSubsections(),
+        // Appended with a default, so the arity a hand-built writer relies on
+        // does not move (docs/decisions/0113-the-seal-joins-the-structure-tree.md).
+        private readonly StructureTreeWriter $structure = new StructureTreeWriter(new DocumentReader()),
     ) {}
 
     /**
@@ -117,6 +120,19 @@ final class RevisionWriter
         $offsets[$signatureNumber] = $base + strlen($body);
         $body .= $this->signatureObject($signatureNumber, $info, $contentsHexLength, $profile, $certification, $lock, $catalogNumber, $cipher);
 
+        // A visible widget in a tagged document joins the structure tree, which
+        // is what ISO 14289-1 7.18.1 asks of any annotation that conveys
+        // meaning. Null for an untagged document, and for an invisible
+        // signature, which is marked no-view and therefore conveys nothing
+        // (docs/decisions/0113-the-seal-joins-the-structure-tree.md).
+        $tagged = $visible
+            ? $this->structure->plan($pdf, $document, $widgetNumber, $pageNumber, $number)
+            : null;
+
+        if ($tagged !== null) {
+            $number += count($tagged['objects']);
+        }
+
         $offsets[$widgetNumber] = $base + strlen($body);
         $body .= $target === null
             ? $this->widgetObject(
@@ -128,6 +144,8 @@ final class RevisionWriter
                 $visible ? $this->appearance->rectangle($placement, $seal, $geometry) : null,
                 $lock,
                 $cipher,
+                $info,
+                $tagged['key'] ?? null,
             )
             : $this->filledWidget($pdf, $document, $target, $signatureNumber, $appearanceNumber, $lock);
 
@@ -207,6 +225,13 @@ final class RevisionWriter
                     $group,
                 )
                 . "\nendobj\n";
+        }
+
+        // Written last, so an object this rewrites, the structure tree root or
+        // the element the form hangs under, is not also written above.
+        foreach ($tagged['objects'] ?? [] as $structureNumber => $object) {
+            $offsets[$structureNumber] = $base + strlen($body);
+            $body .= $object;
         }
 
         $body .= $this->crossReference(
@@ -493,6 +518,8 @@ final class RevisionWriter
         ?array $rectangle = null,
         ?FieldLock $lock = null,
         ?ObjectCipher $cipher = null,
+        ?SignatureInfo $info = null,
+        ?int   $structParent = null,
     ): string {
         // A zero rectangle keeps the signature invisible, which is the default
         // when no seal was supplied.
@@ -502,17 +529,48 @@ final class RevisionWriter
 
         $appearance = $formNumber === null ? '' : "/AP<</N {$formNumber} 0 R>>";
 
+        $cipher ??= new ObjectCipher();
+
         return "{$number} 0 obj\n"
             . '<</Type/Annot/Subtype/Widget/FT/Sig'
             . $rect
             . $appearance
-            . '/T ' . ($cipher ?? new ObjectCipher())->text($fieldName, $number)
+            . '/T ' . $cipher->text($fieldName, $number)
+            // ISO 14289-1 7.18.4: a form field needs a description, which is
+            // what a screen reader announces where a sighted reader sees the
+            // seal. Written for every signature, since it costs nothing and a
+            // document that becomes tagged later then already has it.
+            . '/TU ' . $cipher->text($this->describe($info, $fieldName), $number)
+            . ($structParent === null ? '' : "/StructParent {$structParent}")
             . "/V {$signatureNumber} 0 R"
             . "/P {$pageNumber} 0 R"
             . '/F 132'
             . '/Ff 0'
             . ($lock === null ? '' : '/Lock ' . $lock->toDictionary())
             . ">>\nendobj\n";
+    }
+
+    /**
+     * What the field is, in words.
+     *
+     * The signer and the reason, which is what the seal says visually, so the
+     * two descriptions agree. The field name is the fallback rather than
+     * nothing: an empty description is a description that fails the clause it
+     * exists for.
+     */
+    private function describe(?SignatureInfo $info, string $fieldName): string
+    {
+        $parts = [];
+
+        if ($info?->name !== null && $info->name !== '') {
+            $parts[] = "Signed by {$info->name}";
+        }
+
+        if ($info?->reason !== null && $info->reason !== '') {
+            $parts[] = $info->reason;
+        }
+
+        return $parts === [] ? "Signature field {$fieldName}" : implode(', ', $parts);
     }
 
     /**

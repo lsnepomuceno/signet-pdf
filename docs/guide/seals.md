@@ -128,12 +128,21 @@ it already has one.
 
 ## Seals and accessibility
 
-A signed document stays PDF/A conformant, measured with veraPDF rather than
-assumed. PDF/UA is where the seal costs something: an **invisible** signature
-keeps an accessible document conformant, and a **visible** seal does not, because
-the appearance carries no tagged structure. If accessibility conformance is a
-requirement, that is the trade to know about before choosing to show a seal
-([0025](../decisions/0025-what-signing-does-to-pdf-a.md)).
+A signed document stays PDF/A conformant, and PDF/UA conformant too, seal or
+not. Both are measured with veraPDF rather than assumed
+([0025](../decisions/0025-what-signing-does-to-pdf-a.md),
+[0032](../decisions/0032-what-signing-does-to-pdf-ua.md)).
+
+A visible seal used to cost PDF/UA two clauses, and no longer does. The widget
+is nested in a `Form` structure element, reached through an `/OBJR`, with
+`/StructParent` and a `/ParentTree` entry pointing back at it, and the field
+carries a `/TU` description holding the signer and the reason, which is what a
+screen reader announces where a sighted reader sees the seal
+([0113](../decisions/0113-the-seal-joins-the-structure-tree.md)).
+
+**Only for a document that is already tagged.** An untagged document has no
+structure tree to extend, and nothing here invents one: a document that was
+never accessible is not made to claim it is.
 
 ## Seals in a template's field
 
