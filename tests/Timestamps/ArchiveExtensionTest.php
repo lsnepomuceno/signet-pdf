@@ -104,7 +104,7 @@ it('archives a B-T document, which makes it archived from here on', function () 
         ->and($report->isValid())->toBeTrue();
 })->group('network');
 
-it('extends through the facade', function () {
+it('extends through the entry point', function () {
     setConfig('signature.timestamp.url', 'https://freetsa.org/tsr');
 
     $path = tempFile('.pdf');

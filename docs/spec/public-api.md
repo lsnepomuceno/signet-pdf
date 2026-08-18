@@ -26,9 +26,13 @@ src/
 │                                         # ProcessRunner, Encrypter,
 │                                         # PdfSource, PdfDestination
 ├── Data/                                 # final readonly value objects
-├── Enums/                                # FontSize, ImageDriver, SignatureProfile,
-│                                         # CertificationLevel, RevocationStatus,
-│                                         # EncryptionAlgorithm
+├── Enums/                                # seventeen. SignatureProfile, DigestAlgorithm,
+│                                         # CertificationLevel, FieldLockAction, SealPage,
+│                                         # FontSize, ImageDriver, ValidationFinding,
+│                                         # RevocationStatus, RevisionChange, SigningEvent
+│                                         # are consumer-facing; Asn1Tag, CmsAttribute,
+│                                         # Cipher, EncryptionAlgorithm, SealEncoding and
+│                                         # StreamFilter describe the formats
 ├── Certificates/                         # readers, parser, vault, factory,
 │                                         # subjectAltName reader
 ├── IcpBrasil/                            # the regional layer, all of it, and
@@ -62,13 +66,32 @@ bin/signet
 
 ## The contracts a consumer may replace
 
-Five contracts are bound in the service provider, and two of them are
-deliberately swappable by a consuming application:
+There are nine, and there is nothing binding them: the entry point wires the
+default graph by hand, and its constructor is the substitution point
+([0100](../decisions/0100-the-core-is-framework-agnostic.md)). This paragraph
+said "bound in the service provider" until 2026-08-18, describing an
+arrangement that left with the framework.
+
+Four are replaced by passing them to `Signet`:
 
 | | |
 |---|---|
-| `Contracts\SealRenderer` | replace to draw a different seal: a logo, a QR code, any layout |
-| `Contracts\SignatureTransport` | replace to own the TSA, OCSP and CRL calls, which is the SSRF surface (invariant 9) |
+| `Contracts\SignatureTransport` | the TSA, OCSP and CRL calls, which is the SSRF surface (invariant 9) |
+| `Contracts\ProcessRunner` | the only seam that starts a process (invariant 8) |
+| `Contracts\PdfSigner` | the signer itself, which is how `Testing\FakePdfSigner` is installed |
+| `Contracts\CertificateReader` | how a certificate is parsed |
+
+Two more are constructor arguments of the classes that hold them:
+
+| | |
+|---|---|
+| `Contracts\SealRenderer` | draw a different seal: a logo, a QR code, any layout |
+| `Contracts\Encrypter` | own the key management and the cipher the vault seals with |
+
+And three are implemented rather than replaced:
+`Contracts\PdfSource` and `Contracts\PdfDestination`, for documents that are
+not local files, and `Contracts\SignatureValidator`, which is what
+`Signet::validate()` returns a report from.
 
 **Writing that down makes their signatures public API**, which is the cost and
 is worth paying: they were already published contracts, and a consumer who

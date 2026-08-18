@@ -76,7 +76,7 @@ it('does not call a corrupt bundle a wrong password', function () {
     expect(false)->toBeTrue();
 });
 
-it('is caught as a group through the facade, which is how an application meets it', function () {
+it('is caught as a group through the entry point, which is how an application meets it', function () {
     // The shape a consumer actually writes: one catch around the whole flow.
     try {
         signet()->newSignature()

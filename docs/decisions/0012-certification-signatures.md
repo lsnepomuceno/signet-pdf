@@ -122,7 +122,8 @@ SIGOBJ: 19
 ```
 
 The `/Perms` entry names object 19, which is the signature dictionary carrying
-the transform. `poc/certify.php` produces these and exercises the exclusion:
+the transform. A spike in `lsnepomuceno/laravel-a1-pdf-sign` produced these and exercised the
+exclusion:
 signing a `no-changes` document is refused, and signing a `form-filling` one
 succeeds with the certification intact.
 
@@ -130,7 +131,7 @@ succeeds with the certification intact.
 so poppler could not be asked directly whether it would *enforce* a
 certification. It was asked indirectly, with a differential test.
 
-`poc/certify-fillable.php` certifies one document twice, at `no-changes` and at
+One document was certified twice, at `no-changes` and at
 `form-filling`, so the two differ in nothing but `/P`. `/P 1` forbids filling a
 form field and `/P 2` permits it, so a reader that enforces the transform must
 behave differently on the two files.

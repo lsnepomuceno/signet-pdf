@@ -159,7 +159,7 @@ it('reads a bundle from a file and from a directory', function () {
     rmdir($directory);
 });
 
-it('reports trust through the facade', function () {
+it('reports trust through the entry point', function () {
     [$pfx, $password, $root] = DebugCertificate::makeChain();
 
     $pfxPath = tempFile('.pfx');

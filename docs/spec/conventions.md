@@ -215,7 +215,7 @@ which says the code was already written as though it were on.
 *Enforced by* `pint.json`, which writes the declaration, and by
 `tests/Project/ArchTest.php` twice: an arch expectation over `src/`, and a file walk for
 `tests/` and `config/`, where arch expectations cannot reach because those files
-declare no classes. `poc/` is out of scope, as it is for Pint and PHPStan.
+declare no classes.
 
 ## Never cite a file that does not exist, and write it first
 

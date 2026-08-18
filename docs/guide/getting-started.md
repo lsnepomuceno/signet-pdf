@@ -125,6 +125,8 @@ general catch still works.
   changed after each signature, and whether the document works offline.
 - [Trust](./trust.md): trust stores, the three answers they give, and why the
   package ships none.
+- [Sample documents](./samples.md): eleven signed PDFs, one per profile plus the
+  awkward cases, and what each one proves.
 
 **Certificates**
 
@@ -145,6 +147,8 @@ general catch still works.
   allowlist.
 - [Troubleshooting](./troubleshooting.md): every exception this package raises,
   and what it means.
+- [Enums, contracts and exceptions](./types.md): the lookup page, for when you
+  know the name and want the shape.
 - [Standards and instruments](./references.md): every specification this package
   implements, where each one lives in the code, and the five validators the
   output is measured against.

@@ -54,7 +54,7 @@ The proof-of-concept that preceded all of this answered the one question that
 could have invalidated the plan: whether tc-lib-pdf delivered LTV and
 timestamping in practice rather than in a docblock. It did: 15/15 checks, with a
 live TSA round-trip. A second spike proved the incremental writer on its own,
-3/3 signatures valid. Both live in `poc/`.
+3/3 signatures valid. Both were spikes in `lsnepomuceno/laravel-a1-pdf-sign`.
 
 ## Fonts, a blocker that evaporated
 
@@ -196,8 +196,8 @@ Independent PRs on the `v2.x-dev` branch.
 
 | # | PR | Scope | Risk |
 |---|---|---|---|
-| 0 | ✅ **tc-lib-pdf PoC** | **done**: 15/15 checks, live TSA round-trip. See `poc/tc-lib-pdf-ltv-tsa/` and the engine migration below | n/a |
-| 0b | ✅ **Incremental update PoC** | **done**: 3/3 signatures valid. See `poc/incremental-signature/` and [0006](../decisions/0006-incremental-revision.md) | n/a |
+| 0 | ✅ **tc-lib-pdf PoC** | **done**: 15/15 checks, live TSA round-trip. A spike in `lsnepomuceno/laravel-a1-pdf-sign`; see the engine migration below | n/a |
+| 0b | ✅ **Incremental update PoC** | **done**: 3/3 signatures valid. A spike in `lsnepomuceno/laravel-a1-pdf-sign`; see [0006](../decisions/0006-incremental-revision.md) | n/a |
 | 1 | ✅ PHP/Laravel floor | **done**: `">=8.4 <8.6"` / L12+, 4-job matrix, tc-lib-pdf `^8.67`, `.gitattributes`, PHP 8.4 nullable fixes. Suite green on 8.4 and 8.5 (21 passed) | n/a |
 | 2 | ✅ Formatting + static analysis | **done**: Pint (PER-CS), PHPStan `level: max` + Larastan + strict/deprecation rules, **216-error baseline**, `quality` job, `composer check`, `CONTRIBUTING.md` | n/a |
 | 3 | ✅ PHPUnit → Pest | **done**: Pest 5, `tests/Pest.php`, named datasets, **arch tests**, type coverage 94.3% gated in CI. `drift` tried and discarded (the codemod that failed, below) | n/a |

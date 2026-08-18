@@ -6,23 +6,20 @@ readers (Adobe Reader, ITI Validar, poppler's `pdfsig`) and not only against
 this package's own validator, which shares its assumptions with the code it
 validates.
 
-Regenerate them after any change to `src/Signing/`:
+They have to be regenerated after any change to `src/Signing/`, and
+`tests/Conformance/SamplesTest.php` fails when they stop being this version's
+output, so a stale sample is caught rather than trusted.
 
-```bash
-docker compose -f .docker/compose.yaml run --rm php php poc/sign-samples.php
-```
+**No generator ships in this repository.** The script that produced them is a
+spike in `lsnepomuceno/laravel-a1-pdf-sign`, the package this one was extracted
+from, so regenerating is a manual step until one is written here. That is a gap
+rather than a decision.
 
-The script writes to `.output/`. Pass `--write` to update this directory and
-`tests/Resources/` in place:
-
-```bash
-docker compose -f .docker/compose.yaml run --rm php php poc/sign-samples.php --write
-```
-
-**It signs with the certificate committed here rather than minting a new one.**
-That is deliberate: a fresh identity per run is what once left a signed fixture
-outside this directory pointing at a certificate the repository no longer held,
-with nothing failing (docs/decisions/0036-the-signed-artefacts-are-reproducible.md).
+Whatever produces them must **sign with the certificate committed here rather
+than mint a new one**. A fresh identity per run is what once left a signed
+fixture outside this directory pointing at a certificate the repository no
+longer held, with nothing failing
+(docs/decisions/0036-the-signed-artefacts-are-reproducible.md).
 
 ## The certificate is untrusted, and that is expected
 
@@ -76,8 +73,8 @@ ICP-Brasil certificate.
 There is no `pem-signed.pdf`, on purpose. The encoding only changes how the key
 is loaded, so a document signed through `certificatePem()` is indistinguishable
 from `pades-b-b.pdf`, since a separate sample would imply a distinction that does not
-exist. `poc/sign-samples.php` signs one anyway and validates it, which is where
-the two entry points are shown to converge on real output.
+exist. `tests/Certificates/CertificatesTest.php` is where the two entry points
+are shown to converge, against real output rather than against a sample.
 
 ## What `object-stream.pdf` proves
 
@@ -114,8 +111,8 @@ That last point was a real risk and is now settled.
 
 What poppler cannot answer is whether it would *enforce* the transform, since
 `pdfsig` does not surface `/DocMDP` at all. It was asked indirectly instead:
-`poc/certify-fillable.php` certifies one document twice, at `no-changes` and at
-`form-filling`, differing in nothing but the permission, and a reader that
+one document was certified twice, at `no-changes` and at `form-filling`,
+differing in nothing but the permission, and a reader that
 enforces the transform has to refuse typing in the first and allow it in the
 second. **Both allow it, identically. Poppler does not enforce `/DocMDP`.**
 

@@ -20,7 +20,8 @@ use LSNepomuceno\Signet\Support\Files;
  * carry the structures the current signer writes, which is what would have
  * caught it.
  *
- * Regenerate with `php poc/sign-samples.php` and copy `.output` over
+ * No generator ships here: the script that produced them lives in
+ * lsnepomuceno/laravel-a1-pdf-sign, so regenerating is a manual step
  * `samples/`.
  */
 
