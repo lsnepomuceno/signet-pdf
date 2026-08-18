@@ -36,8 +36,14 @@ final readonly class PdfStream
      * package does not decode, or when the payload does not decode. The caller
      * says what that means: an unreadable cross-reference section is fatal, an
      * unreadable object stream leaves objects unresolvable.
+     *
+     * @param  (callable(string): ?string)|null  $decrypt  Applied to the raw
+     *          bytes **before** the filters, because that is the order a writer
+     *          produced them in: ISO 32000-1 §7.6.2 encrypts a stream after it
+     *          has been filtered, so reading one runs the two the other way
+     *          round. Decoding first would hand the filter ciphertext.
      */
-    public function contentsAt(string $contents, int $offset, string $dictionary): ?string
+    public function contentsAt(string $contents, int $offset, string $dictionary, ?callable $decrypt = null): ?string
     {
         // Searched from the end of the dictionary rather than from the object,
         // so a dictionary that happens to contain the word never stands in for
@@ -70,7 +76,17 @@ final readonly class PdfStream
             $length -= $this->trailingEol($contents, $start + $length);
         }
 
-        return $this->filters->decode(substr($contents, $start, $length), $dictionary);
+        $raw = substr($contents, $start, $length);
+
+        if ($decrypt !== null) {
+            $raw = $decrypt($raw);
+
+            if ($raw === null) {
+                return null;
+            }
+        }
+
+        return $this->filters->decode($raw, $dictionary);
     }
 
     /**
