@@ -26,14 +26,15 @@ src/
 │                                         # ProcessRunner, Encrypter,
 │                                         # PdfSource, PdfDestination
 ├── Data/                                 # final readonly value objects
-├── Enums/                                # eighteen. SignatureProfile, DigestAlgorithm,
+├── Enums/                                # nineteen. SignatureProfile, DigestAlgorithm,
 │                                         # CertificationLevel, FieldLockAction, SealPage,
 │                                         # FontSize, ImageDriver, ValidationFinding,
 │                                         # RevocationStatus, RevisionChange, SigningEvent
 │                                         # are consumer-facing; Asn1Tag, CmsAttribute,
 │                                         # Cipher, EncryptionAlgorithm, SealEncoding and
-│                                         # StreamFilter describe the formats, and
-│                                         # ExtendExitCode is what `signet extend` exits with
+│                                         # StreamFilter and DigestOid describe the
+│                                         # formats, and ExtendExitCode is what
+│                                         # `signet extend` exits with
 ├── Certificates/                         # readers, parser, vault, factory,
 │                                         # subjectAltName reader
 ├── IcpBrasil/                            # the regional layer, all of it, and
@@ -267,12 +268,22 @@ $signature->has(ValidationFinding::CertificateRevoked);  // bool
 | `TimestampDoesNotVerify` | an RFC 3161 token is present and fails |
 | `NoSigningTime` | the CMS carries no signing-time attribute |
 | `ByteRangeNotSound` | the `/ByteRange` does not describe a signature's own `/Contents` |
+| `WeakDigestAlgorithm` | the signature was computed under MD5 or SHA-1 |
+| `WeakSignatureKey` | RSA or DSA below 2048 bits, an elliptic curve below 224 |
+| `WeakTimestampDigest` | the RFC 3161 token carries the same weakness, which is the authority's choice rather than the signer's |
+| `KeyUsageDoesNotPermitSigning` | the certificate's `keyUsage` or `extendedKeyUsage` says it is not for signing documents |
 
 **Only `CmsDoesNotVerify` decides validity**, and `decidesValidity()` says so.
-The other eight are facts for an application's own policy, which is why the enum
-carries no severity: how much `NotTrusted` matters is not this package's call
-([0016](../decisions/0016-trust-is-the-applications-policy.md),
+The other twelve are facts for an application's own policy, which is why the
+enum carries no severity: how much `NotTrusted` matters is not this package's
+call ([0016](../decisions/0016-trust-is-the-applications-policy.md),
 [0106](../decisions/0106-validation-reports-findings.md)).
+
+The last four are weakness rather than failure, and the distinction is the
+point: a SHA-1 signature verifies, and calling it invalid would be a lie of a
+different kind. Their thresholds are policy that ages, so they live in
+`Support\CryptographicStrength` with the standards behind them and the date
+those were read, rather than as comparisons spread through the validator.
 
 An empty list is not a recommendation to accept. It means nothing was found to
 say.

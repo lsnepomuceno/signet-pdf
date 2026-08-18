@@ -106,7 +106,11 @@ final readonly class PdfSignatureValidator implements SignatureValidator
             if ($signature['isTimestamp']) {
                 $info = $this->verifier->verifiedTimestampInfo($signature['cms'], $covered);
                 $verified = $info !== null;
-                $stamp = ['verified' => null, 'at' => $info === null ? null : $this->timestamps->stampedAt($info)];
+                $stamp = [
+                    'verified' => null,
+                    'at' => $info === null ? null : $this->timestamps->stampedAt($info),
+                    'digest' => $info === null ? null : $this->timestamps->imprintAlgorithm($info),
+                ];
             } else {
                 $verified = $this->verifier->verify($signature['cms'], $covered);
                 $stamp = $this->stamp($signature['cms']);
@@ -137,6 +141,7 @@ final readonly class PdfSignatureValidator implements SignatureValidator
                 messageDigest: $digest['digest'] ?? null,
                 digestAlgorithm: $digest['algorithm'] ?? null,
                 changesAfter: $this->revisions->after($pdfContents, $signature['coverageEnd']),
+                timestampDigestAlgorithm: $stamp['digest'],
                 profile: SignatureProfile::classify(
                     $signature['subFilter'],
                     $stamp['verified'] === true,
@@ -170,23 +175,32 @@ final readonly class PdfSignatureValidator implements SignatureValidator
      * verifier handed the document's bytes would fail on every correctly built
      * file.
      *
-     * @return array{verified: ?bool, at: ?int} Both null when there is no token:
-     *                                          absence is not failure, and it is
-     *                                          the ordinary case at B-B.
+     * @return array{verified: ?bool, at: ?int, digest: ?string} All null when
+     *                                          there is no token: absence is not
+     *                                          failure, and it is the ordinary
+     *                                          case at B-B.
      */
     private function stamp(string $cms): array
     {
         $token = $this->timestamps->read($cms);
 
         if ($token === null) {
-            return ['verified' => null, 'at' => null];
+            return ['verified' => null, 'at' => null, 'digest' => null];
         }
 
         $info = $this->verifier->verifiedTimestampInfo($token['token'], $token['stamped']);
 
+        // The imprint algorithm is read only from a token that verified. One
+        // that did not is already a finding of its own, and reading an
+        // algorithm out of it would report the authority's choice from a
+        // structure nobody has established the authority signed.
         return $info === null
-            ? ['verified' => false, 'at' => null]
-            : ['verified' => true, 'at' => $this->timestamps->stampedAt($info)];
+            ? ['verified' => false, 'at' => null, 'digest' => null]
+            : [
+                'verified' => true,
+                'at' => $this->timestamps->stampedAt($info),
+                'digest' => $this->timestamps->imprintAlgorithm($info),
+            ];
     }
 
     /**

@@ -142,6 +142,92 @@ final class DebugCertificate
     }
 
     /**
+     * A certificate whose key is too small to be worth anything.
+     *
+     * 1024-bit RSA was ordinary when many documents still in retention were
+     * signed, and it is below every current recommendation
+     * (`Support\CryptographicStrength`). A signature made with one **verifies**,
+     * which is the whole point of reporting it as a finding rather than as a
+     * verdict, and there is no other way to get a document into that state for
+     * a test: the package will not produce a weak signature deliberately, so
+     * the weakness has to come from the certificate.
+     *
+     * @return array{0: string, 1: string} The PFX bytes and its password.
+     *
+     * @throws CertificateOutputNotFoundException
+     */
+    public static function makeWithKeySize(int $bits, int $daysValid = 600): array
+    {
+        $key = self::key($bits);
+
+        $csr = self::request(
+            ['commonName' => 'Test Certificate', 'organizationalUnitName' => 'LucasNepomuceno'],
+            $key,
+        );
+
+        $x509 = openssl_csr_sign($csr, null, $key, $daysValid, ['digest_alg' => 'sha256']);
+
+        if ($x509 === false) {
+            throw new RuntimeException('Unable to self-sign the test certificate: ' . openssl_error_string());
+        }
+
+        $pfx = '';
+
+        if (! openssl_pkcs12_export($x509, $pfx, $key, self::PASSWORD)) {
+            throw new CertificateOutputNotFoundException();
+        }
+
+        /** @var string $pfx */
+        return [$pfx, self::PASSWORD];
+    }
+
+    /**
+     * A certificate issued for something other than signing documents.
+     *
+     * The case worth catching is a TLS server certificate, which signs a PDF
+     * perfectly well and was never meant to: nothing in the cryptography
+     * objects, and the certificate's own `extendedKeyUsage` says so outright.
+     *
+     * @param  string  $purpose  As openssl's configuration names it:
+     *                           `serverAuth`, `clientAuth`, `emailProtection`.
+     * @return array{0: string, 1: string} The PFX bytes and its password.
+     *
+     * @throws CertificateOutputNotFoundException
+     */
+    public static function makeForPurpose(string $purpose = 'serverAuth', int $daysValid = 600): array
+    {
+        $key = self::key();
+
+        $configuration = implode("\n", [
+            '[req]',
+            'distinguished_name = dn',
+            '[dn]',
+            '[purpose]',
+            'basicConstraints = CA:FALSE',
+            'keyUsage = critical, digitalSignature, keyEncipherment',
+            "extendedKeyUsage = {$purpose}",
+            '',
+        ]);
+
+        $x509 = self::signWithExtensions(
+            $configuration,
+            'purpose',
+            ['commonName' => 'Test Certificate', 'organizationalUnitName' => 'LucasNepomuceno'],
+            $key,
+            $daysValid,
+        );
+
+        $pfx = '';
+
+        if (! openssl_pkcs12_export($x509, $pfx, $key, self::PASSWORD)) {
+            throw new CertificateOutputNotFoundException();
+        }
+
+        /** @var string $pfx */
+        return [$pfx, self::PASSWORD];
+    }
+
+    /**
      * A certificate shaped like an ICP-Brasil one, for reading the fields back.
      *
      * **It is self-signed, and that is the point of saying so here.** It
@@ -372,10 +458,10 @@ final class DebugCertificate
         return [$key, $x509];
     }
 
-    private static function key(): OpenSSLAsymmetricKey
+    private static function key(int $bits = 2048): OpenSSLAsymmetricKey
     {
         $key = openssl_pkey_new([
-            'private_key_bits' => 2048,
+            'private_key_bits' => $bits,
             'private_key_type' => OPENSSL_KEYTYPE_RSA,
         ]);
 
