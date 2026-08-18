@@ -79,17 +79,28 @@ of 2026-08-09 through 2026-08-12, read from the job logs:
 
 | Namespace | Measured | Lowest | Floor | Margin |
 |---|---|---|---|---|
-| `src/Certificates` | 68.13 / 68.13 / 68.13 / 73.48 | 68.13 | 64 | 4.13 |
+| `src/Certificates` | 68.07 x4 | 68.07 | 64 | 4.07 |
 | `src/Signing` | 70.05 / 70.02 / 72.75 / 73.98 | 70.02 | 66 | 4.02 |
-| `src/Validation` | 75.19 / 76.74 / 78.95 / 79.50 | 75.19 | 75 | **0.19** |
+| `src/Validation` | 76.73 x4 | 76.73 | 75 | **1.73** |
 | `src/Support` | 78.26 / 79.26 | 78.26 | 74 | 4.26 |
+| `src/IcpBrasil` | 80.54 x4 | 80.54 | 76 | 4.54 |
 
-`src/Validation` is the one to watch. Its floor was set when the namespace was
-believed not to move, and the run of 2026-08-09 cleared it by less than a fifth
-of a point. It is not raised, because nothing here justifies raising it, and it
-is not lowered, because that is what the second rule below forbids. It is
-written down so the night it fires is not the night somebody first learns the
-margin was that thin.
+**Two of those rows are older than the others, and the reason is a defect
+rather than a schedule.** `Signing` and `Support` are **cancelled at exactly six
+hours** on every recent nightly, which is GitHub's hard limit for a hosted job
+and which reports as "cancelled" rather than as a failure. Neither has reached a
+verdict since the suite grew, so both floors are currently gating nothing. The
+other three finish comfortably: `IcpBrasil` in 11 minutes, `Certificates` in 29,
+`Validation` in 2h49.
+
+`src/Validation` is still the one to watch. Its floor was set when the namespace
+was believed not to move, and the run of 2026-08-09 cleared it by less than a
+fifth of a point. Four nights at 76.73 have since widened that to 1.73, which is
+better and is still the tightest margin here. It is not raised, because four
+identical runs are not evidence the next one cannot be lower, and it is not
+lowered, because that is what the second rule below forbids. It is written down
+so the night it fires is not the night somebody first learns the margin was that
+thin.
 
 Four rules govern this, and each cost something to learn:
 

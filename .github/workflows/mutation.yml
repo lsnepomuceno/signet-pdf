@@ -146,12 +146,16 @@ jobs:
           # All three had been gated and silently stopped being: the same
           # failure as the Support entry above, one release later.
           #
-          # The two measurements are 80.54 and 80.54, taken locally. This job
-          # runs serially too now, so the shapes match and the eight-point gap
-          # below them is more headroom than it needs. Provisional until two
-          # nightly runs measure it, and the rule only allows raising it.
-          - namespace: IcpBrasil      # 80.54 / 80.54, measured serially
-            min: 72
+          # Calibrated, and the calibration is the point. The floor was
+          # provisional at 72 from two local serial runs of 80.54, on the
+          # suspicion that this job would score lower: it counts timeouts and a
+          # serial local run has fewer of them (#16).
+          #
+          # Four consecutive nightlies measured 80.54 with **zero** timeouts,
+          # identical to the local pair, so the suspicion was wrong for this
+          # namespace and the four-point margin the other entries use applies.
+          - namespace: IcpBrasil      # 80.54 x4 nightly, 0 timeouts
+            min: 76
 
     steps:
       - name: Checkout
