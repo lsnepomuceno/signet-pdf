@@ -24,11 +24,20 @@ final readonly class SignatureReport extends BaseData
 {
     /**
      * @param  list<SignatureDetails>  $signatures
+     * @param  list<ValidationFinding>  $documentFindings  What the validator
+     *          established about the document rather than about one signature,
+     *          and could only establish from the bytes: whether the revisions
+     *          appended after the first signature were the ones the
+     *          certification and the field locks allowed
+     *          (`Validation\CertificationEvaluator`). Appended, so a caller who
+     *          builds a report by hand keeps meaning what they meant, and empty
+     *          for one built that way: an absent evaluation is not a clean one.
      */
     public function __construct(
         public array $signatures,
         public ?SecurityStore $securityStore = null,
         public ?CertificationLevel $certification = null,
+        public array $documentFindings = [],
     ) {}
 
     /**
@@ -193,6 +202,9 @@ final readonly class SignatureReport extends BaseData
      * absolutely something the reader should be told
      * (docs/decisions/0106-validation-reports-findings.md).
      *
+     * The document-level findings come last, because they are facts about what
+     * was appended after the signatures rather than about any one of them.
+     *
      * @return list<ValidationFinding>
      */
     public function findings(): array
@@ -207,7 +219,21 @@ final readonly class SignatureReport extends BaseData
             }
         }
 
+        foreach ($this->documentFindings as $finding) {
+            if (! in_array($finding, $findings, true)) {
+                $findings[] = $finding;
+            }
+        }
+
         return $findings;
+    }
+
+    /**
+     * Whether the document carries the given finding, wherever it came from.
+     */
+    public function has(ValidationFinding $finding): bool
+    {
+        return in_array($finding, $this->findings(), true);
     }
 
     /**

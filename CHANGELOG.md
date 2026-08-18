@@ -18,6 +18,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`/DocMDP` and field locks are evaluated at validation time, not only at
+  signing time.** The signing side has enforced both since 2.0; validation
+  reported the inputs and stopped, so a document certified as `no-changes` and
+  then modified by something that is not this package validated with
+  `isValid()` true and a `changesAfter` array every application would have
+  interpreted the same way. Two new `Enums\ValidationFinding` cases,
+  `CertificationViolated` and `LockedFieldChanged`, raised by
+  `Validation\CertificationEvaluator`.
+
+  **An archive timestamp is not a violation at any level, including
+  `no-changes`**, while `Signing\ArchiveExtender` still refuses to write one
+  there. ETSI EN 319 142-1 permits a DocTimeStamp over a certified document
+  because it adds no content, so a document from a conforming archiver must not
+  be flagged; producing one is the other half of the question and refusing is
+  the conservative side of a conflict between two standards
+  ([0012](docs/decisions/0012-certification-signatures.md)).
+
+  `Data\SignatureReport` gains `$documentFindings`, appended, for findings
+  established from the bytes rather than from one signature, and a `has()`
+  method matching the one `SignatureDetails` already had. **`toArray()` gains a
+  key**, which is a shape change for anyone consuming it.
+  `Signing\Incremental\FormFieldReader` is new: a lock names fields of any
+  kind, and `SignatureFieldReader` keeps only `/FT /Sig`.
+
 - **The certificate chain can be supplied from outside the bundle.**
   `Signing\PendingSignature::chain(...$paths)` and `chainContents(...$bytes)`
   take PEM or DER, one certificate per blob or a concatenated bundle, in any

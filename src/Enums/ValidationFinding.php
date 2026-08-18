@@ -108,6 +108,36 @@ enum ValidationFinding: string
     case ByteRangeNotSound = 'byte-range-not-sound';
 
     /**
+     * A revision appended after the certification made a change its level
+     * forbids.
+     *
+     * **The attack `/DocMDP` exists for.** A document certified as "no changes"
+     * and then modified by something that is not this package still verifies:
+     * the altered bytes lie outside the earlier signature's `/ByteRange`. What
+     * the certification said is that they should not be there at all.
+     *
+     * The signing side has enforced this since 0012 and the validating side
+     * reported the inputs and stopped, which left every application to
+     * interpret `changesAfter` for itself. They would all interpret it the same
+     * way, which is the sign that the interpretation belongs here.
+     *
+     * See docs/decisions/0012-certification-signatures.md.
+     */
+    case CertificationViolated = 'certification-violated';
+
+    /**
+     * A revision touched a form field an earlier signature locked.
+     *
+     * ISO 32000-1 §12.7.4.5: the `/Lock` on a signature field says which fields
+     * stop being fillable once it is signed, and the `/FieldMDP` transform is
+     * what makes a reader enforce it. `Signing\Incremental\FieldLockReader` has
+     * read those locks since 0021 and validation had never asked it.
+     *
+     * See docs/decisions/0021-locking-fields-and-honouring-locks.md.
+     */
+    case LockedFieldChanged = 'locked-field-changed';
+
+    /**
      * The signature was computed under a digest nobody should still be relying
      * on: MD5 or SHA-1.
      *

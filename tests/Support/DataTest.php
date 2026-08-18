@@ -51,6 +51,7 @@ it('exposes its properties through toArray', function () {
         'signatures' => [],
         'securityStore' => null,
         'certification' => null,
+        'documentFindings' => [],
     ])
         ->and($report->isValid())->toBeFalse()
         ->and($report->isSigned())->toBeFalse()

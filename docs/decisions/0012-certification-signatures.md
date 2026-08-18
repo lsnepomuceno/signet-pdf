@@ -202,3 +202,32 @@ being tested is actually exercisable, and building that is the whole difficulty.
   `Data\SignatureReport` gained a property, which changes the shape
   `toArray()` returns. `tests/Support/DataTest.php` failed on that and had to be
   updated deliberately, which is the gate working.
+
+## Outcome, 2026-08-18
+
+**The validating side now evaluates the transform instead of reporting it.**
+This record's enforcement was one-sided: `IncrementalSigner` refused a second
+signature on a no-changes document, and validation said only that a `/DocMDP`
+was present. A document certified here, modified elsewhere, and handed back
+validated with `isValid()` true and a `changesAfter` array every application
+would have interpreted the same way.
+
+`Validation\CertificationEvaluator` reads the revisions after the certification
+against the level and raises `ValidationFinding::CertificationViolated`. It is a
+finding rather than a verdict, because the CMS does verify and saying otherwise
+would be a different lie ([0106](0106-validation-reports-findings.md)).
+
+**An archive timestamp is permitted at every level, including no-changes**, and
+that is the one asymmetry in this package worth stating outright:
+`Signing\ArchiveExtender` refuses to *write* one onto a no-changes document, and
+validation refuses to *report* one as a violation. ETSI EN 319 142-1 permits it
+because a DocTimeStamp adds no content, so a document arriving from a conforming
+archiver must not be flagged for something the standard allows. Producing one is
+the other half of the question, and declining to produce a document whose
+acceptance turns on which standard a reader followed is the conservative side of
+that conflict.
+
+`tests/Resources/certified-then-modified.pdf` had been in the repository since
+this record was written, exercised only by pyHanko. It now fails a check of this
+package's own, and the two are asserted to agree.
+

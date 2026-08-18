@@ -95,3 +95,23 @@ placed on a page that does not exist ([0017](0017-the-seal-goes-where-it-was-ask
 | Treat a `/Lock` on an unsigned field as in force | Makes a template that ships one unsignable |
 | Let `/Exclude` with no fields mean "lock everything" | It is the same as `/All`, written in the way most likely to be a mistake |
 | Enforce the lock at validation time instead | Validation reports what a document is; this is about not producing a broken one |
+
+## Outcome, 2026-08-18
+
+`Signing\Incremental\FieldLockReader` read these locks from the day this record
+was written, and **only the signer ever asked it**: a document whose locked
+field was rewritten by a later revision reported nothing at all.
+
+`Validation\CertificationEvaluator` now asks it too, and raises
+`ValidationFinding::LockedFieldChanged` when a revision appended after the
+signatures redefines the object of a field a lock covers. The field that imposed
+a lock is excluded from what that lock covers, which is the same line
+`FieldLockReader::lockOn()` already drew: filling it is what created the lock.
+
+It needed one new reader. `SignatureFieldReader` keeps only `/FT /Sig`, and a
+lock names fields of any kind, usually the text field carrying the number that
+matters, so `Signing\Incremental\FormFieldReader` walks the same `/AcroForm
+/Fields` list and answers "which object is the field called X". Top-level fields
+only, as elsewhere here: a partly-qualified name from a half-walked field tree
+would match no lock, which is worse than reporting none.
+

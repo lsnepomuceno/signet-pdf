@@ -102,14 +102,46 @@ $signature->has(ValidationFinding::CertificateRevoked);
 | `TimestampDoesNotVerify` | an RFC 3161 token is present and fails |
 | `NoSigningTime` | the CMS carries no signing-time attribute |
 | `ByteRangeNotSound` | the `/ByteRange` does not describe a signature's own `/Contents` |
+| `CertificationViolated` | a revision appended after the certification did something its level forbids |
+| `LockedFieldChanged` | a revision rewrote a form field an earlier signature locked |
 | `WeakDigestAlgorithm` | the signature was computed under MD5 or SHA-1 |
 | `WeakSignatureKey` | RSA or DSA below 2048 bits, an elliptic curve below 224 |
 | `WeakTimestampDigest` | the RFC 3161 token carries the same weakness |
 | `KeyUsageDoesNotPermitSigning` | the certificate's own extensions say it is not for signing documents |
 
 **Only `CmsDoesNotVerify` decides validity**, and `decidesValidity()` on the enum
-says so. The other thirteen are facts for your policy, which is why the enum
+says so. The other fifteen are facts for your policy, which is why the enum
 carries no severity: how much `NotTrusted` matters is not this package's call.
+
+### Certification and locks are evaluated, not just reported
+
+`isCertified()` says a `/DocMDP` is there and `changesAfter` says what every
+later revision touched. **`CertificationViolated` joins them**: a document
+certified as `no-changes` and then modified by something that is not this
+package verifies perfectly, because the altered bytes are outside the earlier
+signature's `/ByteRange`, and what the certification said is that they should
+not be there at all. That is the attack `/DocMDP` exists for
+([0012](../decisions/0012-certification-signatures.md)).
+
+`LockedFieldChanged` is the same shape one level down: `/Lock` on a signature
+field names the fields that stop being fillable, and a later revision that
+rewrote one of them is now reported
+([0021](../decisions/0021-locking-fields-and-honouring-locks.md)).
+
+Two boundaries worth knowing:
+
+- **an archive timestamp is never a violation**, at any level including
+  `no-changes`. A DocTimeStamp adds no content, it attests that bytes already
+  there existed, and ETSI EN 319 142-1 permits one over a certified document.
+  `extendArchive()` still refuses to *write* one at `no-changes`, which is the
+  conservative side of a conflict between two standards;
+- **a replaced page object is not reported.** Attaching a signature widget
+  replaces the page, so a revision that rewrote a page's content cannot be told
+  apart from an ordinary second signature by an analysis that reads objects
+  rather than the object graph
+  ([0110](../decisions/0110-a-revision-says-what-it-changed.md)). What is caught
+  is what that document's own fixture does elsewhere: resizing a page **and**
+  nothing else signing.
 
 ### Weak is not invalid
 
