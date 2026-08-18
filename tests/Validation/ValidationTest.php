@@ -142,6 +142,39 @@ it('validates through the command line', function () {
     unlink($path);
 });
 
+it('reads an encrypted document, and names an environment variable that is not set', function () {
+    // The second secret, and never an argument: a password on a command line is
+    // in `ps` and in shell history. An unset variable is a mistake worth naming,
+    // because "" opens nothing and would fail later with a worse message.
+    [$pfxPath, $password] = debugCertificate();
+
+    $path = signet()->newSignature()
+        ->certificate($pfxPath, $password)
+        ->pdf(resource('encrypted-aes256.pdf'), 'secret')
+        ->sign()
+        ->save(tempFile('.pdf'));
+
+    putenv('SIGNET_TEST_DOCUMENT_PASSWORD=secret');
+
+    $tester = new CommandTester(new VerifyCommand());
+    $status = $tester->execute([
+        'pdf' => $path,
+        '--document-password-env' => 'SIGNET_TEST_DOCUMENT_PASSWORD',
+    ]);
+
+    expect($status)->toBe(Command::SUCCESS);
+
+    putenv('SIGNET_TEST_DOCUMENT_PASSWORD');
+
+    $unset = new CommandTester(new VerifyCommand());
+
+    expect($unset->execute(['pdf' => $path, '--document-password-env' => 'SIGNET_TEST_UNSET']))
+        ->toBe(Command::INVALID)
+        ->and($unset->getDisplay())->toContain('SIGNET_TEST_UNSET is not set');
+
+    deleteFiles($pfxPath, $path);
+});
+
 it('reports the verdict in the exit status, so a build can gate on it', function () {
     // A tool that exits 0 on failure is a tool nobody can gate on. Two is
     // "could not be read", which is a different thing from "does not verify"

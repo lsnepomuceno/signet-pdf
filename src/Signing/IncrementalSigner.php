@@ -97,17 +97,6 @@ final readonly class IncrementalSigner implements PdfSigner
 
         $document = $this->reader->read($pdfContents, $documentPassword);
 
-        // Everything above B-T appends further revisions of its own, carrying
-        // streams this does not encrypt: the security store and the archive
-        // timestamp's objects. Refusing beats writing a document whose later
-        // revisions no reader can decode
-        // (docs/decisions/0030-signing-a-document-that-is-encrypted.md).
-        if ($document->isEncrypted() && $profile->needsValidationMaterial()) {
-            throw new InvalidPdfFileException(
-                "an encrypted document can be signed up to pades-b-t; {$profile->value} appends a security store this package does not encrypt",
-            );
-        }
-
         $this->guardCertification($pdfContents, $document, $certification);
 
         $this->guardLock($lock);
@@ -162,13 +151,13 @@ final readonly class IncrementalSigner implements PdfSigner
         // B-LT and above append the validation material as a further revision,
         // after the signature it vouches for is already in place.
         if ($profile->needsValidationMaterial()) {
-            $signed = $this->dss->append($signed, $certificate);
+            $signed = $this->dss->append($signed, $certificate, $documentPassword);
         }
 
         // B-LTA closes with an archive timestamp over the whole file, so the
         // validation material is attested along with the signature.
         if ($profile->needsArchiveTimestamp()) {
-            $signed = $this->archiveTimestamp->append($signed);
+            $signed = $this->archiveTimestamp->append($signed, $documentPassword);
         }
 
         $this->log->record(SigningEvent::SignatureApplied, [

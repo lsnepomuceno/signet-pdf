@@ -75,6 +75,12 @@ final class ExtendCommand extends Command
             ->addOption('tsa', null, InputOption::VALUE_REQUIRED, 'Timestamp authority URL')
             ->addOption('json', null, InputOption::VALUE_NONE, 'Print a machine-readable report')
             ->addOption(
+                'document-password-env',
+                null,
+                InputOption::VALUE_REQUIRED,
+                "Name of the environment variable holding the document's password, when it is encrypted",
+            )
+            ->addOption(
                 'if-due',
                 null,
                 InputOption::VALUE_REQUIRED,
@@ -127,10 +133,16 @@ final class ExtendCommand extends Command
 
         $target = $out ?? $pdf;
 
+        $password = self::documentPassword($input);
+
+        if ($password === false) {
+            return $this->fail($io, $output, $asJson, ExtendExitCode::Failed, 'The environment variable ' . self::option($input, 'document-password-env') . ' is not set.');
+        }
+
         $signet = new Signet($this->config($input), transport: $this->transport);
 
         try {
-            $due = $this->due($signet, $input, $pdf);
+            $due = $this->due($signet, $input, $pdf, $password);
 
             if ($due !== null) {
                 return $this->report($io, $output, $asJson, [
@@ -140,7 +152,7 @@ final class ExtendCommand extends Command
                 ], $due);
             }
 
-            $extended = $signet->extendArchive($pdf);
+            $extended = $signet->extendArchive($pdf, $password);
             $extended->save($target);
         } catch (HasNoSignatureOrInvalidPkcs7Exception $exception) {
             return $this->fail($io, $output, $asJson, ExtendExitCode::Unsigned, $exception->getMessage());
@@ -179,7 +191,7 @@ final class ExtendCommand extends Command
      * @throws HasNoSignatureOrInvalidPkcs7Exception
      * @throws InvalidPdfFileException
      */
-    private function due(Signet $signet, InputInterface $input, string $pdf): ?string
+    private function due(Signet $signet, InputInterface $input, string $pdf, string $password): ?string
     {
         $days = $input->getOption('if-due');
 
@@ -189,7 +201,7 @@ final class ExtendCommand extends Command
 
         $stamps = array_filter(array_map(
             static fn(SignatureDetails $timestamp): ?int => $timestamp->attestedAt(),
-            $signet->validate($pdf)->timestamps(),
+            $signet->validate($pdf, null, $password)->timestamps(),
         ), static fn(?int $at): bool => $at !== null);
 
         if ($stamps === []) {
@@ -258,6 +270,31 @@ final class ExtendCommand extends Command
     private static function argument(InputInterface $input, string $name): string
     {
         $value = $input->getArgument($name);
+
+        return is_string($value) ? $value : '';
+    }
+
+    /**
+     * The document's own password, or false when the named variable is unset.
+     *
+     * The same shape as `signet sign`, and never an argument: a command line is
+     * visible in `ps` and in shell history. False rather than an empty string,
+     * because a variable that was named and is not set is a mistake worth
+     * saying out loud.
+     */
+    private static function documentPassword(InputInterface $input): string|false
+    {
+        $variable = self::option($input, 'document-password-env');
+
+        return $variable === '' ? '' : getenv($variable);
+    }
+
+    /**
+     * Symfony types every option as `mixed`, so each read needs narrowing.
+     */
+    private static function option(InputInterface $input, string $name): string
+    {
+        $value = $input->getOption($name);
 
         return is_string($value) ? $value : '';
     }

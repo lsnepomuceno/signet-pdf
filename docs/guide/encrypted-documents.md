@@ -51,14 +51,25 @@ already plaintext. Decrypting them again would corrupt every one of them.
 Nothing has to be passed for it. The document's password is the only input, the
 same as for any other encrypted file.
 
-## The limit worth knowing before you plan around it
+## Long-term profiles
 
-**`pades-b-lt` and above on an encrypted document** is not supported: those
-levels append a security store and an archive timestamp whose streams this does
-not encrypt. Sign encrypted documents at `pades-b-b` or `pades-b-t`.
+`pades-b-lt` and `pades-b-lta` work on an encrypted document, and nothing extra
+is passed for them: the document's password is the only input, the same as at
+`pades-b-b`.
 
-It is stated in the public API document as a boundary rather than a bug, which
-is where to look if that changes.
+Both append a revision of their own, the security store and the archive
+timestamp, and everything those revisions write is encrypted under the
+document's key like every other object. **One thing is not, and it is the rule
+worth knowing**: ISO 32000-1 §7.6.2 exempts the `/Contents` string of a
+signature dictionary, and an archive timestamp is a signature dictionary. The
+token stays in the clear so a reader can check it, while the field around it
+does not.
+
+Renewing one needs the password for the same reason:
+
+```php
+$signet->extendArchive($path, 'the document password');
+```
 
 ## Verifying one
 
@@ -67,4 +78,23 @@ document that was signed by this package verifies the same way any other does:
 
 ```php
 $signet->validate($path)->isValid();
+```
+
+The password is optional here, and what it buys is worth knowing. A signature's
+own bytes are never encrypted, so `isValid()` answers without it. The validation
+material a `pades-b-lt` document carries **is** encrypted, so without the
+password the OCSP responses and CRLs are present and unreadable, and the report
+says revocation is unknown rather than that the document carries nothing:
+
+```php
+$signet->validate($path, documentPassword: 'the document password');
+```
+
+On the command line the same distinction is `--document-password-env`, which
+names an environment variable rather than taking the password as an argument:
+
+```bash
+export SIGNET_DOCUMENT_PASSWORD='the document password'
+signet verify contract.pdf --document-password-env=SIGNET_DOCUMENT_PASSWORD
+signet extend contract.pdf --in-place --document-password-env=SIGNET_DOCUMENT_PASSWORD
 ```

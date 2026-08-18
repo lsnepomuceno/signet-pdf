@@ -165,7 +165,5 @@ LaTeX with compression all emit both.
 | Not supported | Why |
 |---|---|
 | RC4-encrypted documents | refused deliberately: signing one means writing RC4 back into it |
-| An encrypted document packed into object streams | reachable, not done |
-| `pades-b-lt` and above on an encrypted document | the security store and archive timestamp streams are not encrypted |
 | A security handler other than the standard one | its key comes from somewhere this package cannot reach |
 | A3 tokens, smart cards, HSMs | out of scope: this package signs with A1 material it can hold |

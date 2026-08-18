@@ -239,19 +239,26 @@ final class Signet
      *          **The parameter keeps its name** so that a caller passing it by
      *          name keeps meaning what they meant; widening the type is
      *          additive and renaming it would not be.
+     * @param  string  $documentPassword  Needed only to read what an encrypted
+     *          B-LT document carries: the signatures verify without it, and the
+     *          store's OCSP responses and CRLs are ciphertext until it arrives.
      *
      * @throws FileNotFoundException
      * @throws HasNoSignatureOrInvalidPkcs7Exception
      * @throws InvalidPdfFileException
      */
-    public function validate(string|PdfSource $pdfPath, ?TrustStore $trust = null): SignatureReport
-    {
+    public function validate(
+        string|PdfSource $pdfPath,
+        ?TrustStore $trust = null,
+        #[\SensitiveParameter]
+        string $documentPassword = '',
+    ): SignatureReport {
         // A path keeps going through validateFile(), which is what carries the
         // extension check and the missing-file error. Routing it through the
         // bytes below would silently drop both.
         return is_string($pdfPath)
-            ? $this->validator()->validateFile($pdfPath, $trust)
-            : $this->validator()->validate($pdfPath->contents(), $pdfPath->name(), $trust);
+            ? $this->validator()->validateFile($pdfPath, $trust, $documentPassword)
+            : $this->validator()->validate($pdfPath->contents(), $pdfPath->name(), $trust, $documentPassword);
     }
 
     /**
@@ -284,10 +291,17 @@ final class Signet
      *          to archive.
      * @throws InvalidPdfFileException
      * @throws ProcessRunTimeException
+     * @param  string  $documentPassword  The password an encrypted document was
+     *          produced with. Both revisions this appends carry encrypted
+     *          objects, so renewing an encrypted archive needs it.
+     *
      * @throws SignatureTransportException When the authority did not answer.
      */
-    public function extendArchive(string|PdfSource $pdfPath): SignedPdf
-    {
+    public function extendArchive(
+        string|PdfSource $pdfPath,
+        #[\SensitiveParameter]
+        string $documentPassword = '',
+    ): SignedPdf {
         $extender = new ArchiveExtender(
             $this->documentReader(),
             $this->docTimeStampWriter(),
@@ -296,7 +310,7 @@ final class Signet
             $this->dssWriter(),
         );
 
-        return $extender->extend(self::documentBytes($pdfPath), self::documentName($pdfPath));
+        return $extender->extend(self::documentBytes($pdfPath), self::documentName($pdfPath), $documentPassword);
     }
 
     /**

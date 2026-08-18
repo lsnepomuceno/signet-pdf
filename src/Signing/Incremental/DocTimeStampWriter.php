@@ -12,6 +12,7 @@ use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
 use LSNepomuceno\Signet\Exceptions\SignatureTransportException;
+use LSNepomuceno\Signet\Signing\Encryption\ObjectCipher;
 use LSNepomuceno\Signet\Support\Bytes;
 use Throwable;
 
@@ -53,11 +54,21 @@ final readonly class DocTimeStampWriter
     /**
      * @throws InvalidPdfFileException
      * @throws ProcessRunTimeException
+     * @param  string  $documentPassword  The password the document was opened
+     *          with, needed for the same reason signing needs it: this revision
+     *          carries a field name and an appearance stream, and both are
+     *          encrypted in an encrypted document. The token itself is not
+     *          (ISO 32000-1 §7.6.2), which `valueObject()` below gets right by
+     *          writing the placeholder and nothing else.
+     *
      * @throws SignatureTransportException When the authority did not answer,
      *          which is the one failure here worth retrying.
      */
-    public function append(string $pdf): string
-    {
+    public function append(
+        string $pdf,
+        #[\SensitiveParameter]
+        string $documentPassword = '',
+    ): string {
         $url = $this->config->timestamp->url;
 
         if ($url === null || $url === '') {
@@ -66,7 +77,8 @@ final readonly class DocTimeStampWriter
             );
         }
 
-        $document = $this->reader->read($pdf);
+        $document = $this->reader->read($pdf, $documentPassword);
+        $cipher = ObjectCipher::for($document);
 
         $stampNumber = $document->size;
         $widgetNumber = $stampNumber + 1;
@@ -75,13 +87,21 @@ final readonly class DocTimeStampWriter
 
         $objects = [
             $stampNumber => $this->docTimeStamp->valueObject($stampNumber, self::CONTENTS_HEX_LENGTH),
-            $widgetNumber => $this->widget($widgetNumber, $stampNumber, $pageNumber, $appearanceNumber, $pdf, $document),
+            $widgetNumber => $this->widget(
+                $widgetNumber,
+                $stampNumber,
+                $pageNumber,
+                $appearanceNumber,
+                $pdf,
+                $document,
+                $cipher,
+            ),
             // ISO 19005-1 §6.9 wants every form field to have an appearance
             // dictionary, and a timestamp is a form field like any other. The
             // signature widget was given one and this was left without, which
             // 0025 named as unmeasured and a committed B-LTA sample then showed
             // outright (docs/decisions/0025-what-signing-does-to-pdf-a.md).
-            $appearanceNumber => $this->appearance->emptyForm($appearanceNumber),
+            $appearanceNumber => $this->appearance->emptyForm($appearanceNumber, $cipher),
             $document->root => $this->writer->catalogWithField($pdf, $document, $widgetNumber),
             $pageNumber => $this->writer->pageWithAnnotation($pdf, $document, $pageNumber, $widgetNumber),
         ];
@@ -180,6 +200,7 @@ final readonly class DocTimeStampWriter
         int $appearanceNumber,
         string $pdf,
         DocumentInfo $document,
+        ObjectCipher $cipher,
     ): string {
         $index = count($this->fields->read($pdf, $document)) + 1;
 
@@ -187,7 +208,7 @@ final readonly class DocTimeStampWriter
             . '<</Type/Annot/Subtype/Widget/FT/Sig'
             . '/Rect[0 0 0 0]'
             . "/AP<</N {$appearanceNumber} 0 R>>"
-            . "/T (Timestamp{$index})"
+            . '/T ' . $cipher->text("Timestamp{$index}", $number)
             . "/V {$stampNumber} 0 R"
             . "/P {$pageNumber} 0 R"
             . '/F 132'

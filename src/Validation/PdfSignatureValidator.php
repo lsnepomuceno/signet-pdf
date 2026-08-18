@@ -50,8 +50,12 @@ final readonly class PdfSignatureValidator implements SignatureValidator
      * @throws InvalidPdfFileException
      * @throws HasNoSignatureOrInvalidPkcs7Exception
      */
-    public function validateFile(string $pdfPath, ?TrustStore $trust = null): SignatureReport
-    {
+    public function validateFile(
+        string $pdfPath,
+        ?TrustStore $trust = null,
+        #[\SensitiveParameter]
+        string $documentPassword = '',
+    ): SignatureReport {
         if (! str_ends_with(strtolower($pdfPath), '.pdf')) {
             throw InvalidPdfFileException::extension($pdfPath);
         }
@@ -60,14 +64,19 @@ final readonly class PdfSignatureValidator implements SignatureValidator
             throw new FileNotFoundException($pdfPath);
         }
 
-        return $this->validate(Files::read($pdfPath), $pdfPath, $trust);
+        return $this->validate(Files::read($pdfPath), $pdfPath, $trust, $documentPassword);
     }
 
     /**
      * @throws HasNoSignatureOrInvalidPkcs7Exception
      */
-    public function validate(string $pdfContents, string $label = 'the document', ?TrustStore $trust = null): SignatureReport
-    {
+    public function validate(
+        string $pdfContents,
+        string $label = 'the document',
+        ?TrustStore $trust = null,
+        #[\SensitiveParameter]
+        string $documentPassword = '',
+    ): SignatureReport {
         $extracted = $this->extractor->extract($pdfContents);
 
         if ($extracted === []) {
@@ -82,7 +91,7 @@ final readonly class PdfSignatureValidator implements SignatureValidator
         // depends on what the file carries around it.
         $store = $this->store->read($pdfContents);
         $archived = array_filter($extracted, static fn(array $entry): bool => $entry['isTimestamp']) !== [];
-        $material = $this->material($pdfContents);
+        $material = $this->material($pdfContents, $documentPassword);
 
         foreach ($extracted as $signature) {
             [$open, $close, $trailing] = $signature['byteRange'];
@@ -242,10 +251,10 @@ final readonly class PdfSignatureValidator implements SignatureValidator
     /**
      * @return array{ocsp: list<string>, crls: list<string>}
      */
-    private function material(string $pdfContents): array
+    private function material(string $pdfContents, #[\SensitiveParameter] string $documentPassword): array
     {
         try {
-            return $this->revocations->material($pdfContents);
+            return $this->revocations->material($pdfContents, $documentPassword);
         } catch (InvalidPdfFileException) {
             // A document whose cross-reference chain cannot be read still has
             // signatures worth reporting, the same way a certification that
