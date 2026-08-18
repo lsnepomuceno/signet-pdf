@@ -18,6 +18,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`validate()`, `signatureFields()` and `extendArchive()` take a
+  `Contracts\PdfSource` as well as a path.** Signing has taken a document from
+  anywhere since 2.0 ([0102](docs/decisions/0102-documents-arrive-as-sources.md))
+  and the other three entry points took a path and nothing else, so an
+  application holding bytes, a document in a queue message, one in object
+  storage behind its own driver, one just produced in memory, had to write a
+  temporary file to ask whether a signature was valid.
+
+  Additive: a string keeps meaning exactly what it meant, including the
+  extension check and the missing-file error, and the parameters keep their
+  names so a caller passing them by name is unaffected. `extendArchive()`
+  already returned a `Data\SignedPdf`, which reaches a
+  `Contracts\PdfDestination`, so a document can arrive as bytes and leave as
+  bytes.
+
 - **`signet extend`, so the archive chain is a cron entry.**
   `Signing\ArchiveExtender` renews a B-LTA document with no certificate
   anywhere near it, and until now the only way to call it was a PHP script with

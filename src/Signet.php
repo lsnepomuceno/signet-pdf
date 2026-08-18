@@ -11,6 +11,7 @@ use LSNepomuceno\Signet\Certificates\ReaderFactory;
 use LSNepomuceno\Signet\Config\SignetConfig;
 use LSNepomuceno\Signet\Contracts\CertificateReader;
 use LSNepomuceno\Signet\Contracts\PdfSigner;
+use LSNepomuceno\Signet\Contracts\PdfSource;
 use LSNepomuceno\Signet\Contracts\ProcessRunner;
 use LSNepomuceno\Signet\Contracts\SealRenderer;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
@@ -230,31 +231,50 @@ final class Signet
     /**
      * Reports on every signature a document carries.
      *
+     * @param  string|PdfSource  $pdfPath  A path, or any source the signing
+     *          side already accepts: bytes from a queue message, a stream from
+     *          an application's own storage driver, or something it implemented
+     *          itself (docs/decisions/0102-documents-arrive-as-sources.md).
+     *          **The parameter keeps its name** so that a caller passing it by
+     *          name keeps meaning what they meant; widening the type is
+     *          additive and renaming it would not be.
+     *
      * @throws FileNotFoundException
      * @throws HasNoSignatureOrInvalidPkcs7Exception
      * @throws InvalidPdfFileException
      */
-    public function validate(string $pdfPath, ?TrustStore $trust = null): SignatureReport
+    public function validate(string|PdfSource $pdfPath, ?TrustStore $trust = null): SignatureReport
     {
-        return $this->validator()->validateFile($pdfPath, $trust);
+        // A path keeps going through validateFile(), which is what carries the
+        // extension check and the missing-file error. Routing it through the
+        // bytes below would silently drop both.
+        return is_string($pdfPath)
+            ? $this->validator()->validateFile($pdfPath, $trust)
+            : $this->validator()->validate($pdfPath->contents(), $pdfPath->name(), $trust);
     }
 
     /**
      * The signature fields a document declares, signed or not.
      *
+     * @param  string|PdfSource  $pdfPath  A path, or a source.
      * @return list<SignatureField>
      *
      * @throws FileNotFoundException
      * @throws InvalidPdfFileException
      */
-    public function signatureFields(string $pdfPath): array
+    public function signatureFields(string|PdfSource $pdfPath): array
     {
-        return new SignatureFieldReader($this->documentReader())->read(Files::read($pdfPath));
+        return new SignatureFieldReader($this->documentReader())->read(self::documentBytes($pdfPath));
     }
 
     /**
      * Appends a fresh archive timestamp, renewing a B-LTA document before its
      * existing one ages out.
+     *
+     * @param  string|PdfSource  $pdfPath  A path, or a source. The result is a
+     *          `Data\SignedPdf`, which reaches a `Contracts\PdfDestination`
+     *          through `writeTo()`, so a document that arrived from object
+     *          storage can go back to it without touching a disk either way.
      *
      * @throws CertificationException When the document is certified
      *          "no-changes", which forbids the revision this appends.
@@ -265,7 +285,7 @@ final class Signet
      * @throws ProcessRunTimeException
      * @throws SignatureTransportException When the authority did not answer.
      */
-    public function extendArchive(string $pdfPath): SignedPdf
+    public function extendArchive(string|PdfSource $pdfPath): SignedPdf
     {
         $extender = new ArchiveExtender(
             $this->documentReader(),
@@ -275,7 +295,37 @@ final class Signet
             $this->dssWriter(),
         );
 
-        return $extender->extend(Files::read($pdfPath), basename($pdfPath));
+        return $extender->extend(self::documentBytes($pdfPath), self::documentName($pdfPath));
+    }
+
+    /**
+     * The bytes of a document that arrived as a path or as a source.
+     *
+     * `Contracts\PdfSource` exists precisely so a document can arrive as
+     * bytes, as a stream, or from an application's own storage abstraction, and
+     * three of the four entry points here ignored it: every caller with bytes
+     * and no path had to write a temporary file to ask whether a signature was
+     * valid, which means inventing a temporary directory policy, remembering to
+     * delete it, and putting a signed document on a disk nobody asked to store
+     * it on (docs/decisions/0102-documents-arrive-as-sources.md).
+     *
+     * @throws FileNotFoundException
+     */
+    private static function documentBytes(string|PdfSource $pdf): string
+    {
+        return $pdf instanceof PdfSource ? $pdf->contents() : Files::read($pdf);
+    }
+
+    /**
+     * What to call it in an error message and in the output.
+     *
+     * A source names itself and is not required to be a path, so this is the
+     * one place that decides, rather than each caller reaching for `basename()`
+     * on something that may not be one.
+     */
+    private static function documentName(string|PdfSource $pdf): string
+    {
+        return $pdf instanceof PdfSource ? $pdf->name() : basename($pdf);
     }
 
     /**

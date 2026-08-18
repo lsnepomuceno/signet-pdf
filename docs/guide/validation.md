@@ -15,6 +15,25 @@ parsed, not that a `/ByteRange` was present, not that a reader showed a green
 tick. The signature is checked against the bytes it covers, and the answer is
 that check.
 
+## The document does not have to be a file
+
+`validate()`, `signatureFields()` and `extendArchive()` take a path or a
+`Contracts\PdfSource`, the same way signing does
+([0102](../decisions/0102-documents-arrive-as-sources.md)):
+
+```php
+use LSNepomuceno\Signet\Io\StreamSource;
+use LSNepomuceno\Signet\Io\StringSource;
+
+$signet->validate(new StringSource($bytes, 'contract.pdf'));   // a queue payload
+$signet->validate(new StreamSource($handle, 'contract.pdf'));  // object storage
+```
+
+A document in a queue message, in object storage behind your own driver, or just
+produced in memory is checked where it is. Nothing is written to disk on that
+path, which matters to a worker with a read-only filesystem and to anyone who
+would rather not put a signed document somewhere nobody asked to store it.
+
 ## Nothing is fetched
 
 Validation makes no network request and cannot be made to. Revocation is
