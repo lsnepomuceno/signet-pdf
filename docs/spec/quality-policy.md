@@ -222,18 +222,30 @@ that break would now surface only at the next merge.
 
 ## CI
 
-`.github/workflows/main_action.yml`, on pull requests to `main` only, since every
-change reaches `main` through a pull request, so building branch pushes as well
-duplicated each run.
+`.github/workflows/main_action.yml`, on pull requests to `main` and on `main`
+itself after a merge. The second is not the duplication it looks like: a pull
+request is tested against its own branch rather than against `main` with it
+merged, so two branches that are each green can still produce a `main` that is
+not.
 
 | Job | Runs |
 |---|---|
-| `PHP 8.4 / 8.5 - Laravel 13` | the suite, plus a second pass against a live timestamp authority |
+| `PHP 8.4 / 8.5` | the suite, plus a second pass against a live timestamp authority |
 | `Code style and static analysis` | Pint, dependency analyser, `composer.json` formatting, PHPStan |
 
-**Laravel 12 is not supported**, despite reaching PHP 8.5: it requires
-`symfony/process ^7.2` while Pest 5 requires `^8.1`, so the two cannot be
-installed together and the cell fails at `composer update` before a test runs.
+There is no framework axis. It was the second dimension of this matrix and the
+reason a cell could fail at `composer update` before a test ran
+([0005](../decisions/0005-php-and-laravel-floor.md)).
+
+**The verification tools are installed on the runner, and the packages are
+cached.** qpdf and poppler come from apt, veraPDF and pyHanko from their own
+releases. The apt step timed out at six minutes on most pull requests until the
+attempts were bounded with `timeout` and the `.deb` files cached: `Acquire`
+timeouts bound one request, so a mirror answering slowly rather than failing
+consumed the whole budget without tripping a retry. Every path there degrades to
+the plain install, and the step ends by running both binaries, because a missing
+tool becomes a skip and `--fail-on-skipped` reports that as a failure somewhere
+unrelated.
 
 Tests in the `network` group hit a live timestamp authority (freetsa.org) and
 fail offline. Exclude them with `--exclude-group=network`.
