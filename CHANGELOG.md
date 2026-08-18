@@ -27,6 +27,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   affected, and for that consumer the call was already writing somewhere it did
   not intend.
 
+### Internal
+
+No behaviour changed, and nothing here ships: `.docker/` is `export-ignore`.
+
+- **A mutation run that mutates nothing now fails as itself.**
+  `.docker/mutate.sh` refuses a namespace with no directory behind it, and
+  refuses a finished run whose output says `No mutations created`.
+  `--path=src/Typo` is not an error to `pest-plugin-mutate`, it is a path with
+  nothing in it: the whole suite runs, `0 Mutations for 0 Files created`
+  scrolls past, and the run reports `0.00%`. Measured both ways: with a floor
+  of 0 it exits 0, and with the floor the nightly actually passes it exits 1
+  as `Mutation score below expected: 0.0 %`, which is a typo reported as a
+  score regression. See docs/spec/quality-policy.md.
+
+- The description of `composer test:mutate` said the run happens in a scratch
+  directory. It does not, and it must not: the plugin maps coverage by path and
+  scores 0.00% from anywhere but the package root, which is the reason the
+  sweep exists instead.
+
 ## [2.0.0] - 2026-08-13
 
 Three breaking changes, each closing something the extraction recorded as

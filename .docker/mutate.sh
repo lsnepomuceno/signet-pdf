@@ -39,7 +39,19 @@ cd "$root"
 # One namespace, or every mutated one. This default and the CI matrix in
 # .github/workflows/mutation.yml have to agree, and the workflow calls this
 # script so that there is one list rather than two that drift.
+#
+# A namespace that does not exist is refused here rather than handed to pest.
+# `--path=src/Typo` is not an error to the plugin, it is a path holding nothing
+# to mutate: the suite runs in full, `0 Mutations for 0 Files created` scrolls
+# past, and the run reports a score of 0.00%. A single wrong letter in the CI
+# matrix therefore spent three minutes measuring nothing and then filed a score
+# regression against a namespace that does not exist.
 if [ -n "$1" ]; then
+    if [ ! -d "$root/src/$1" ]; then
+        echo "mutate.sh: no such namespace, src/$1 does not exist" >&2
+        exit 2
+    fi
+
     paths="src/$1"
 else
     paths="src/Certificates,src/IcpBrasil,src/Signing,src/Support,src/Validation"
@@ -73,14 +85,61 @@ sweep() {
 
         rm -rf "$entry"
     done
+
+    rm -f "$log" "$status"
 }
+
+# Outside the repository on purpose: this script exists to keep working files
+# out of it.
+log=$(mktemp "${TMPDIR:-/tmp}/signet-mutation.XXXXXX")
+status=$(mktemp "${TMPDIR:-/tmp}/signet-mutation-status.XXXXXX")
 
 # On EXIT rather than after the command: `set -e` leaves before any following
 # line when the score is under the floor, which is exactly a run worth sweeping.
 trap sweep EXIT INT TERM
 
-vendor/bin/pest \
-    --mutate \
-    --path="$paths" \
-    --exclude-group=network \
-    --min="$min"
+# Piped through tee so the run can be read as it happens and inspected once it
+# ends. A pipeline reports the exit status of its last command, which would be
+# tee's, so pest's is carried out of the group in a file rather than trusted
+# from `$?`. The workflow's own `| tee mutation.log` still works: this writes to
+# the copy it reads, and passes the same bytes through.
+#
+# Written as an `if` rather than as two statements: `set -e` reaches inside the
+# group, and a failing pest would end it before the status was ever recorded.
+# A condition is the one place the option does not apply.
+{
+    if vendor/bin/pest \
+        --mutate \
+        --path="$paths" \
+        --exclude-group=network \
+        --min="$min"
+    then
+        echo 0 > "$status"
+    else
+        echo $? > "$status"
+    fi
+} | tee "$log"
+
+failed=$(cat "$status" 2>/dev/null || true)
+
+# An empty file means the run was killed before it could record anything, which
+# is a failure and not a pass.
+[ -n "$failed" ] || failed=1
+
+if [ "$failed" != '0' ]; then
+    exit "$failed"
+fi
+
+# A run that mutated nothing is not a run that measured anything, and pest
+# answers it with a score of 0.00%: a pass under a floor of 0, and a score
+# regression under any real one. Both are the wrong verdict, and it is the same
+# failure the header rejects the scratch directory for, arriving through the
+# arguments instead of through the location.
+#
+# The namespace check above catches the cause this has actually had. This
+# catches the rest of them, whatever they turn out to be, since the question
+# it asks is about the run rather than about its arguments.
+if grep -q 'No mutations created' "$log"; then
+    echo "mutate.sh: no mutation was created for $paths, so nothing was measured" >&2
+    exit 3
+fi

@@ -229,6 +229,12 @@ can be pointed at them
   afterwards for the mutant that removes that guard. **Do not move the run out
   of the package root to solve this:** `pest-plugin-mutate` maps coverage by
   path and scores 0.00% with everything uncovered from anywhere else.
+- **A run that mutates nothing is a failure, not a score.** `.docker/mutate.sh`
+  refuses a namespace with no directory behind it, and refuses a finished run
+  whose output says `No mutations created`. `--path=src/Typo` is a path with
+  nothing in it rather than an error, so before this the nightly ran the whole
+  suite and then filed a score regression against a namespace that does not
+  exist.
 - `composer-dependency-analyser.php` catches unused and shadow dependencies.
 
 `tests/Project/ArchTest.php` enforces structural rules, so read it before adding a class.
