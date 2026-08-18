@@ -74,7 +74,7 @@ default graph by hand, and its constructor is the substitution point
 said "bound in the service provider" until 2026-08-18, describing an
 arrangement that left with the framework.
 
-Four are replaced by passing them to `Signet`:
+Five are replaced by passing them to `Signet`:
 
 | | |
 |---|---|
@@ -82,6 +82,7 @@ Four are replaced by passing them to `Signet`:
 | `Contracts\ProcessRunner` | the only seam that starts a process (invariant 8) |
 | `Contracts\PdfSigner` | the signer itself, which is how `Testing\FakePdfSigner` is installed |
 | `Contracts\CertificateReader` | how a certificate is parsed |
+| `Contracts\SignatureVerifier` | which implementation answers "does this signature match these bytes": `Validation\OpenSslCliSignatureVerifier` by default, `Validation\NativeSignatureVerifier` where no process can be run ([0114](../decisions/0114-verification-has-two-implementations.md)) |
 
 Two more are constructor arguments of the classes that hold them:
 

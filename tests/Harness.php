@@ -18,6 +18,7 @@ use LSNepomuceno\Signet\Contracts\ProcessRunner;
 use LSNepomuceno\Signet\Contracts\SealRenderer;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Contracts\SignatureValidator;
+use LSNepomuceno\Signet\Contracts\SignatureVerifier;
 use LSNepomuceno\Signet\Enums\DigestAlgorithm;
 use LSNepomuceno\Signet\Enums\FontSize;
 use LSNepomuceno\Signet\Enums\ImageDriver;
@@ -27,6 +28,7 @@ use LSNepomuceno\Signet\Signing\Cades\HttpTransport;
 use LSNepomuceno\Signet\Signing\IncrementalSigner;
 use LSNepomuceno\Signet\Support\SymfonyProcessRunner;
 use LSNepomuceno\Signet\Support\TempDirectory;
+use LSNepomuceno\Signet\Validation\OpenSslCliSignatureVerifier;
 use LSNepomuceno\Signet\Validation\PdfSignatureValidator;
 use LSNepomuceno\Signet\Validation\TrustVerifier;
 use ReflectionClass;
@@ -417,6 +419,13 @@ final class Harness
             PdfSigner::class => static fn(self $h): object => $h->make(IncrementalSigner::class),
             SealRenderer::class => static fn(self $h): object => $h->make(InterventionSealRenderer::class),
             SignatureValidator::class => static fn(self $h): object => $h->make(PdfSignatureValidator::class),
+
+            // The default is the one that shells out, which is what the
+            // package ships and what every test that does not say otherwise
+            // should be measuring. `NativeSignatureVerifier` is bound in the
+            // differential test, and only there
+            // (docs/decisions/0114-verification-has-two-implementations.md).
+            SignatureVerifier::class => static fn(self $h): object => $h->make(OpenSslCliSignatureVerifier::class),
 
             // The seam invariant 9 is built on: everything the profiles above
             // pades-b-b add rides through here, and a test that can replace it

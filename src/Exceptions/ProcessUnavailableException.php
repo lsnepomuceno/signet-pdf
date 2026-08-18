@@ -15,7 +15,7 @@ use Exception;
  * (docs/decisions/0001-openssl-native-with-cli-fallback.md).
  *
  * It is raised rather than absorbed because the alternative was worse than an
- * error: `Validation\SignatureVerifier` caught everything and returned false,
+ * error: `Validation\OpenSslCliSignatureVerifier` caught everything and returned false,
  * so a perfectly valid signature was reported as **invalid**, with no exception
  * and nothing in a log. A caller cannot tell that apart from a tampered
  * document, and the natural response is to reject something legitimate.

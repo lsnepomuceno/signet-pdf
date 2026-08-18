@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use LSNepomuceno\Signet\Support\Files;
-use LSNepomuceno\Signet\Validation\SignatureVerifier;
+use LSNepomuceno\Signet\Validation\OpenSslCliSignatureVerifier;
 
 it('verifies the archive timestamp of a B-LTA document', function () {
     // samples/pades-b-lta.pdf is committed and carries a real freetsa.org
@@ -36,7 +36,7 @@ it('refuses a timestamp token that stamps other bytes', function () {
     }
 
     expect($token)->not->toBeNull()
-        ->and(resolve(SignatureVerifier::class)->verifyTimestamp((string) $token, 'these are not the bytes it stamped'))
+        ->and(resolve(OpenSslCliSignatureVerifier::class)->verifyTimestamp((string) $token, 'these are not the bytes it stamped'))
         ->toBeFalse();
 
     expect($report->count())->toBeGreaterThan(0);

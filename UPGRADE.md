@@ -9,6 +9,30 @@ number (`docs/spec/quality-policy.md`).
 
 # Upgrading to 2.0 from 1.x
 
+## `Validation\SignatureVerifier` is now a contract with two implementations
+
+The class that answered "does this signature match these bytes" was concrete and
+ran the `openssl` binary. It is now `Validation\OpenSslCliSignatureVerifier`,
+behind `Contracts\SignatureVerifier`, and `Validation\PdfSignatureValidator`
+takes the contract.
+
+```php
+use LSNepomuceno\Signet\Validation\SignatureVerifier;          // gone
+use LSNepomuceno\Signet\Validation\OpenSslCliSignatureVerifier; // the same class
+```
+
+Nothing changes for a caller who goes through `Signet`: the binary is still what
+answers, and it stays the default deliberately. What is new is that
+`Validation\NativeSignatureVerifier` can be selected instead, and needs no
+process at all, which is what makes validation possible on a host with
+`proc_open` disabled:
+
+```php
+new Signet(verifier: new NativeSignatureVerifier());
+```
+
+See docs/decisions/0114-verification-has-two-implementations.md.
+
 ## `ext-sodium` is required
 
 It ships with PHP and has since 7.2, and it is enabled in every mainstream

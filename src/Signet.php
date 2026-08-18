@@ -16,6 +16,7 @@ use LSNepomuceno\Signet\Contracts\ProcessRunner;
 use LSNepomuceno\Signet\Contracts\SealRenderer;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Contracts\SignatureValidator;
+use LSNepomuceno\Signet\Contracts\SignatureVerifier;
 use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Data\EncryptedCertificate;
 use LSNepomuceno\Signet\Data\SealPlacement;
@@ -50,10 +51,10 @@ use LSNepomuceno\Signet\Support\Files;
 use LSNepomuceno\Signet\Support\Pem;
 use LSNepomuceno\Signet\Support\SymfonyProcessRunner;
 use LSNepomuceno\Signet\Support\TempDirectory;
+use LSNepomuceno\Signet\Validation\OpenSslCliSignatureVerifier;
 use LSNepomuceno\Signet\Validation\PdfSignatureExtractor;
 use LSNepomuceno\Signet\Validation\PdfSignatureValidator;
 use LSNepomuceno\Signet\Validation\Pkcs7Reader;
-use LSNepomuceno\Signet\Validation\SignatureVerifier;
 use LSNepomuceno\Signet\Validation\TrustStore;
 use LSNepomuceno\Signet\Validation\TrustVerifier;
 use SensitiveParameter;
@@ -103,6 +104,8 @@ final class Signet
 
     private ?CertificateReader $certificateReader = null;
 
+    private ?SignatureVerifier $signatureVerifier = null;
+
     private ?TempDirectory $tempDirectory = null;
 
     /**
@@ -117,6 +120,12 @@ final class Signet
      * @param  CertificateReader|null  $certificateReader  Substitute
      *          `Testing\FakeCertificateReader` to do the same without a
      *          PKCS#12 bundle in the application's repository.
+     * @param  SignatureVerifier|null  $verifier  Substitute
+     *          `Validation\NativeSignatureVerifier` where no process can be
+     *          run. The default asks the `openssl` binary, which is the
+     *          conservative choice for a security decision and unavailable on a
+     *          host with `proc_open` disabled
+     *          (docs/decisions/0114-verification-has-two-implementations.md).
      */
     public function __construct(
         public readonly SignetConfig $config = new SignetConfig(),
@@ -124,11 +133,13 @@ final class Signet
         ?SignatureTransport $transport = null,
         ?PdfSigner $signer = null,
         ?CertificateReader $certificateReader = null,
+        ?SignatureVerifier $verifier = null,
     ) {
         $this->processRunner = $processes;
         $this->signatureTransport = $transport;
         $this->pdfSigner = $signer;
         $this->certificateReader = $certificateReader;
+        $this->signatureVerifier = $verifier;
     }
 
     /**
@@ -441,9 +452,21 @@ final class Signet
         return $this->signatureValidator ??= new PdfSignatureValidator(
             new PdfSignatureExtractor(),
             new Pkcs7Reader(),
-            new SignatureVerifier($this->processes(), $this->temp()),
+            $this->verifier(),
             trust: new TrustVerifier($this->temp()),
         );
+    }
+
+    /**
+     * What answers "does this signature match these bytes".
+     *
+     * The `openssl` binary by default, which is the conservative implementation
+     * of a security decision, and substitutable because that binary is not
+     * always reachable (docs/decisions/0114-verification-has-two-implementations.md).
+     */
+    public function verifier(): SignatureVerifier
+    {
+        return $this->signatureVerifier ??= new OpenSslCliSignatureVerifier($this->processes(), $this->temp());
     }
 
     public function sealRenderer(): SealRenderer

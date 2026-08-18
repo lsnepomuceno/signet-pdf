@@ -45,6 +45,32 @@ This is a decision rather than a gap: a validator that reaches the network gives
 different answers on different days, from different machines, and inside
 networks that refuse it.
 
+## What decides that a signature matches
+
+`Contracts\SignatureVerifier`, and there are two implementations.
+
+The default runs the `openssl` binary, which is the conservative implementation
+of a security decision: OpenSSL's own CMS code has been read by more people than
+anything written here ever will be.
+
+`Validation\NativeSignatureVerifier` answers the same questions through
+ext-openssl, with no process at all, which is what makes validation possible on
+a host where `proc_open` is disabled:
+
+```php
+new Signet(verifier: new NativeSignatureVerifier())->validate($path);
+```
+
+It checks the signature over the signed attributes, the `message-digest`
+attribute against the covered bytes, the `content-type`, and the ESS
+`signing-certificate-v2` attribute against the certificate that verified. Both
+implementations are put to every sample, to a foreign document and to three
+tamper cases, and a disagreement fails this package's build
+([0114](../decisions/0114-verification-has-two-implementations.md)).
+
+**It is opt in rather than a fallback**, because an environment change should
+not silently change which code decides whether a signature is valid.
+
 ## Per signature
 
 ```php

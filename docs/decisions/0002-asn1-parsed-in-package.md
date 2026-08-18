@@ -27,7 +27,7 @@ Neither, as written. The package reads ASN.1 itself, in `Validation\DerReader` a
 `Validation\Pkcs7Reader`, and verifies cryptographically, without taking
 `phpseclib` as a dependency.
 
-`Validation\SignatureVerifier` remains a deliberate shell-out: verifying the CMS
+`Validation\OpenSslCliSignatureVerifier` remains a deliberate shell-out: verifying the CMS
 against the covered bytes is the one operation where reimplementing was not
 worth it.
 
