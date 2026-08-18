@@ -11,8 +11,10 @@ use LSNepomuceno\Signet\Data\SealPlacement;
  * either a validator says yes or nobody knows
  * (docs/decisions/0025-what-signing-does-to-pdf-a.md).
  *
- * The answer is that an **invisible signature keeps conformance** and a sealed
- * one does not, on two clauses.
+ * The answer is that signing keeps conformance, sealed or not. It did not
+ * always: 0032 measured one clause failing for an invisible signature and two
+ * for a seal, and each was closed by writing the keys the clause asks for
+ * (docs/decisions/0113-the-seal-joins-the-structure-tree.md).
  *
  * The failures are asserted clause by clause, and that has already paid for
  * itself once: 0032 measured three failures for a seal and one for an
@@ -112,22 +114,25 @@ it('keeps a PDF/UA document conformant when the signature is invisible', functio
         ->and(pdfUaFailures($path))->toBe([]);
 })->group('pdfua');
 
-it('costs a sealed signature two clauses, whether or not the seal is transparent', function (bool $transparent) {
+it('keeps a PDF/UA document conformant with a visible seal', function (bool $transparent) {
     $path = signedPdfUa(seal: true, transparent: $transparent);
 
-    // 7.18.1: a widget annotation shall be nested within a Form tag, which
-    //         means writing into the structure tree. Nothing in src/ touches
-    //         /StructTreeRoot today.
-    // 7.18.4: the field needs /TU, or every widget needs an /Alt.
+    // This asserted FAIL on 7.18.1 and 7.18.4 when 0032 measured it, written
+    // clause by clause precisely so that fixing either would break this test
+    // rather than let a stale expectation keep passing. Both are fixed, and
+    // this is the update (docs/decisions/0113-the-seal-joins-the-structure-tree.md).
     //
-    // 7.18.3 used to be here too and is gone, which is what makes the
-    // invisible case pass above.
+    // 7.18.1: the widget is nested in a Form structure element, reached through
+    //         an /OBJR, with /StructParent and a /ParentTree entry pointing
+    //         back at it.
+    // 7.18.4: the field carries /TU, which is what a screen reader announces
+    //         where a sighted reader sees the seal.
     //
-    // Unlike PDF/A, transparency changes nothing: PDF/UA has no rule against
-    // an /SMask, so the opaque and transparent seals fail identically
-    // (docs/decisions/0023-a-seal-that-can-be-transparent.md).
-    expect(veraPdfVerdict($path, 'ua1'))->toBe('FAIL')
-        ->and(pdfUaFailures($path))->toBe(['7.18.1', '7.18.4']);
+    // Transparency still changes nothing, and that half of 0032 stands: PDF/UA
+    // has no rule against an /SMask, so the opaque and the transparent seal are
+    // measured the same (docs/decisions/0023-a-seal-that-can-be-transparent.md).
+    expect(veraPdfVerdict($path, 'ua1'))->toBe('PASS')
+        ->and(pdfUaFailures($path))->toBe([]);
 })->with([true, false])->group('pdfua');
 
 it('leaves a document that was never accessible exactly as it found it', function () {

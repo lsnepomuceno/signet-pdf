@@ -24,6 +24,20 @@ tag, and the section is dated on the day the stable one is cut (#18).
 
 ### Added
 
+- **A visible seal keeps PDF/UA conformance.** It cost two clauses of
+  ISO 14289-1, and both were a set of keys this package did not write rather
+  than anything inherent to signing. The widget is now nested in a `Form`
+  structure element reached through an `/OBJR`, with `/StructParent` and a
+  `/ParentTree` entry pointing back at it (7.18.1), and every signature field
+  carries a `/TU` description holding the signer and the reason, which is what a
+  screen reader announces where a sighted reader sees the seal (7.18.4).
+
+  **Only for a document that is already tagged**: an untagged one has no
+  structure tree to extend and nothing invents one, so a document that was never
+  accessible does not come back claiming to be. A `/ParentTree` split across
+  `/Kids` is left alone for the same reason
+  ([0113](docs/decisions/0113-the-seal-joins-the-structure-tree.md)).
+
 - **The documentation site says which release it documents.** It publishes
   nineteen pages off `main` and not one of them named a version, so a reader who
   installed `^1` was reading pages written against `2.x` with nothing on the page

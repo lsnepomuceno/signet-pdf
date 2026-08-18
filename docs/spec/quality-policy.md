@@ -289,14 +289,18 @@ offline once installed, so a failure there is this package's rather than
 somebody else's outage.
 
 **PDF/UA is measured by the same binary**, which carries a `ua1` profile
-alongside the PDF/A ones, in the `pdfua` group. **An invisible signature keeps a
-document conformant**, and a sealed one costs it two clauses, ISO 14289-1 7.18.1
-and 7.18.4 ([0032](../decisions/0032-what-signing-does-to-pdf-ua.md)). It cost
-three until `/Tabs` was written, and the invisible case failed on the third.
+alongside the PDF/A ones, in the `pdfua` group. **Signing keeps a document
+conformant, sealed or not.** It did not always: a sealed signature cost three
+clauses, then two once `/Tabs` was written
+([0032](../decisions/0032-what-signing-does-to-pdf-ua.md)), and the last two went
+when the widget joined the structure tree and gained a description
+([0113](../decisions/0113-the-seal-joins-the-structure-tree.md)).
 
-Those tests assert the failures, clause by clause. A group that only asserts
-the good cases is silent about the bad ones, and the bad ones are what somebody
-has to be told about the day they change.
+Those tests asserted the failures **clause by clause** rather than asserting "it
+fails", and that is what closed them: fixing a clause broke the test instead of
+letting a stale expectation keep passing. A group that only asserts the good
+cases is silent about the bad ones, and the bad ones are what somebody has to be
+told about the day they change.
 
 **Nothing skips.** `composer test` carries `--fail-on-skipped`, because every
 check has to run somewhere and a skip is how one quietly stops.

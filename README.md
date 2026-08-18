@@ -125,7 +125,7 @@ entry point entirely.
 | **Verification** | the CMS is actually verified, with the timestamp, the profile and revocation reported |
 | **ICP-Brasil identity** | CPF, CNPJ (including the alphanumeric one) and the rest, read from the certificate rather than parsed out of a name |
 | **PDF/A** | a signed document stays conformant, measured with veraPDF rather than assumed |
-| **PDF/UA** | measured too: an invisible signature keeps an accessible document conformant, a visible seal does not |
+| **PDF/UA** | measured too: an accessible document stays conformant, seal or not, because the widget joins the structure tree and carries a description |
 
 ## Documentation
 
