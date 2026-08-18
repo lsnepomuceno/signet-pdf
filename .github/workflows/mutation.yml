@@ -84,7 +84,7 @@ jobs:
           fi
 
   mutate:
-    name: ${{ matrix.namespace }}
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
 
     needs: changed
@@ -122,30 +122,58 @@ jobs:
         # the floors were sitting six to twelve points low and had stopped
         # being able to fail.
         include:
-          - namespace: Certificates   # 68.13 / 68.13 / 68.13 / 73.48
-            min: 64
-          - namespace: Signing        # 70.05 / 70.02 / 72.75 / 73.98
-            min: 66
-          # Left where it is. The lowest observation, 75.19, clears this floor
-          # by 0.19, which is the tightest margin here by an order of
-          # magnitude. Raising it would be indefensible and lowering it is what
-          # the rule in docs/spec/quality-policy.md forbids, so it stays and
-          # the margin is written down instead of discovered on a red night.
-          - namespace: Validation     # 75.19 / 76.74 / 78.95 / 79.50
-            min: 75
-          # Added when two helpers moved here out of Signing and Validation,
-          # which quietly took them out of the gate they had been under. The
-          # floor was provisional at 65, from a single measurement of 83.44%.
-          # Two consecutive runs have since scored lower than that one, which
-          # is exactly why the rule asks for two.
-          - namespace: Support        # 78.26 / 79.26
-            min: 74
-          # Added when the ICP-Brasil layer moved into a namespace of its own
-          # (0104), which took its validator out of src/Validation, its reader
-          # out of src/Certificates and NationalRegistry out of src/Support.
-          # All three had been gated and silently stopped being: the same
-          # failure as the Support entry above, one release later.
+          - name: Certificates
+            target: Certificates
+            min: 64                   # 68.07 x4 nightly
+          # Split, because the whole namespace stopped finishing: a job on a
+          # hosted runner is killed at six hours, which reports as cancelled
+          # rather than as a failure, so this leg looked like a clean night
+          # while gating nothing (#84). Incremental/ is 63% of the namespace by
+          # line count, which makes it the natural cut.
           #
+          # **The two floors are provisional**, at the namespace's own floor
+          # less six, which is the headroom an unmeasured shape got the last
+          # time one was added: IcpBrasil started eight points below its local
+          # pair and was calibrated to four once two nightlies had measured it.
+          # Raise them after two runs; the rule in docs/spec/quality-policy.md
+          # forbids lowering either.
+          - name: Signing/Incremental
+            target: Signing/Incremental
+            min: 60                   # provisional, unmeasured
+          - name: Signing (rest)
+            target: Signing
+            ignore: Signing/Incremental
+            min: 60                   # provisional, unmeasured
+          # Left where it is. The lowest observation, 76.73, clears this floor
+          # by 1.73, which is the tightest margin here. Raising it after four
+          # identical runs would be reading steadiness as a guarantee, and
+          # lowering it is what the rule forbids, so it stays and the margin is
+          # written down instead of discovered on a red night.
+          - name: Validation
+            target: Validation
+            min: 75                   # 76.73 x4 nightly
+          # Split for the same reason as Signing, and **by file**, because
+          # src/Support is flat and has no directory to divide on. The line is
+          # drawn where the namespace already divides: helpers that read and
+          # write PDF bytes on one side, helpers that touch the filesystem, a
+          # process or a key on the other. Every floor is provisional on the
+          # same terms as Signing's.
+          - name: Support (bytes)
+            target: Support/Bytes.php,Support/CryptographicStrength.php,Support/PdfDictionary.php,Support/PdfFilters.php,Support/PdfStream.php,Support/Pem.php,Support/PngReader.php
+            min: 68                   # provisional, unmeasured
+          - name: Support (runtime)
+            target: Support/Files.php,Support/OpensslEncrypter.php,Support/Probe.php,Support/SigningLog.php,Support/SodiumEncrypter.php,Support/SymfonyProcessRunner.php,Support/TempDirectory.php,Support/TemporaryFile.php
+            min: 68                   # provisional, unmeasured
+          # One file, on its own, and it earns the runner. SrgbProfile builds an
+          # ICC profile out of matrix arithmetic and a tone curve computed in a
+          # loop, so nearly every number in it is a mutant, and the tests that
+          # kill those mutants are the PDF/A ones: each runs veraPDF. Mutating
+          # this file alone had not finished after thirty minutes on a developer
+          # machine, which is the measurement that put it here rather than in the
+          # leg above.
+          - name: Support/SrgbProfile.php
+            target: Support/SrgbProfile.php
+            min: 68                   # provisional, unmeasured
           # Calibrated, and the calibration is the point. The floor was
           # provisional at 72 from two local serial runs of 80.54, on the
           # suspicion that this job would score lower: it counts timeouts and a
@@ -154,9 +182,9 @@ jobs:
           # Four consecutive nightlies measured 80.54 with **zero** timeouts,
           # identical to the local pair, so the suspicion was wrong for this
           # namespace and the four-point margin the other entries use applies.
-          - namespace: IcpBrasil      # 80.54 x4 nightly, 0 timeouts
-            min: 76
-
+          - name: IcpBrasil
+            target: IcpBrasil
+            min: 76                   # 80.54 x4 nightly, 0 timeouts
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -327,7 +355,7 @@ jobs:
         id: mutate
         shell: bash
         run: >
-          .docker/mutate.sh ${{ matrix.namespace }} ${{ matrix.min }}
+          .docker/mutate.sh '${{ matrix.target }}' '${{ matrix.min }}' '${{ matrix.ignore }}'
           | tee mutation.log
 
       # The score lives nowhere but the log, so a red job cannot tell a
@@ -360,7 +388,7 @@ jobs:
           [ -n "$score" ] && display="${score}%"
 
           {
-            echo "### ${{ matrix.namespace }}"
+            echo "### ${{ matrix.name }}"
             echo
             echo "| | |"
             echo "|---|---|"
@@ -378,7 +406,7 @@ jobs:
         if: failure() && steps.mutate.outcome == 'failure'
         uses: actions/github-script@v9
         env:
-          NAMESPACE: ${{ matrix.namespace }}
+          NAMESPACE: ${{ matrix.name }}
           FLOOR: ${{ matrix.min }}
           SCORE: ${{ steps.score.outputs.score }}
         with:
@@ -401,7 +429,7 @@ jobs:
 
             const body = crashed
               ? [
-                  `The mutation run for \`src/${NAMESPACE}\` failed without producing a score.`,
+                  `The mutation run for \`${NAMESPACE}\` failed without producing a score.`,
                   ``,
                   `Run: ${run}`,
                   ``,
@@ -415,7 +443,7 @@ jobs:
                   `spelling mistake rather than anything about the tests.`,
                 ].join('\n')
               : [
-                  `\`src/${NAMESPACE}\` scored **${SCORE}%** against a floor of **${FLOOR}**.`,
+                  `\`${NAMESPACE}\` scored **${SCORE}%** against a floor of **${FLOOR}**.`,
                   ``,
                   `Run: ${run}`,
                   ``,
@@ -430,6 +458,82 @@ jobs:
             // One open issue per namespace, commented on rather than reopened
             // nightly: without this the same regression files a fresh issue
             // every night until someone fixes it.
+            const open = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              labels: 'mutation',
+            })
+
+            const existing = open.find(issue => issue.title === title)
+
+            if (existing) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body })
+              return
+            }
+
+            await github.rest.issues.create({ owner, repo, title, body, labels: ['mutation'] })
+
+  # A leg that runs out of the six-hour limit GitHub gives a hosted job is
+  # reported as **cancelled**, not as a failure, so the run summary reads as a
+  # clean night and the step above never fires. `src/Signing` and `src/Support`
+  # spent four consecutive nights in exactly that state, gating nothing, and it
+  # was found by reading job timings while calibrating a different floor (#84).
+  #
+  # `if: always()` with an explicit check on the matrix result, because a
+  # cancelled *workflow*, which concurrency does every time a newer run starts,
+  # cancels this job too and therefore stays quiet. A cancelled *job* inside a
+  # run that keeps going is the case worth a report.
+  incomplete:
+    name: Report a leg that did not finish
+    runs-on: ubuntu-latest
+    needs: mutate
+    if: always() && needs.mutate.result == 'cancelled'
+
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Open or update the tracking issue
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo
+            const run = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`
+
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              owner,
+              repo,
+              run_id: context.runId,
+            })
+
+            const stopped = jobs
+              .filter(job => job.conclusion === 'cancelled' && job.name !== 'Report a leg that did not finish')
+              .map(job => `- \`${job.name}\`, ${job.started_at} to ${job.completed_at}`)
+
+            if (stopped.length === 0) {
+              return
+            }
+
+            const title = 'Mutation legs did not finish'
+
+            const body = [
+              `These legs were cancelled rather than scored:`,
+              ``,
+              ...stopped,
+              ``,
+              `Run: ${run}`,
+              ``,
+              `**Six hours is GitHub's hard limit for a job on a hosted runner**, and it is`,
+              `reported as cancelled rather than as a failure, which is why a run in this state`,
+              `looks green. A leg that does not finish is a floor that gates nothing.`,
+              ``,
+              `Split it by mutated path, never with \`--shard\`, and give the new legs`,
+              `provisional floors to be calibrated from two nightlies. See`,
+              `docs/spec/quality-policy.md.`,
+            ].join('\n')
+
             const open = await github.paginate(github.rest.issues.listForRepo, {
               owner,
               repo,

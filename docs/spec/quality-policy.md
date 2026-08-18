@@ -77,21 +77,46 @@ passing with broken cryptography.
 one runner per namespace, each with its own floor. Measured on the nightly runs
 of 2026-08-09 through 2026-08-12, read from the job logs:
 
-| Namespace | Measured | Lowest | Floor | Margin |
+| Leg | Measured | Lowest | Floor | Margin |
 |---|---|---|---|---|
-| `src/Certificates` | 68.07 x4 | 68.07 | 64 | 4.07 |
-| `src/Signing` | 70.05 / 70.02 / 72.75 / 73.98 | 70.02 | 66 | 4.02 |
-| `src/Validation` | 76.73 x4 | 76.73 | 75 | **1.73** |
-| `src/Support` | 78.26 / 79.26 | 78.26 | 74 | 4.26 |
-| `src/IcpBrasil` | 80.54 x4 | 80.54 | 76 | 4.54 |
+| `Certificates` | 68.07 x4 | 68.07 | 64 | 4.07 |
+| `Signing/Incremental` | none yet | | 60 | provisional |
+| `Signing (rest)` | none yet | | 60 | provisional |
+| `Validation` | 76.73 x4 | 76.73 | 75 | **1.73** |
+| `Support (bytes)` | none yet | | 68 | provisional |
+| `Support (runtime)` | none yet | | 68 | provisional |
+| `Support/SrgbProfile.php` | none yet | | 68 | provisional |
+| `IcpBrasil` | 80.54 x4 | 80.54 | 76 | 4.54 |
 
-**Two of those rows are older than the others, and the reason is a defect
-rather than a schedule.** `Signing` and `Support` are **cancelled at exactly six
-hours** on every recent nightly, which is GitHub's hard limit for a hosted job
-and which reports as "cancelled" rather than as a failure. Neither has reached a
-verdict since the suite grew, so both floors are currently gating nothing. The
-other three finish comfortably: `IcpBrasil` in 11 minutes, `Certificates` in 29,
-`Validation` in 2h49.
+**Four of those legs are new, and the reason is a defect rather than a
+schedule.** `src/Signing` and `src/Support` were **cancelled at exactly six
+hours** on four consecutive nightlies. Six hours is GitHub's hard limit for a
+job on a hosted runner, and it reports as *cancelled* rather than as a failure,
+so the run looked like a clean night while two floors gated nothing, one of them
+over the namespace this package's most important invariant lives in (#84).
+
+Both are split by mutated path, which is the sanctioned division. `src/Support`
+is flat and has no directory to split on, so it is divided by file, along the
+line the namespace already has: helpers that read and write PDF bytes on one
+side, helpers that touch the filesystem, a process or a key on the other.
+
+One file has a leg to itself. `Support\SrgbProfile` builds an ICC profile out
+of matrix arithmetic and a tone curve computed in a loop, so nearly every number
+in it is a mutant, and the tests that kill those mutants are the PDF/A ones,
+each of which runs veraPDF. Mutating that one file had not finished after thirty
+minutes on a developer machine, which is what moved it out of the leg it would
+otherwise have dominated.
+
+**A split leg starts at its namespace's floor less six**, and the value is
+provisional until two nightlies measure it, which is the same treatment
+`IcpBrasil` had. The other three legs finish comfortably: `IcpBrasil` in 11
+minutes, `Certificates` in 29, `Validation` in 2h49.
+
+**A cancelled leg now says so.** A job that hits the limit runs no further
+steps, so the reporting step inside it cannot fire; a separate job checks the
+matrix result afterwards and opens the same kind of tracking issue a score
+regression does. It is deliberately silent when the whole *workflow* was
+cancelled, which concurrency does every time a newer run starts.
 
 `src/Validation` is still the one to watch. Its floor was set when the namespace
 was believed not to move, and the run of 2026-08-09 cleared it by less than a

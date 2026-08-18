@@ -3,8 +3,11 @@
 # Runs the mutation suite, and clears the debris it leaves behind.
 #
 # Usage:
-#   .docker/mutate.sh                  every mutated namespace, floor 65
-#   .docker/mutate.sh Certificates 64  one namespace, its own floor
+#   .docker/mutate.sh                    every mutated namespace, floor 65
+#   .docker/mutate.sh Certificates 64    one namespace, its own floor
+#   .docker/mutate.sh Signing/Incremental 60          a directory inside one
+#   .docker/mutate.sh Signing 60 Signing/Incremental  the rest of that namespace
+#   .docker/mutate.sh Support/Files.php,Support/Probe.php 60   named files
 #
 # Mutation testing rewrites `src/` on purpose, and `Support\TempDirectory` builds
 # the path a temporary file is written to by concatenation. A mutant that drops
@@ -36,28 +39,68 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
 cd "$root"
 
-# One namespace, or every mutated one. This default and the CI matrix in
+# One target, or every mutated namespace. This default and the CI matrix in
 # .github/workflows/mutation.yml have to agree, and the workflow calls this
 # script so that there is one list rather than two that drift.
 #
-# A namespace that does not exist is refused here rather than handed to pest.
-# `--path=src/Typo` is not an error to the plugin, it is a path holding nothing
-# to mutate: the suite runs in full, `0 Mutations for 0 Files created` scrolls
-# past, and the run reports a score of 0.00%. A single wrong letter in the CI
-# matrix therefore spent three minutes measuring nothing and then filed a score
-# regression against a namespace that does not exist.
-if [ -n "$1" ]; then
-    if [ ! -d "$root/src/$1" ]; then
-        echo "mutate.sh: no such namespace, src/$1 does not exist" >&2
+# A target is a namespace (`Signing`), a directory inside one
+# (`Signing/Incremental`), or a comma-separated list of either plus individual
+# files (`Support/Files.php,Support/Probe.php`). The last two shapes exist
+# because two legs of the matrix stopped finishing: a job on a hosted runner is
+# killed at six hours, which reports as cancelled rather than as a failure, so
+# `src/Signing` and `src/Support` were gating nothing while looking like clean
+# nights (#84). Splitting by mutated path is the sanctioned answer, and
+# `src/Support` is flat, so files are the only division it has.
+#
+# **Every element is checked to exist.** `--path=src/Typo` is not an error to
+# the plugin, it is a path holding nothing to mutate: the suite runs in full,
+# `0 Mutations for 0 Files created` scrolls past, and the run reports a score of
+# 0.00%. A single wrong letter in the CI matrix therefore spent three minutes
+# measuring nothing and then filed a score regression against a namespace that
+# does not exist.
+resolve() {
+    resolved=''
+    remaining="$1,"
+
+    # Split on commas without a subshell or an array, which `sh` has neither of.
+    while [ -n "$remaining" ]; do
+        target=${remaining%%,*}
+        remaining=${remaining#*,}
+
+        [ -n "$target" ] || continue
+
+        if [ ! -e "$root/src/$target" ]; then
+            echo "mutate.sh: no such target, src/$target does not exist" >&2
+            exit 2
+        fi
+
+        resolved="${resolved:+$resolved,}src/$target"
+    done
+
+    if [ -z "$resolved" ]; then
+        echo "mutate.sh: no target to mutate" >&2
         exit 2
     fi
 
-    paths="src/$1"
+    echo "$resolved"
+}
+
+if [ -n "$1" ]; then
+    paths=$(resolve "$1")
 else
     paths="src/Certificates,src/IcpBrasil,src/Signing,src/Support,src/Validation"
 fi
 
 min=${2:-65}
+
+# What to leave out of a directory another leg covers, so the two halves of a
+# split namespace do not measure the same files twice. Checked like the paths
+# above, because an ignore naming nothing silently doubles a leg's work.
+ignore=''
+
+if [ -n "$3" ]; then
+    ignore=$(resolve "$3")
+fi
 
 # Deliberately narrow: a bare UUIDv7, optionally carrying one extension, the
 # twelve directories named after an extension that a truncated path produces,
@@ -111,6 +154,7 @@ trap sweep EXIT INT TERM
     if vendor/bin/pest \
         --mutate \
         --path="$paths" \
+        ${ignore:+--ignore="$ignore"} \
         --exclude-group=network \
         --min="$min"
     then
