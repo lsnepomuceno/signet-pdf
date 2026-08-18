@@ -484,7 +484,33 @@ signer's constructor arity, which is exactly what a person needs told and not
 what a person needs blocked.
 
 The judgement it informs stays a judgement. A break is answered in
-[UPGRADE.md](../../UPGRADE.md), in the release notes and in the version number.
+[UPGRADE.md](../releases/upgrade.md), in the release notes and in the version number.
+
+---
+
+# Cutting a release
+
+Four things move together, and the reason this is written down is that three of
+them are easy to do and one of them is easy to forget, which is how the
+compatibility table came to name a line that was no longer current
+([0112](../decisions/0112-the-site-documents-one-release-line.md)).
+
+1. **`CHANGELOG.md`**: the topmost `## [x.y.z]` gains its date. The
+   documentation site reads that heading for the version it names on every page,
+   so this is what tells the manual which release it describes, and an undated
+   section reads on the site as "ahead of".
+2. **`UPGRADE.md`**: a section for the release when it breaks anything, with the
+   replacement rather than the removal. Both files are published at
+   [`/releases/`](../releases/changelog.md).
+3. **`README.md`**: the compatibility table names the supported lines, and the
+   one being cut is `^x` rather than "the next one".
+4. **The tag**, which is the only thing pushed to the remote directly. Everything
+   else arrives through a pull request.
+
+The site documents **one** line, the newest, and says so in a banner on every
+page. Documentation for an older line is what shipped with its tag, which is the
+cost this policy accepts in exchange for not building and deploying a site per
+line for the life of the project.
 
 ---
 

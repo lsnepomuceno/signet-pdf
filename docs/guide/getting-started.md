@@ -139,8 +139,8 @@ general catch still works.
 
 - [Configuration](./configuration.md): the five configuration objects, their
   defaults, and the four collaborators you can substitute.
-- [Command line](./cli.md): `sign`, `verify`, `fields` and `check`, and the exit
-  status a build can gate on.
+- [Command line](./cli.md): `sign`, `verify`, `fields`, `field:add`, `extend`
+  and `check`, and the exit status a build can gate on.
 - [Testing your own code](./testing.md): signing in a test suite with no
   certificate and no network.
 - [Audit trail](./audit-log.md): the opt-in log, and why its context is an
@@ -152,6 +152,16 @@ general catch still works.
 - [Standards and instruments](./references.md): every specification this package
   implements, where each one lives in the code, and the five validators the
   output is measured against.
+
+**Releases**
+
+- [Changelog](../releases/changelog.md): every release, and what it costs to move
+  to it.
+- [Upgrading](../releases/upgrade.md): the path across each breaking change.
+
+The site documents one release line and names it in a banner on every page, so
+what you are reading is the newest line rather than the one you installed. The
+documentation for an older line is what shipped with its tag.
 
 Coming from `lsnepomuceno/laravel-a1-pdf-sign`? That package keeps the facade,
 the service provider and the Artisan commands, so moving here is only worth it
