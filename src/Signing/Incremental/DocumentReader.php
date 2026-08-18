@@ -284,25 +284,57 @@ final class DocumentReader
     /**
      * How a page is displayed, against how its coordinates read.
      *
-     * /Rotate and /MediaBox are both inheritable (ISO 32000-1 §7.7.3.4,
-     * Table 30), and a document declared landscape once on /Pages is the common
-     * case rather than the exotic one, so reading them from the page object
-     * alone would miss it.
+     * /Rotate, /MediaBox and /CropBox are all inheritable (ISO 32000-1
+     * §7.7.3.4, Table 30), and a document declared landscape once on /Pages is
+     * the common case rather than the exotic one, so reading them from the page
+     * object alone would miss it.
+     *
+     * `/UserUnit` is **not inheritable**, and that is why it is read
+     * differently rather than through the same helper: Table 30 does not list
+     * it, so a value on /Pages is not a value on the page (§14.11.1).
      *
      * @throws InvalidPdfFileException
      */
     public function pageGeometry(string $pdf, DocumentInfo $document, int $pageNumber): PageGeometry
     {
         $rotate = $this->inherited($pdf, $document, $pageNumber, 'Rotate');
-        $mediaBox = $this->inherited($pdf, $document, $pageNumber, 'MediaBox');
 
-        $box = null;
+        return PageGeometry::of(
+            (int) ($rotate ?? 0),
+            self::box($this->inherited($pdf, $document, $pageNumber, 'MediaBox')),
+            self::box($this->inherited($pdf, $document, $pageNumber, 'CropBox')),
+            $this->userUnit($pdf, $document, $pageNumber),
+        );
+    }
 
-        if ($mediaBox !== null && preg_match_all('/-?[\d.]+/', $mediaBox, $numbers) === 4) {
-            $box = [(float) $numbers[0][0], (float) $numbers[0][1], (float) $numbers[0][2], (float) $numbers[0][3]];
+    /**
+     * A rectangle entry as four numbers, or null when it is not one.
+     *
+     * @return array{0: float, 1: float, 2: float, 3: float}|null
+     */
+    private static function box(?string $entry): ?array
+    {
+        if ($entry === null || preg_match_all('/-?[\d.]+/', $entry, $numbers) !== 4) {
+            return null;
         }
 
-        return PageGeometry::of((int) ($rotate ?? 0), $box);
+        return [(float) $numbers[0][0], (float) $numbers[0][1], (float) $numbers[0][2], (float) $numbers[0][3]];
+    }
+
+    /**
+     * The page's own /UserUnit, defaulting to 1.
+     *
+     * @throws InvalidPdfFileException
+     */
+    private function userUnit(string $pdf, DocumentInfo $document, int $pageNumber): float
+    {
+        if (! $document->has($pageNumber)) {
+            return 1.0;
+        }
+
+        $page = $this->rawObject($pdf, $document, $pageNumber);
+
+        return preg_match('/\/UserUnit\s+([\d.]+)/', $page, $unit) === 1 ? (float) $unit[1] : 1.0;
     }
 
     /**
