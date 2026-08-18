@@ -32,6 +32,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   already returned a `Data\SignedPdf`, which reaches a
   `Contracts\PdfDestination`, so a document can arrive as bytes and leave as
   bytes.
+- **A weak digest, a weak key and a certificate that was not issued for signing
+  are reported as findings.** `Data\SignatureDetails` reported the digest
+  algorithm and nothing evaluated it, so a CMS signed with SHA-1 arrived as
+  `verified: true` with nothing attached for an application to weigh. Four new
+  `Enums\ValidationFinding` cases: `WeakDigestAlgorithm` (MD5, SHA-1),
+  `WeakSignatureKey` (RSA and DSA below 2048 bits, an elliptic curve below 224),
+  `WeakTimestampDigest` (the same weakness inside the RFC 3161 token, separated
+  because the authority chose it and the remedy is a fresh archive timestamp
+  rather than a fresh signature), and `KeyUsageDoesNotPermitSigning`.
+
+  **`isValid()` is unaffected and that is deliberate.** A SHA-1 signature does
+  verify, and reporting it as invalid would be a lie of a different kind
+  ([0106](docs/decisions/0106-validation-reports-findings.md)). The thresholds
+  are policy that ages, so they live in one place, `Support\CryptographicStrength`,
+  naming the standards they came from and the date those were read.
+
+  `Data\Signer` gains `keyAlgorithm`, `keyBits`, `keyUsage` and
+  `extendedKeyUsage`, appended; `Data\SignatureDetails` gains
+  `timestampDigestAlgorithm`, also appended. `Enums\DigestOid` is new and holds
+  the OID-to-name map that `Validation\Pkcs7Reader` kept privately and
+  `Validation\TimestampTokenReader` would otherwise have copied.
+  `Testing\DebugCertificate` gains `makeWithKeySize()` and `makeForPurpose()`,
+  because a weak fixture cannot be produced by signing: `Enums\DigestAlgorithm`
+  has no SHA-1 case on purpose.
 
 - **`signet extend`, so the archive chain is a cron entry.**
   `Signing\ArchiveExtender` renews a B-LTA document with no certificate
@@ -70,6 +94,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   both implement `Exceptions\SignetException`.
 
 ### Fixed
+
+- **The alphanumeric CNPJ is no longer rejected as malformed.**
+  `IcpBrasil\NationalRegistry::isCnpj()` tested `/^\d{14}$/` and
+  `IcpBrasil\Reader` read the field through a fourteen-digit test, both of
+  which predate Instrução Normativa RFB nº 2.229/2024: the first twelve
+  positions now take `A` to `Z` as well as `0` to `9`, and only the two check
+  digits stay numeric. A valid e-CNPJ issued to a company with an alphanumeric
+  registry therefore read as carrying no CNPJ, and was then reported as
+  `InvalidCnpjCheckDigits`.
+
+  Modulus eleven over the same weights, with each character contributing its
+  ASCII value minus 48, so every all-numeric CNPJ answers exactly as before.
+  `Identity::formattedRegistry()` punctuates the new shape as
+  `12.ABC.345/01DE-35`. **Lowercase is refused rather than uppercased**, since
+  the specification gives a value for `A` and none for `a`. Confirmed against
+  the Receita Federal's published example, `12ABC34501DE35`, which is a case in
+  the suite ([0029](docs/decisions/0029-the-identity-a-brazilian-signer-is-known-by.md)).
 
 - **`Support\TempDirectory` refuses a relative path instead of writing beside
   the caller.** `path()` and `file()` now raise `ProcessRunTimeException` when

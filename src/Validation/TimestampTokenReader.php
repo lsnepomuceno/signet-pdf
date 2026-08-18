@@ -6,6 +6,7 @@ namespace LSNepomuceno\Signet\Validation;
 
 use LSNepomuceno\Signet\Enums\Asn1Tag;
 use LSNepomuceno\Signet\Enums\CmsAttribute;
+use LSNepomuceno\Signet\Enums\DigestOid;
 
 /**
  * Finds the RFC 3161 token a B-T signature carries, and what it stamps.
@@ -93,6 +94,33 @@ final readonly class TimestampTokenReader
         $genTime = $this->asn1->path($tstInfo, $root, [4]);
 
         return $genTime === null ? null : $this->asn1->generalizedTime($tstInfo, $genTime);
+    }
+
+    /**
+     * The digest the token stamped with, as a name.
+     *
+     * TSTInfo ::= SEQUENCE { version, policy, messageImprint, ... } and
+     * MessageImprint ::= SEQUENCE { hashAlgorithm AlgorithmIdentifier,
+     * hashedMessage OCTET STRING }, RFC 3161 §2.4.2, so the algorithm is the
+     * first field of the first field of the third. Read by position for the
+     * same reason `stampedAt()` is: the structures after it carry OIDs of their
+     * own.
+     *
+     * The authority chose this, not the signer, which is why a weak one is
+     * reported separately: the remedy is a fresh archive timestamp rather than
+     * a fresh signature.
+     */
+    public function imprintAlgorithm(string $tstInfo): ?string
+    {
+        $root = $this->asn1->at($tstInfo);
+
+        if ($root === null) {
+            return null;
+        }
+
+        $oid = $this->asn1->oid($tstInfo, $this->asn1->path($tstInfo, $root, [2, 0, 0]));
+
+        return $oid === null ? null : DigestOid::algorithmFor($oid);
     }
 
     /**

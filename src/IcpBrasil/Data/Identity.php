@@ -26,7 +26,11 @@ final readonly class Identity extends BaseData
     /**
      * @param  ?string  $cpf  The holder's, for an e-CPF; the responsible
      *                        person's, for an e-CNPJ. Eleven digits, unpunctuated.
-     * @param  ?string  $cnpj  Fourteen digits, unpunctuated. Null for an e-CPF.
+     * @param  ?string  $cnpj  Fourteen characters, unpunctuated: twelve
+     *                         alphanumeric, then two numeric check digits. The
+     *                         Receita Federal's alphanumeric CNPJ is issued in
+     *                         that shape and the all-numeric one is a case of
+     *                         it. Null for an e-CPF.
      * @param  ?string  $birthDate  The holder's, as `dd/mm/yyyy`, or null when
      *                              the field is not a date.
      * @param  ?string  $socialIdentity  NIS, which is PIS, PASEP or CI.
@@ -81,11 +85,15 @@ final readonly class Identity extends BaseData
 
     /**
      * The registry punctuated the way it is written in Brazil.
+     *
+     * The CNPJ mask takes letters as well as digits in the first twelve
+     * positions, `12.ABC.345/01DE-35`, which is the form the Receita Federal
+     * publishes for the alphanumeric registry.
      */
     public function formattedRegistry(): ?string
     {
         return match (true) {
-            $this->cnpj !== null => preg_replace('/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/', '$1.$2.$3/$4-$5', $this->cnpj),
+            $this->cnpj !== null => preg_replace('/^([0-9A-Z]{2})([0-9A-Z]{3})([0-9A-Z]{3})([0-9A-Z]{4})(\d{2})$/', '$1.$2.$3/$4-$5', $this->cnpj),
             $this->cpf !== null => preg_replace('/^(\d{3})(\d{3})(\d{3})(\d{2})$/', '$1.$2.$3-$4', $this->cpf),
             default => null,
         };

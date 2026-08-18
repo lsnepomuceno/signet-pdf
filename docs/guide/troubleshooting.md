@@ -98,6 +98,26 @@ service, and from `pades-b-t` up it is a dependency of signing itself. If that
 is unacceptable in your request path, sign at `pades-b-b` and raise the level in
 a background job.
 
+## A valid signature that reports `WeakDigestAlgorithm` or `WeakSignatureKey`
+
+Both are working as intended, and both leave `isValid()` true. The signature
+verifies; what the finding says is that the cryptography under it is broken
+(MD5, SHA-1) or too small (RSA and DSA below 2048 bits, an elliptic curve below
+224). Whether to accept it is your policy, which is the same line `NotTrusted`
+sits on.
+
+| Finding | Usually means | The remedy |
+|---|---|---|
+| `WeakDigestAlgorithm` | a document signed years ago, or by a tool still defaulting to SHA-1 | the signer signs again |
+| `WeakSignatureKey` | a 1024-bit certificate from a long-lived archive | the signer signs again, with a current certificate |
+| `WeakTimestampDigest` | the **authority** stamped with a weak digest | `extendArchive()`, which stamps again under a current one |
+| `KeyUsageDoesNotPermitSigning` | a certificate issued for TLS or for something else | sign with a certificate issued for signing |
+
+The thresholds are in `Support\CryptographicStrength`, with the standards they
+came from and the date they were read. If one of these fires on a document you
+believe is fine, that file is the right thing to attach to an issue: a threshold
+set too aggressively is a defect in this package, not in your document.
+
 ## The signature verifies here and not in Adobe Reader
 
 Two usual causes, and they are different problems:

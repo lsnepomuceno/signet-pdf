@@ -26,7 +26,7 @@ $signer->icpBrasil?->formattedRegistry(); // '11.222.333/0001-81'
 | Field | Carries |
 |---|---|
 | `type` | `Enums\CertificateType`: `Individual`, `LegalEntity` or `None` |
-| `cpf`, `cnpj` | the registries, digits only |
+| `cpf`, `cnpj` | the registries, unpunctuated. The CNPJ may be alphanumeric |
 | `birthDate` | as the certificate states it |
 | `nationalId`, `nationalIdIssuer` | RG and the issuing body |
 | `socialSecurity` | NIS / PIS / PASEP |
@@ -63,6 +63,28 @@ What it checks:
 Check digits are computed rather than trusted, by `IcpBrasil\NationalRegistry`,
 which is the same arithmetic a Brazilian application already has somewhere and
 is here so the certificate can be judged without one.
+
+### The alphanumeric CNPJ
+
+Instrução Normativa RFB nº 2.229/2024 keeps the fourteen positions and opens the
+first twelve to `A` to `Z` as well as `0` to `9`; the two check digits stay
+numeric. Those registries are being issued, and this package reads and checks
+them:
+
+```php
+$signer->icpBrasil?->cnpj;                // '12ABC34501DE35'
+$signer->icpBrasil?->formattedRegistry(); // '12.ABC.345/01DE-35'
+```
+
+Modulus eleven over the same weights, and the only difference is what a
+character contributes: its ASCII value minus 48, so `0` to `9` keep their value
+and `A` to `Z` count 17 to 42. An all-numeric CNPJ is that same rule over a
+narrower alphabet and is unaffected.
+
+::: warning Letters are uppercase
+`12abc34501de35` is refused rather than uppercased. The specification gives a
+value for `A` and none for `a`, and folding case quietly is how a validator
+accepts a document number nobody issued. Uppercase before asking.
 
 ## Conformance is not trust
 

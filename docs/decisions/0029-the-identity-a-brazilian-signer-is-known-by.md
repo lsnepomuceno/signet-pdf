@@ -122,3 +122,29 @@ The reasoning here did not change, and that is the point of the move: this was
 always a bounded regional layer that `isValid()` does not consult, and the
 layout said the opposite by scattering it through five namespaces
 (docs/decisions/0104-the-regional-layer-is-its-own-namespace.md).
+
+### The alphanumeric CNPJ, 2026-08-18
+
+`NationalRegistry::isCnpj()` opened on `/^\d{14}$/`, and `Reader` read the
+field through a fourteen-digit test. Both predate Instrução Normativa RFB
+nº 2.229/2024, which keeps the fourteen positions and opens the first twelve to
+`A` to `Z`; the two check digits stay numeric.
+
+So a valid e-CNPJ issued to a company with an alphanumeric registry read as
+carrying no CNPJ at all, and was then reported as malformed. That is the worst
+shape of wrong answer this layer can produce: confident, naming the company's
+own document as the defect, and indistinguishable to the application from a
+real one. It is also the only item on the list with a date attached rather than
+a preference, since it gets worse every month.
+
+The arithmetic did not change. Modulus eleven over the same weights, with a
+character contributing its ASCII value minus 48, which leaves every numeric
+registry answering exactly as before. The rule was confirmed against the
+Receita Federal's own published example, `12ABC34501DE35`, which is the first
+case in the dataset for that reason: a check-digit rule transcribed from memory
+is how a validator rejects real documents.
+
+Lowercase is refused rather than folded. The specification gives a value for
+`A` and none for `a`, and quietly uppercasing a document number is how a
+validator accepts one nobody issued.
+
