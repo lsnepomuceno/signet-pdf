@@ -172,6 +172,47 @@ it('catches a CPF that does not satisfy its own check digits', function () {
         ->and($report->conforms())->toBeFalse();
 });
 
+it('reads an e-CNPJ whose registry is alphanumeric', function () {
+    // The Receita Federal is issuing these now, and a fourteen-digit test read
+    // one as absent: `Identity::$cnpj` came back null, so a valid company
+    // certificate reported as carrying no registry at all.
+    $identity = resolve(Reader::class)->read(icpCertificate(
+        CertificateType::LegalEntity,
+        [OtherName::CompanyRegistry->value => '12ABC34501DE35'],
+    ));
+
+    expect($identity->type)->toBe(CertificateType::LegalEntity)
+        ->and($identity->cnpj)->toBe('12ABC34501DE35')
+        ->and($identity->registry())->toBe('12ABC34501DE35')
+        ->and($identity->formattedRegistry())->toBe('12.ABC.345/01DE-35');
+});
+
+it('does not call an alphanumeric CNPJ malformed', function () {
+    // The worst shape of wrong answer, which is what this issue was: confident,
+    // naming the company's own document as the problem, and indistinguishable
+    // to the application from a real defect.
+    $report = resolve(Validator::class)->validate(
+        icpCertificate(
+            CertificateType::LegalEntity,
+            [OtherName::CompanyRegistry->value => '12ABC34501DE35'],
+        ),
+    );
+
+    expect($report->has(Finding::InvalidCnpjCheckDigits))->toBeFalse()
+        ->and($report->has(Finding::IllegalCharacter))->toBeFalse();
+});
+
+it('still catches an alphanumeric CNPJ whose check digits are wrong', function () {
+    $report = resolve(Validator::class)->validate(
+        icpCertificate(
+            CertificateType::LegalEntity,
+            [OtherName::CompanyRegistry->value => '12ABC34501DE34'],
+        ),
+    );
+
+    expect($report->has(Finding::InvalidCnpjCheckDigits))->toBeTrue();
+});
+
 it('catches a CNPJ that does not satisfy its own check digits', function () {
     $report = resolve(Validator::class)->validate(
         icpCertificate(
@@ -305,4 +346,32 @@ it('agrees with the check digits a CNPJ carries', function (string $number, bool
     ['11222333000182', false],
     ['11111111111111', false],
     ['1122233300018', false],
+]);
+
+/**
+ * The alphanumeric CNPJ, Instrução Normativa RFB nº 2.229/2024 and Nota Técnica
+ * COCAD/SUARA/RFB nº 49/2024.
+ *
+ * `12ABC34501DE35` is the Receita Federal's own published example, which is why
+ * it is the first case here: a check-digit rule transcribed from memory is how
+ * a validator rejects real documents, and this one is reproducible from the
+ * specification rather than from this suite.
+ *
+ * The arithmetic is unchanged. What changed is what a character contributes to
+ * it, ASCII minus 48, so every numeric case above has to keep its answer.
+ */
+it('agrees with the check digits an alphanumeric CNPJ carries', function (string $number, bool $valid) {
+    expect(resolve(NationalRegistry::class)->isCnpj($number))->toBe($valid);
+})->with([
+    'the published example' => ['12ABC34501DE35', true],
+    'letters throughout the root' => ['ABCDEFGHIJKL80', true],
+    'one check digit wrong' => ['12ABC34501DE34', false],
+    'the other one wrong' => ['12ABC34501DE25', false],
+    // Lowercase is refused rather than uppercased: the specification gives a
+    // value for A and none for a, and quietly folding case is how a validator
+    // accepts a document number nobody issued.
+    'lowercase' => ['12abc34501de35', false],
+    // The last two positions stay numeric whatever the root looks like.
+    'alphabetic check digits' => ['12ABC34501DEDE', false],
+    'a letter outside A to Z' => ['12ÁBC34501DE35', false],
 ]);
