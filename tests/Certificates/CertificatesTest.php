@@ -8,13 +8,18 @@ use LSNepomuceno\Signet\Certificates\NativeCertificateReader;
 use LSNepomuceno\Signet\Certificates\OpenSslCliCertificateReader;
 use LSNepomuceno\Signet\Certificates\PemCertificateReader;
 use LSNepomuceno\Signet\Certificates\ReaderFactory;
+use LSNepomuceno\Signet\Certificates\SubjectAlternativeNameReader;
+use LSNepomuceno\Signet\Contracts\ProcessRunner;
 use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Data\EncryptedCertificate;
 use LSNepomuceno\Signet\Exceptions\InvalidCertificateContentException;
 use LSNepomuceno\Signet\Exceptions\InvalidPemContentException;
 use LSNepomuceno\Signet\Exceptions\InvalidX509PrivateKeyException;
+use LSNepomuceno\Signet\Exceptions\SignetException;
+use LSNepomuceno\Signet\Support\TempDirectory;
 use LSNepomuceno\Signet\Support\TemporaryFile;
 use LSNepomuceno\Signet\Testing\DebugCertificate;
+use LSNepomuceno\Signet\Testing\FakeProcessRunner;
 
 it('reads a PKCS#12 bundle natively, without touching disk or a shell', function () {
     [$pfx, $password] = DebugCertificate::make();
@@ -278,4 +283,305 @@ it('agrees with the PKCS#12 path on the same key material', function () {
     expect($viaPem->original)->toBe($viaPkcs12->original)
         ->and($viaPem->data['subject'])->toBe($viaPkcs12->data['subject'])
         ->and($viaPem->data['serialNumber'])->toBe($viaPkcs12->data['serialNumber']);
+});
+
+/**
+ * The mutants these close, and why each one mattered.
+ *
+ * `src/Certificates` was reported below its mutation floor (#37), and the run
+ * that followed left 45 mutants alive. These cover the ones whose survival
+ * meant a real behaviour nothing asserted, rather than a score to be lifted:
+ * temporary files holding a private key, the flag the legacy reader exists
+ * for, and the diagnostic a caller is left with.
+ */
+it('deletes both temporary files after a successful legacy read', function () {
+    [$pfx, $password] = DebugCertificate::make();
+
+    $directory = sys_get_temp_dir() . '/signet-cli-reader-' . bin2hex(random_bytes(6)) . '/';
+
+    $reader = new OpenSslCliCertificateReader(
+        resolve(CertificateParser::class),
+        resolve(ProcessRunner::class),
+        new TempDirectory($directory),
+    );
+
+    $certificate = $reader->read($pfx, $password);
+
+    // The `.pfx` written for openssl and the `.crt` it wrote back both hold key
+    // material in the clear: `-nodes` is what makes the output readable, and it
+    // is what makes leaving it behind a leak rather than an untidiness.
+    expect($certificate)->toBeInstanceOf(Certificate::class)
+        ->and(glob($directory . '*'))->toBe([]);
+
+    @rmdir($directory);
+});
+
+it('deletes both temporary files when openssl fails, not only when it works', function () {
+    $directory = sys_get_temp_dir() . '/signet-cli-reader-' . bin2hex(random_bytes(6)) . '/';
+
+    $reader = new OpenSslCliCertificateReader(
+        resolve(CertificateParser::class),
+        new FakeProcessRunner(),
+        new TempDirectory($directory),
+    );
+
+    // The fake runs nothing, so the read cannot complete. Which failure it
+    // meets is not the point: the deletion is in a `finally` for exactly this
+    // path, and v1 deleted these only when the read succeeded.
+    try {
+        $reader->read('not a bundle', 'irrelevant');
+    } catch (SignetException) {
+        // The leftovers are what is under test.
+    }
+
+    expect(glob($directory . '*'))->toBe([]);
+
+    @rmdir($directory);
+});
+
+it('passes -legacy to openssl only when the legacy reader was asked for', function () {
+    $directory = sys_get_temp_dir() . '/signet-cli-flag-' . bin2hex(random_bytes(6)) . '/';
+
+    $commandFor = function (bool $legacy) use ($directory): string {
+        $processes = new FakeProcessRunner();
+
+        $reader = new OpenSslCliCertificateReader(
+            resolve(CertificateParser::class),
+            $processes,
+            new TempDirectory($directory),
+            $legacy,
+        );
+
+        try {
+            $reader->read('not a bundle', 'irrelevant');
+        } catch (SignetException) {
+            // The command is what is under test; the read cannot complete
+            // against a runner that executes nothing.
+        }
+
+        return $processes->commands()[0] ?? '';
+    };
+
+    // The whole reason this reader exists: a PFX issued years ago uses
+    // algorithms OpenSSL 3.x disables, and `-legacy` is what re-enables them.
+    // Without this, nothing failed when the flag stopped being sent.
+    expect($commandFor(true))->toContain('-legacy')
+        ->and($commandFor(false))->not->toContain('-legacy');
+
+    @rmdir($directory);
+});
+
+it('says which failure it met when a bundle cannot be read at all', function () {
+    // A wrong password is InvalidCertificatePasswordException, above. This is
+    // the other branch: bytes that are not a PKCS#12 bundle, where the message
+    // carries what OpenSSL said rather than guessing at the password.
+    expect(fn() => resolve(NativeCertificateReader::class)->read('not a bundle', 'irrelevant'))
+        ->toThrow(
+            InvalidCertificateContentException::class,
+            'Unable to read the PKCS#12 bundle: error',
+        );
+});
+
+it('assembles the certificate and its key as one PEM, with no blank line between them', function () {
+    [$pfx, $password] = DebugCertificate::make();
+
+    $native = resolve(NativeCertificateReader::class)->read($pfx, $password)->original;
+
+    // The order and the spacing are what make this interchangeable with the
+    // legacy reader's output, which the docblock promises and nothing checked:
+    // a doubled newline is what an unwrapped rtrim produces, and a reader that
+    // splits on blank lines would then see one block where there are two.
+    expect($native)->toStartWith('-----BEGIN CERTIFICATE-----')
+        ->and($native)->toContain('PRIVATE KEY')
+        ->and($native)->toEndWith("\n")
+        ->and(substr_count($native, "\n\n"))->toBe(0)
+        ->and(strpos($native, 'BEGIN CERTIFICATE'))->toBeLessThan((int) strpos($native, 'PRIVATE KEY'));
+});
+
+/**
+ * A certificate whose subjectAlternativeName is whatever the caller writes.
+ *
+ * `Testing\DebugCertificate` emits the ICP-Brasil shape, with the otherNames
+ * first and an e-mail last, which is one arrangement out of several a real
+ * certificate uses. The reader walks the arms in order and skips the ones that
+ * are not otherName, and an arm order it has never met is where that walk goes
+ * wrong.
+ */
+function certificateWithAlternativeNames(string ...$entries): string
+{
+    $configuration = implode("\n", [
+        '[req]',
+        'distinguished_name = dn',
+        '[dn]',
+        '[leaf]',
+        ...($entries === [] ? [] : ['subjectAltName = @alt']),
+        'basicConstraints = CA:FALSE',
+        ...($entries === [] ? [] : ['[alt]', ...$entries]),
+        '',
+    ]);
+
+    return TemporaryFile::with(
+        sys_get_temp_dir(),
+        '.cnf',
+        $configuration,
+        static function (TemporaryFile $file): string {
+            $options = ['digest_alg' => 'sha256', 'config' => $file->path, 'x509_extensions' => 'leaf'];
+
+            $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+
+            if ($key === false) {
+                throw new RuntimeException('Unable to generate the throwaway key: ' . openssl_error_string());
+            }
+
+            $request = $key;
+            $csr = openssl_csr_new(['commonName' => 'Alternative Names'], $request, $options);
+
+            if (! $csr instanceof OpenSSLCertificateSigningRequest) {
+                throw new RuntimeException('Unable to generate the throwaway CSR: ' . openssl_error_string());
+            }
+
+            $signed = openssl_csr_sign($csr, null, $key, 30, $options);
+
+            if ($signed === false) {
+                throw new RuntimeException('Unable to sign the throwaway certificate: ' . openssl_error_string());
+            }
+
+            $pem = '';
+
+            if (! openssl_x509_export($signed, $pem)) {
+                throw new RuntimeException('Unable to export the throwaway certificate: ' . openssl_error_string());
+            }
+
+            /** @var string $pem */
+            return $pem;
+        },
+    );
+}
+
+it('reads an otherName that sits after an arm it does not read', function () {
+    // The e-mail comes first here, and the reader has to walk past it. With
+    // `break` in place of `continue` the walk stops at the first arm that is
+    // not an otherName, and every field after it disappears: the identity
+    // reads as absent rather than as unparseable, which is the worst shape a
+    // failure can take here.
+    $pem = certificateWithAlternativeNames(
+        'email = first@example.test',
+        'otherName.1 = 2.16.76.1.3.1;FORMAT:ASCII,OCTETSTRING:1401198011144477735000000000000000000',
+    );
+
+    $names = new SubjectAlternativeNameReader()->otherNames($pem);
+
+    expect($names)->toHaveKey('2.16.76.1.3.1');
+});
+
+it('reads nothing from a certificate whose alternative names carry no otherName', function () {
+    $pem = certificateWithAlternativeNames('email = only@example.test', 'DNS = example.test');
+
+    expect(new SubjectAlternativeNameReader()->otherNames($pem))->toBe([]);
+});
+
+it('reads nothing from a certificate that has no alternative names at all', function () {
+    // The extension is optional, and its absence is not an error: a signature
+    // from a certificate without one is perfectly valid, it just carries no
+    // identity to report.
+    expect(new SubjectAlternativeNameReader()->otherNames(certificateWithAlternativeNames()))->toBe([]);
+});
+
+it('reads nothing from bytes that are not a certificate', function () {
+    expect(new SubjectAlternativeNameReader()->otherNames(''))->toBe([])
+        ->and(new SubjectAlternativeNameReader()->otherNames('not a certificate'))->toBe([]);
+});
+
+it('names the file at fault when the certificate and the key arrive separately', function () {
+    [$certificate, $key] = DebugCertificate::makePem(encryptKey: false);
+
+    // Passing the same path twice is the mistake this exists to report, and
+    // without the check the pair reaches the parser as one blob and fails with
+    // a message about the certificate rather than about what was handed over.
+    expect(fn() => resolve(PemCertificateReader::class)->readPair($key, $key))
+        ->toThrow(InvalidPemContentException::class, 'No PEM certificate block found in the certificate.')
+        ->and(fn() => resolve(PemCertificateReader::class)->readPair($certificate, $certificate))
+        ->toThrow(InvalidPemContentException::class, 'No PEM private key block found in the private key');
+});
+
+it('joins a separate certificate and key with no blank line between them', function () {
+    [$certificate, $key] = DebugCertificate::makePem(encryptKey: false);
+
+    // OpenSSL ends each block with exactly one newline, so concatenation alone
+    // already produces the right shape here. That is the case below.
+    $joined = resolve(PemCertificateReader::class)->readPair($certificate, $key)->original;
+
+    expect($joined)->toStartWith('-----BEGIN CERTIFICATE-----')
+        ->and(substr_count($joined, "\n\n"))->toBe(0)
+        ->and($joined)->toEndWith("\n")
+        ->and(strpos($joined, 'BEGIN CERTIFICATE'))->toBeLessThan((int) strpos($joined, 'PRIVATE KEY'));
+});
+
+it('normalises a certificate file that ends in a blank line', function () {
+    [$certificate, $key] = DebugCertificate::makePem(encryptKey: false);
+
+    // A PEM pasted into an editor and saved comes back with a trailing blank
+    // line, and that is the input the trimming in join() exists for: without
+    // it the blank line survives into the assembled bundle and the output
+    // stops matching NativeCertificateReader's, which is the promise
+    // readPair() is written against. The previous test cannot see this,
+    // because OpenSSL's own output needs no normalising at all.
+    $joined = resolve(PemCertificateReader::class)->readPair($certificate . "\n", $key)->original;
+
+    expect(substr_count($joined, "\n\n"))->toBe(0)
+        ->and($joined)->toEndWith("\n")
+        ->and(strpos($joined, 'BEGIN CERTIFICATE'))->toBeLessThan((int) strpos($joined, 'PRIVATE KEY'));
+});
+
+it('refuses bytes that are not a certificate before it asks about the key', function () {
+    // The order matters: `openssl_x509_check_private_key()` on a failed read
+    // raises a TypeError rather than the exception this method documents.
+    expect(fn() => resolve(CertificateParser::class)->parse('not a certificate'))
+        ->toThrow(InvalidCertificateContentException::class);
+});
+
+it('keeps the stored PEM when the base64 it was told to expect decodes to nothing', function () {
+    [$pfx, $password] = DebugCertificate::make();
+
+    $certificate = resolve(NativeCertificateReader::class)->read($pfx, $password);
+
+    $vault = CertificateVault::create();
+    $sealed = $vault->seal($certificate, $password);
+
+    // A caller that says `isBase64` about a payload that is not leaves it
+    // alone rather than replacing it with what base64 hands back, which would
+    // reach the parser as "this is not a certificate".
+    $opened = CertificateVault::withKey($sealed->hash)->open(
+        resolve(CertificateParser::class),
+        $sealed->certificate,
+        $sealed->password,
+        isBase64: true,
+    );
+
+    expect($opened)->toBeInstanceOf(Certificate::class)
+        ->and($opened->original)->toContain('BEGIN CERTIFICATE');
+});
+
+it('builds the legacy reader with the flag set, not merely of the right class', function () {
+    // `make(legacy: true)` returning an OpenSslCliCertificateReader is already
+    // asserted above, and it is not enough: the reader carries the flag that
+    // decides whether `-legacy` reaches openssl, and a factory that built it
+    // with the flag off would pass that assertion while producing a reader
+    // that cannot read the bundles it exists for.
+    $processes = new FakeProcessRunner();
+
+    $reader = new ReaderFactory(
+        resolve(CertificateParser::class),
+        $processes,
+        new LSNepomuceno\Signet\Config\CertificateConfig(legacy: true),
+        new TempDirectory(sys_get_temp_dir() . '/signet-factory-' . bin2hex(random_bytes(4)) . '/'),
+    )->make();
+
+    try {
+        $reader->read('not a bundle', 'irrelevant');
+    } catch (SignetException) {
+        // The command carries the answer.
+    }
+
+    expect($processes->commands()[0] ?? '')->toContain('-legacy');
 });
