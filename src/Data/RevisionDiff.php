@@ -40,6 +40,31 @@ final readonly class RevisionDiff extends BaseData
     }
 
     /**
+     * Whether this revision is an archive timestamp and nothing else.
+     *
+     * The distinction a certification needs. A DocTimeStamp adds no content: it
+     * attests when the bytes already there existed, and it is signed by the
+     * authority rather than by anyone with something to say about the document.
+     * ETSI EN 319 142-1 permits one over a certified document for exactly that
+     * reason, where a further **signature** at "no changes" is the revision the
+     * certification forbade.
+     */
+    public function isArchiveTimestamp(): bool
+    {
+        if (! $this->touched(RevisionChange::TimestampAdded) || $this->touched(RevisionChange::SignatureAdded)) {
+            return false;
+        }
+
+        foreach ($this->changes as $change) {
+            if (! $change->isSigningMachinery()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Whether this revision is a further signature and nothing else.
      *
      * True when it added a signature or a timestamp and everything else it

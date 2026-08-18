@@ -42,6 +42,7 @@ final readonly class PdfSignatureValidator implements SignatureValidator
         // Appended for the same reason as the two above: a caller who passed
         // the earlier readers positionally keeps meaning what they meant.
         private RevisionAnalyzer $revisions = new RevisionAnalyzer(),
+        private CertificationEvaluator $evaluator = new CertificationEvaluator(),
     ) {}
 
     /**
@@ -152,13 +153,16 @@ final readonly class PdfSignatureValidator implements SignatureValidator
             );
         }
 
+        // A document with no readable cross-reference chain still has
+        // signatures worth reporting, so a certification that cannot be
+        // located is absent rather than fatal.
+        $certification = $this->certification($pdfContents);
+
         return new SignatureReport(
             $signatures,
             $store,
-            // A document with no readable cross-reference chain still has
-            // signatures worth reporting, so a certification that cannot be
-            // located is absent rather than fatal.
-            $this->certification($pdfContents),
+            $certification,
+            $this->evaluator->evaluate($pdfContents, $certification, $signatures),
         );
     }
 

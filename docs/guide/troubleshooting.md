@@ -98,6 +98,25 @@ service, and from `pades-b-t` up it is a dependency of signing itself. If that
 is unacceptable in your request path, sign at `pades-b-b` and raise the level in
 a background job.
 
+## A valid signature that reports `CertificationViolated`
+
+The document was certified, and a revision appended afterwards did something the
+certification's level forbids. The signature still verifies, because the
+appended bytes are outside its `/ByteRange`: that is precisely the shape of the
+problem `/DocMDP` exists to catch, and the reason this is a finding rather than
+an invalid verdict.
+
+| Level | Permits |
+|---|---|
+| `no-changes` | nothing further, except an archive timestamp |
+| `form-filling` | filling fields and signing |
+| `annotations` | those, plus annotations |
+
+If you believe the revision was legitimate, the two cases worth checking first
+are an annotation added without a signature at `form-filling`, and an
+`/OpenAction` added by whatever produced the revision. Neither is permitted at
+any level.
+
 ## A valid signature that reports `WeakDigestAlgorithm` or `WeakSignatureKey`
 
 Both are working as intended, and both leave `isValid()` true. The signature

@@ -283,16 +283,24 @@ $signature->has(ValidationFinding::CertificateRevoked);  // bool
 | `TimestampDoesNotVerify` | an RFC 3161 token is present and fails |
 | `NoSigningTime` | the CMS carries no signing-time attribute |
 | `ByteRangeNotSound` | the `/ByteRange` does not describe a signature's own `/Contents` |
+| `CertificationViolated` | a revision appended after the certification did something its `/DocMDP` level forbids |
+| `LockedFieldChanged` | a revision rewrote a form field an earlier signature's `/Lock` covered |
 | `WeakDigestAlgorithm` | the signature was computed under MD5 or SHA-1 |
 | `WeakSignatureKey` | RSA or DSA below 2048 bits, an elliptic curve below 224 |
 | `WeakTimestampDigest` | the RFC 3161 token carries the same weakness, which is the authority's choice rather than the signer's |
 | `KeyUsageDoesNotPermitSigning` | the certificate's `keyUsage` or `extendedKeyUsage` says it is not for signing documents |
 
 **Only `CmsDoesNotVerify` decides validity**, and `decidesValidity()` says so.
-The other twelve are facts for an application's own policy, which is why the
+The other fourteen are facts for an application's own policy, which is why the
 enum carries no severity: how much `NotTrusted` matters is not this package's
 call ([0016](../decisions/0016-trust-is-the-applications-policy.md),
 [0106](../decisions/0106-validation-reports-findings.md)).
+
+`CertificationViolated` and `LockedFieldChanged` are established from the bytes
+rather than from one signature's details, so they arrive through
+`SignatureReport::$documentFindings` and appear in `findings()` alongside the
+rest. `SignatureReport::has()` answers for the document the way
+`SignatureDetails::has()` answers for a signature.
 
 The last four are weakness rather than failure, and the distinction is the
 point: a SHA-1 signature verifies, and calling it invalid would be a lie of a
