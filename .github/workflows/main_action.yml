@@ -76,8 +76,32 @@ jobs:
       # qpdf checks the structure of what the revision writer emits, and
       # poppler's pdfsig is the independent cross-check that has caught bugs
       # this suite passed straight through (docs/spec/invariants.md, rule 3).
+      # Installed only when the runner image does not already carry them, which
+      # skips `apt-get update` entirely on the runs where it would download an
+      # index to change nothing.
+      #
+      # **Neither is pinned, and that is a decision.** A distribution pin
+      # vanishes from the archive when the runner image advances, turning CI red
+      # for a reason unrelated to the code, and the two ends already differ:
+      # .docker carries qpdf 12.x from Alpine, the runners ship 11.x. So the
+      # versions are recorded here instead, and `tests/Pest.php` refuses qpdf
+      # output whose shape it cannot read rather than reporting a file with no
+      # complaints.
       - name: Install qpdf and poppler
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq qpdf poppler-utils
+        run: |
+          set -eu
+          missing=""
+          command -v qpdf >/dev/null 2>&1 || missing="$missing qpdf"
+          command -v pdfsig >/dev/null 2>&1 || missing="$missing poppler-utils"
+
+          if [ -n "$missing" ]; then
+            sudo apt-get update -qq
+            # shellcheck disable=SC2086
+            sudo apt-get install -y -qq --no-install-recommends $missing
+          fi
+
+          qpdf --version | head -1
+          pdfsig -v 2>&1 | head -1
 
       # veraPDF is the reference PDF/A validator and the only thing that can
       # establish a conformance verdict. Pinned rather than tracking "latest":
