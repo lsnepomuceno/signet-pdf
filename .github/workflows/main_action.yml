@@ -87,7 +87,23 @@ jobs:
       # versions are recorded here instead, and `tests/Pest.php` refuses qpdf
       # output whose shape it cannot read rather than reporting a file with no
       # complaints.
+      # Both binaries are installed only when the runner image does not already
+      # carry them, and every apt call below is bounded. This step has hung for
+      # twenty-five minutes twice on the same pull request: `apt-get update`
+      # waits on a repository that never answers, prints nothing while it does,
+      # and the job sits there until somebody cancels it by hand.
+      #
+      # Acquire::*::Timeout bounds a single request, Acquire::Retries covers the
+      # transient half of that, and DPkg::Lock::Timeout waits for the runner's
+      # own unattended-upgrades rather than failing on the lock it holds at
+      # boot. `timeout-minutes` is the backstop and not the mechanism: with the
+      # bounds above a stalled mirror should fail on its own, and if something
+      # else stalls it becomes a red job in six minutes instead of a run
+      # nobody is watching.
       - name: Install qpdf and poppler
+        timeout-minutes: 6
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           set -eu
           missing=""
@@ -95,9 +111,20 @@ jobs:
           command -v pdfsig >/dev/null 2>&1 || missing="$missing poppler-utils"
 
           if [ -n "$missing" ]; then
-            sudo apt-get update -qq
+            apt_get() {
+              sudo apt-get \
+                -o Acquire::http::Timeout=15 \
+                -o Acquire::https::Timeout=15 \
+                -o Acquire::Retries=2 \
+                -o DPkg::Lock::Timeout=120 \
+                "$@"
+            }
+
+            # One retry, because a mirror that timed out once is usually
+            # answering by the time the second attempt reaches it.
+            apt_get update -qq || apt_get update -qq
             # shellcheck disable=SC2086
-            sudo apt-get install -y -qq --no-install-recommends $missing
+            apt_get install -y -qq --no-install-recommends $missing
           fi
 
           qpdf --version | head -1
