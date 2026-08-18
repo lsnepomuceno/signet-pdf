@@ -7,6 +7,7 @@ namespace LSNepomuceno\Signet\Certificates;
 use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Exceptions\InvalidCertificateContentException;
 use LSNepomuceno\Signet\Exceptions\InvalidX509PrivateKeyException;
+use LSNepomuceno\Signet\Support\Probe;
 use SensitiveParameter;
 
 /**
@@ -26,7 +27,13 @@ final class CertificateParser
         #[SensitiveParameter]
         string $password = '',
     ): Certificate {
-        $x509 = openssl_x509_read($pem);
+        // Through Probe because refusal is the answer here, not a fault: this
+        // is the call that decides whether the input is a certificate at all,
+        // and `openssl_x509_read()` emits a warning on input it does not like.
+        // The exception below is the report; the warning beside it is noise
+        // that an application converting diagnostics into exceptions would
+        // raise in place of the exception this method promises.
+        $x509 = Probe::run(static fn() => openssl_x509_read($pem));
 
         if ($x509 === false) {
             throw new InvalidCertificateContentException();
