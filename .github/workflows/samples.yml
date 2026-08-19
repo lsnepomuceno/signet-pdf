@@ -1,0 +1,64 @@
+name: Samples
+
+# Manual, and it publishes rather than commits.
+#
+# Three of the samples carry a token from a live timestamp authority, so
+# regenerating cannot happen offline and cannot use
+# `Testing\LocalTimestampAuthority`: a sample stamped by an authority that is
+# not a third party proves nothing about one that is (samples/README.md).
+#
+# Anyone with a PHP 8.4 environment can run `composer samples:build` instead.
+# This exists because a container without outbound access cannot, and because a
+# release step that needs the internet should be reproducible somewhere other
+# than one person's machine.
+#
+# It uploads an artefact and stops there. Committing binary output from a job
+# would need write permission and a token, to save a download.
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Samples to build, space separated. Empty builds all of them.'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Regenerate the samples
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, dom, fileinfo, openssl, sodium, json, gd, imagick, bcmath, zlib
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --prefer-stable --no-interaction --no-progress
+
+      - name: Build
+        run: composer samples:build -- ${{ inputs.only }}
+
+      - name: Read them back with an independent reader
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends poppler-utils
+          for file in samples/*.pdf; do
+            echo "== $file"
+            pdfsig "$file"
+          done
+
+      - name: Publish them
+        uses: actions/upload-artifact@v4
+        with:
+          name: samples
+          path: samples/*.pdf
+          if-no-files-found: error
