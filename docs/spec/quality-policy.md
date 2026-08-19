@@ -79,17 +79,15 @@ of 2026-08-09 through 2026-08-12, read from the job logs:
 
 | Leg | Measured | Lowest | Floor | Margin |
 |---|---|---|---|---|
-| `Certificates` | 68.07 x4 | 68.07 | 64 | 4.07 |
+| `Certificates` | 68.07 x4, 72.40 | 68.07 | 64 | 4.07 |
 | `Signing/Incremental` | none yet | | 60 | provisional |
-| `Signing (rest)` | none yet | | 60 | provisional |
-| `Validation` | 76.73 x4 | 76.73 | 75 | **1.73** |
+| `Signing (rest)` | 73.80 | 73.80 | 60 | provisional |
+| `Validation` | 76.73 x4, 77.67 | 76.73 | 75 | **1.73** |
 | `Support (bytes)` | none yet | | 68 | provisional |
-| `Support (runtime)` | none yet | | 68 | provisional |
-| `Support/SrgbProfile.php` | none yet | | 68 | provisional |
-| `IcpBrasil` | 80.54 x4 | 80.54 | 76 | 4.54 |
+| `Support (runtime)` | 58.02 | 58.02 | 54 | 4.02 |
+| `IcpBrasil` | 80.54 x4, 81.82 | 80.54 | 76 | 4.54 |
 
-**Four of those legs are new, and the reason is a defect rather than a
-schedule.** `src/Signing` and `src/Support` were **cancelled at exactly six
+**The split legs are new, and the reason was a defect rather than a schedule.** `src/Signing` and `src/Support` were **cancelled at exactly six
 hours** on four consecutive nightlies. Six hours is GitHub's hard limit for a
 job on a hosted runner, and it reports as *cancelled* rather than as a failure,
 so the run looked like a clean night while two floors gated nothing, one of them
@@ -108,15 +106,51 @@ minutes on a developer machine, which is what moved it out of the leg it would
 otherwise have dominated.
 
 **A split leg starts at its namespace's floor less six**, and the value is
-provisional until two nightlies measure it, which is the same treatment
-`IcpBrasil` had. The other three legs finish comfortably: `IcpBrasil` in 11
-minutes, `Certificates` in 29, `Validation` in 2h49.
+provisional until a nightly measures it, which is the same treatment `IcpBrasil`
+had.
+
+The first night that ran them says the split works and that one of those
+starting values was wrong:
+
+| Leg | Time | Verdict |
+|---|---|---|
+| `IcpBrasil` | 15 min | 81.82 |
+| `Certificates` | 59 min | 72.40 |
+| `Signing (rest)` | 3h00 | 73.80, where the whole namespace had reached no verdict at all |
+| `Validation` | 4h42 | 77.67 |
+| `Support (runtime)` | 1h57 | **58.02 against a floor of 68** |
+| `Support (bytes)` | 1h39 | the runner died with no verdict |
+| `Signing/Incremental` | 6 min | the apt step timed out, which is not a score |
+
+**`Support (runtime)`'s floor was a target set ahead of the measurement**, which
+is the thing the second rule below forbids, and it was mine. It is corrected to
+54, four points below the 58.02 that was measured, rather than defended. Setting
+a floor from a guess and then discovering the guess was high is not the same as
+lowering a floor to make a run pass, and the difference is worth keeping
+straight: the first is calibration, the second is switching a gate off.
+
+**`Validation` is the next one to reach the cliff.** It took 2h49 before this
+release and 4h42 after it, because `src/Validation` gained a second verifier.
+Nothing needs doing yet, and something will.
+
+**`Support\SrgbProfile` is not mutation tested, deliberately.** A leg holding
+that one file was cancelled at six hours. It builds an ICC profile out of matrix
+arithmetic and a tone curve computed in a loop, so nearly every number in it is
+a mutant, and the tests that would kill those mutants each run veraPDF. What the
+file produces is measured by veraPDF directly, on every signed sample, which is
+a stronger statement about that file than a mutation score would be.
 
 **A cancelled leg now says so.** A job that hits the limit runs no further
-steps, so the reporting step inside it cannot fire; a separate job checks the
-matrix result afterwards and opens the same kind of tracking issue a score
-regression does. It is deliberately silent when the whole *workflow* was
-cancelled, which concurrency does every time a newer run starts.
+steps, so the reporting step inside it cannot fire; a separate job asks each job
+for its own conclusion afterwards and opens the same kind of tracking issue a
+score regression does.
+
+That job stayed silent the first night it existed, and the reason is worth
+recording: it was conditioned on the matrix result being `cancelled`, and a
+matrix result is one value for every leg. A night where one leg is cancelled and
+another fails on its score reports `failure`, so the condition never fired. It
+now runs on every night and returns quietly when nothing was cancelled. A
+cancelled *workflow* still says nothing, because that cancels this job with it.
 
 `src/Validation` is still the one to watch. Its floor was set when the namespace
 was believed not to move, and the run of 2026-08-09 cleared it by less than a

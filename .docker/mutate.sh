@@ -85,10 +85,13 @@ resolve() {
     echo "$resolved"
 }
 
+ignore=''
+
 if [ -n "$1" ]; then
     paths=$(resolve "$1")
 else
     paths="src/Certificates,src/IcpBrasil,src/Signing,src/Support,src/Validation"
+    ignore="src/Support/SrgbProfile.php"
 fi
 
 min=${2:-65}
@@ -96,8 +99,15 @@ min=${2:-65}
 # What to leave out of a directory another leg covers, so the two halves of a
 # split namespace do not measure the same files twice. Checked like the paths
 # above, because an ignore naming nothing silently doubles a leg's work.
-ignore=''
-
+#
+# `Support\SrgbProfile` is left out of the default run for a different reason.
+# It builds an ICC profile out of matrix arithmetic and a tone curve computed in
+# a loop, so nearly every number in it is a mutant, and the tests that kill
+# those mutants are the PDF/A ones, each of which runs veraPDF. A leg holding
+# that file alone was cancelled at six hours by CI, and a run of it on a
+# developer machine had not finished after thirty minutes. What the file
+# produces is measured by veraPDF instead
+# (docs/spec/quality-policy.md).
 if [ -n "$3" ]; then
     ignore=$(resolve "$3")
 fi
