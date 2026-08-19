@@ -155,18 +155,43 @@ it('never spills the document to disk on the bytes path', function () {
     // Asserted over the temporary directory rather than by counting handles,
     // because that is where such a file would land, and `.docker/mutate.sh`
     // exists because a stray file there went unnoticed for a whole run.
+    //
+    // **The directory is this test's own**, which is both the fix for #89 and a
+    // stronger guard. Watching the system temporary directory made the
+    // assertion "nothing new appeared", which cannot hold under `--parallel`:
+    // another worker signing a document between the two calls puts a file there
+    // and reads as a spill. Here the only thing that can appear is a spill from
+    // these three calls, so the assertion is "nothing appeared at all".
     [$path, $contents] = sourcedDocument(SignatureProfile::PadesBLTA);
 
-    $directory = new TempDirectory()->path();
-    $before = glob($directory . '*.pdf');
+    $directory = sys_get_temp_dir() . '/signet-spill-' . bin2hex(random_bytes(8)) . '/';
+    setConfig('temp_path', $directory);
+
+    $watched = new TempDirectory($directory)->path();
+
+    // Non-vacuous on purpose: if the override did not reach the entry point,
+    // the watched directory would stay empty whatever the code did, and the
+    // assertion below would pass by watching nothing.
+    expect(signet()->temp()->path())->toBe($watched)
+        ->and(glob($watched . '*'))->toBe([]);
 
     signet()->validate(new StringSource($contents));
     signet()->signatureFields(new StringSource($contents));
     signet()->extendArchive(new StringSource($contents));
 
-    expect(glob($directory . '*.pdf'))->toBe($before);
+    expect(glob($watched . '*.pdf'))->toBe([]);
 
     deleteFiles($path);
+
+    // The directory is this test's, so it goes with it rather than being left
+    // in the system temporary directory once per run.
+    $leftovers = glob($watched . '*');
+
+    foreach ($leftovers === false ? [] : $leftovers as $leftover) {
+        Files::delete($leftover);
+    }
+
+    rmdir($watched);
 });
 
 it('keeps a path meaning exactly what it meant', function () {
