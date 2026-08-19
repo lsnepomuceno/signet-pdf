@@ -110,6 +110,7 @@ function recipes(): array
         'signed-into-fields' => signedIntoFields(...),
         'xref-stream' => xrefStream(...),
         'object-stream' => objectStream(...),
+        'tagged' => tagged(...),
     ];
 }
 
@@ -236,6 +237,28 @@ function objectStream(): string
         ['First signer', 'Packed catalog'],
         ['Second signer', 'Packed catalog'],
     );
+}
+
+/**
+ * A sealed signature on a document that is tagged, which is the only place the
+ * structure-tree work of 2.0.0 can be seen.
+ *
+ * Every other sample descends from an untagged document, and nothing invents a
+ * structure tree for one: a document that was never accessible must not come
+ * back claiming to be
+ * (docs/decisions/0113-the-seal-joins-the-structure-tree.md). So this file
+ * exists to carry the `Form` element, the /OBJR that reaches the widget, and
+ * the /ParentTree entry pointing back, and `tests/Conformance/SamplesTest.php`
+ * had nothing to assert those against until it did.
+ */
+function tagged(): string
+{
+    return signature()
+        ->pdf(source('pdfua-1.pdf'))
+        ->info(name: 'Lucas Nepomuceno', location: 'Brazil', reason: 'Tagged document')
+        ->seal()
+        ->sign()
+        ->contents;
 }
 
 /**
