@@ -95,6 +95,7 @@ $signature?->revocation;               // Enums\RevocationStatus
 $signature?->messageDigest;            // ?string, lowercase hex
 $signature?->digestAlgorithm;          // ?string, 'sha256' and friends
 $signature?->byteRangeSound;           // bool
+$signature?->signaturePolicy;          // ?Data\SignaturePolicy, or null
 ```
 
 `signedAt` comes from `/M` in the signature dictionary. It is inside the range
@@ -108,6 +109,35 @@ carry, makes the time attributable to a third party, and that is what
 `timestampVerified` is null for one by construction. That is what
 `signet extend --if-due` reads to decide whether an archive is old enough to
 renew.
+
+## The declared policy
+
+`signaturePolicy` is the `signature-policy-identifier` signed attribute of
+RFC 5126 §5.8.1: an OID naming a policy document, the digest of that document,
+and optionally a URI where it can be fetched.
+
+```php
+$policy = $signature?->signaturePolicy;
+
+$policy?->oid;               // '2.16.76.1.7.1.1.1', dotted
+$policy?->digestAlgorithm;   // 'sha256'
+$policy?->digest;            // lowercase hex, as the signer computed it
+$policy?->uri;               // ?string, from the sp-uri qualifier
+```
+
+It matters in Brazil, where a verifier looks for it before calling a signature
+ICP-Brasil conformant: a signature carrying none is cryptographically fine and
+still reported as conformant to nothing.
+
+**This is what the document says, not a verdict.** Nothing checks that the
+policy was satisfied, or that the OID names a policy that exists. Doing either
+means holding the published policy artefacts, and nothing here fetches the URI:
+the network stays behind the injected transport.
+
+**Null is every signature this package produces today.** Declaring a policy
+means adding a signed attribute, which has to be there before the attributes are
+signed, and the CMS library underneath exposes no way to contribute one. That
+half is [#56](https://github.com/lsnepomuceno/signet-pdf/issues/56).
 
 ## Findings
 

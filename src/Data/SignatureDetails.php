@@ -106,6 +106,10 @@ final readonly class SignatureDetails extends BaseData
         // Appended, so a caller constructing details by hand, which the fakes
         // and most tests do, keeps meaning what they meant.
         public ?string $timestampDigestAlgorithm = null,
+        // Appended for the same reason. Null means the signature declared no
+        // policy, which is every signature this package produces today
+        // (issue #56).
+        public ?SignaturePolicy $signaturePolicy = null,
     ) {}
 
     /**

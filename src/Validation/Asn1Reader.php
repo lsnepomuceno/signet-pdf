@@ -165,27 +165,40 @@ final readonly class Asn1Reader
         }
 
         $bytes = $node->content($der);
-        $first = ord($bytes[0]);
 
-        // The first two arcs share one byte: 40 * first + second.
-        $arcs = [intdiv($first, 40), $first % 40];
+        $arcs = [];
         $value = 0;
         $started = false;
 
-        for ($index = 1; $index < strlen($bytes); $index++) {
+        for ($index = 0; $index < strlen($bytes); $index++) {
             $byte = ord($bytes[$index]);
             $value = ($value << 7) | ($byte & 0x7F);
             $started = true;
 
-            if (($byte & 0x80) === 0) {
-                $arcs[] = $value;
-                $value = 0;
-                $started = false;
+            if (($byte & 0x80) !== 0) {
+                continue;
             }
+
+            // ISO/IEC 8825-1 §8.19.4: the first two arcs share one
+            // subidentifier as 40 * first + second, and that subidentifier is
+            // encoded like any other. Reading it out of a single byte works
+            // until it needs two, which is every OID whose second arc is 128 or
+            // more: 2.999.1.1 decoded as 3.16.55.1.1, silently, because every
+            // arc that follows was still read correctly.
+            if ($arcs === []) {
+                $root = (int) min(intdiv($value, 40), 2);
+
+                $arcs = [$root, $value - 40 * $root];
+            } else {
+                $arcs[] = $value;
+            }
+
+            $value = 0;
+            $started = false;
         }
 
         // A final byte with the continuation bit still set is a truncated arc.
-        return $started ? null : implode('.', $arcs);
+        return $started || $arcs === [] ? null : implode('.', $arcs);
     }
 
     /**
