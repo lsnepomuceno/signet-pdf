@@ -74,3 +74,14 @@ it('keeps trailing zero bytes that belong to the structure', function () {
     expect(new DerReader()->truncate($der . str_repeat("\x00", 20)))->toBe($der)
         ->and(strlen(new DerReader()->truncate($der)))->toBe(6);
 });
+
+it('refuses the identifier octet that starts nothing', function () {
+    // ISO/IEC 8825-1 §8.1.2 reserves 0x00, and an unfilled /Contents
+    // placeholder is a run of them. Read as a header it looks like a
+    // well-formed empty structure, which is worse than a refusal: the caller
+    // gets two bytes that parse and mean nothing (issue #103).
+    $reader = new DerReader();
+
+    expect($reader->declaredLength("\x00\x00"))->toBe(0)
+        ->and($reader->truncate(str_repeat("\x00", 64)))->toBe('');
+});

@@ -96,6 +96,24 @@ signed by pyHanko rather than by this package.
 `Validation\DerReader` and `Pkcs7Reader` read each structure by the length its
 header declares. Trimming trailing `0` bytes cuts legitimate DER.
 
+**It applies to writing too, and that half was learned the expensive way.**
+`Signing\Incremental\DssWriter` keyed the security store by SHA-1 of the
+signature's `/Contents`, recovered with `rtrim($hex, '0')` to drop the
+placeholder's padding. A CMS whose final byte is `0x00` lost it, and what
+remained was still valid DER one byte shorter, so nothing complained: the
+`/VRI` entry was written under the hash of a signature that does not exist,
+and every reader reported a document carrying validation material as carrying
+none for its own signature. About one signature in 256, which is why it
+surfaced as a test failing on one PHP version and passing on the other in the
+same run (issue #103).
+
+Both sides now go through `DerReader`, and
+`ByteRangeCalculator::lastContents()` is the one place that decides where a
+placeholder's padding starts.
+
+*Enforced by* `tests/Validation/SecurityStoreTest.php`, over a CMS built to end
+in `0x00` rather than over one that happens to.
+
 ---
 
 ## 6. `K_PATH_FONTS` stays undefined

@@ -170,16 +170,20 @@ final readonly class DssWriter
     }
 
     /**
-     * The hex-decoded /Contents of the signature this store covers.
+     * The /Contents of the signature this store covers, which is what the
+     * store is keyed by.
+     *
+     * Read at the length the DER declares rather than trimmed. Trimming with
+     * rtrim() is invariant 5, and it was not theoretical here: a CMS whose
+     * final byte is 0x00 lost it, so the /VRI entry was written under the
+     * SHA-1 of one byte less than the signature it belongs to. Every reader
+     * then reported a document carrying validation material as carrying
+     * nothing for its own signature, about one signature in 256 (issue #103).
      *
      * @throws InvalidPdfFileException
      */
     private function signatureContents(string $pdf): string
     {
-        [$open, $close] = $this->byteRange->readLast($pdf);
-
-        $hex = substr($pdf, $open + 1, $close - $open - 2);
-
-        return (string) hex2bin(rtrim($hex, '0') . (strlen(rtrim($hex, '0')) % 2 === 1 ? '0' : ''));
+        return $this->byteRange->lastContents($pdf);
     }
 }
