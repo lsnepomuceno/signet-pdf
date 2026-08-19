@@ -134,7 +134,7 @@ general catch still works.
   which implementation decides that a signature matches.
 - [Trust](./trust.md): trust stores, the three answers they give, and why the
   package ships none.
-- [Sample documents](./samples.md): eleven signed PDFs, one per profile plus the
+- [Sample documents](./samples.md): twelve signed PDFs, one per profile plus the
   awkward cases, and what each one proves.
 
 **Certificates**

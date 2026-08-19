@@ -33,7 +33,40 @@ use LSNepomuceno\Signet\Support\Files;
  */
 function sealedSamples(): array
 {
-    return ['legacy.pdf', 'pades-b-b.pdf', 'pades-b-t.pdf', 'pades-b-lt.pdf', 'pades-b-lta.pdf', 'two-seals.pdf'];
+    return [
+        'legacy.pdf',
+        'pades-b-b.pdf',
+        'pades-b-t.pdf',
+        'pades-b-lt.pdf',
+        'pades-b-lta.pdf',
+        'two-seals.pdf',
+        'signed-into-fields.pdf',
+        'certified.pdf',
+        'tagged.pdf',
+    ];
+}
+
+/**
+ * Every committed sample.
+ *
+ * @return list<string>
+ */
+function everySample(): array
+{
+    return [
+        'legacy.pdf',
+        'pades-b-b.pdf',
+        'pades-b-t.pdf',
+        'pades-b-lt.pdf',
+        'pades-b-lta.pdf',
+        'six-signatures.pdf',
+        'two-seals.pdf',
+        'certified.pdf',
+        'signed-into-fields.pdf',
+        'xref-stream.pdf',
+        'object-stream.pdf',
+        'tagged.pdf',
+    ];
 }
 
 it('shows a seal drawn in the colour space this version writes', function (string $name) {
@@ -72,6 +105,51 @@ it('gives the archive timestamp an appearance dictionary', function () {
         ->toMatch('#/Rect\[0 0 0 0\]/AP<</N \d+ 0 R>>/T \(Timestamp#');
 });
 
+it('describes every signature field it ships', function (string $name) {
+    // ISO 14289-1 7.18.4, and the assertion whose absence let the samples go a
+    // release out of date: they predate the /TU description, the suite was
+    // taught to check the seal's colour space and the trailer /ID and not this,
+    // and so it read old evidence and agreed with itself.
+    expect(Files::read(sample($name)))->toMatch('#/TU\s*[(<]#');
+})->with(everySample());
+
+it('says who signed and why, rather than describing a field that is empty', function () {
+    // The exact text, on the two samples whose shape differs: one signature
+    // this package laid out itself, and one filling a field a template
+    // declared. The second is the one that carried no description at all until
+    // issue #98, and a sample regenerated before that fix would fail here.
+    expect(Files::read(sample('pades-b-b.pdf')))
+        ->toContain('/TU (Signed by Lucas Nepomuceno, Sample)')
+        ->and(Files::read(sample('signed-into-fields.pdf')))
+        ->toContain('/TU (Signed by Employee, Signed as Employee)')
+        ->toContain('/TU (Signed by Manager, Signed as Manager)');
+});
+
+it('nests the seal in the structure tree of the one sample that is tagged', function () {
+    // 0113. The other eleven descend from an untagged document, so none of them
+    // can show this and none of them should: nothing invents a structure tree
+    // for a document that never had one.
+    $contents = Files::read(sample('tagged.pdf'));
+
+    expect($contents)->toMatch('#/Type/StructElem/S/Form#')
+        ->and($contents)->toMatch('#/K<</Type/OBJR/Obj \d+ 0 R#')
+        ->and($contents)->toMatch('#/StructParent \d+#');
+});
+
+it('ships a tagged sample that veraPDF still calls conformant', function () {
+    // The claim the sample exists to make, measured rather than asserted: a
+    // visible seal on a PDF/UA document leaves it conformant. Without this the
+    // file would only prove that some keys were written
+    // (docs/decisions/0113-the-seal-joins-the-structure-tree.md).
+    expect(veraPdfVerdict(sample('tagged.pdf'), 'ua1'))->toBe('PASS');
+})->group('pdfa');
+
+it('leaves the untagged samples without a structure tree', function (string $name) {
+    // The negative, which is the half that says the rule is a rule rather than
+    // an accident of what happened to be signed.
+    expect(Files::read(sample($name)))->not->toContain('/Type/StructElem/S/Form');
+})->with(['pades-b-b.pdf', 'two-seals.pdf', 'certified.pdf']);
+
 it('still validates every sample it ships', function (string $name) {
     // The samples are evidence, so a sample this package cannot read back is
     // worse than no sample at all.
@@ -88,16 +166,4 @@ it('still validates every sample it ships', function (string $name) {
         ->and($report->findings())->not->toContain(ValidationFinding::WeakSignatureKey)
         ->and($report->findings())->not->toContain(ValidationFinding::WeakTimestampDigest)
         ->and($report->findings())->not->toContain(ValidationFinding::KeyUsageDoesNotPermitSigning);
-})->with([
-    'legacy.pdf',
-    'pades-b-b.pdf',
-    'pades-b-t.pdf',
-    'pades-b-lt.pdf',
-    'pades-b-lta.pdf',
-    'two-seals.pdf',
-    'six-signatures.pdf',
-    'certified.pdf',
-    'signed-into-fields.pdf',
-    'xref-stream.pdf',
-    'object-stream.pdf',
-]);
+})->with(everySample());

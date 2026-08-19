@@ -10,15 +10,10 @@ They have to be regenerated after any change to `src/Signing/`, and
 `tests/Conformance/SamplesTest.php` fails when they stop being this version's
 output, so a stale sample is caught rather than trusted.
 
-**They are one release behind as this is written**, and the gap is named rather
-than left to be discovered: 2.0.0 gives every signature widget a `/TU`
-description and puts a visible seal into the structure tree of a tagged
-document, and none of the files here carries either
-([0113](../docs/decisions/0113-the-seal-joins-the-structure-tree.md)). Nothing
-about them is wrong, they verify and every reader accepts them, and they show
-the 1.x shape of a widget. Regenerating needs a live timestamp authority for the
-three timestamped profiles, which is why it is a release step rather than
-something the suite can do.
+They are 2.0.0's output: every widget carries the `/TU` description ISO 14289-1
+7.18.4 asks for, and `tagged.pdf` carries the structure-tree entries a seal gets
+in a document that is marked
+([0113](../docs/decisions/0113-the-seal-joins-the-structure-tree.md)).
 
 **No generator ships in this repository.** The script that produced them is a
 spike in `lsnepomuceno/laravel-a1-pdf-sign`, the package this one was extracted
@@ -79,12 +74,25 @@ ICP-Brasil certificate.
 | `signed-into-fields.pdf` | A template's own two signature fields, filled by name rather than appended beside |
 | `certified.pdf` | A certification at `form-filling`, then an approval signature on top of it |
 | `object-stream.pdf` | Two signatures on a document whose catalog and pages are packed into an object stream |
+| `tagged.pdf` | A sealed signature on a PDF/UA document, so the seal joins its structure tree |
 
 There is no `pem-signed.pdf`, on purpose. The encoding only changes how the key
 is loaded, so a document signed through `certificatePem()` is indistinguishable
 from `pades-b-b.pdf`, since a separate sample would imply a distinction that does not
 exist. `tests/Certificates/CertificatesTest.php` is where the two entry points
 are shown to converge, against real output rather than against a sample.
+
+## What `tagged.pdf` proves
+
+That a visible seal keeps a tagged document conformant. ISO 14289-1 7.18.1 wants
+an annotation that conveys meaning reachable from the structure tree, so the
+widget is nested in a `Form` element through an `/OBJR`, with a `/StructParent`
+on the widget and a `/ParentTree` entry pointing back at it.
+
+**Only a document that is already tagged gets this**, which is why the other
+eleven do not have it and must not: they descend from an untagged file, and a
+document that was never accessible should not come back claiming to be. This one
+descends from `tests/Resources/pdfua-1.pdf`.
 
 ## What `object-stream.pdf` proves
 

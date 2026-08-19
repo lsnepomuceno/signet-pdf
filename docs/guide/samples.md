@@ -1,6 +1,6 @@
 # Sample documents
 
-Eleven signed PDFs live in the repository, one per signature profile plus the
+Twelve signed PDFs live in the repository, one per signature profile plus the
 awkward cases. They are there so a change to the signing engine can be checked
 against real readers rather than only against this package's own validator,
 which shares its assumptions with the code it validates.
@@ -26,6 +26,7 @@ explains what each one proves in detail.
 | [`two-seals.pdf`](https://github.com/lsnepomuceno/signet-pdf/blob/main/samples/two-seals.pdf) | Two signatures, each with its own visible seal in its own place |
 | [`xref-stream.pdf`](https://github.com/lsnepomuceno/signet-pdf/blob/main/samples/xref-stream.pdf) | Two signatures on a PDF 1.5 document whose cross-reference sections are streams rather than tables |
 | [`object-stream.pdf`](https://github.com/lsnepomuceno/signet-pdf/blob/main/samples/object-stream.pdf) | Two signatures on a document whose catalog and pages are packed into an object stream |
+| [`tagged.pdf`](https://github.com/lsnepomuceno/signet-pdf/blob/main/samples/tagged.pdf) | A sealed signature on a PDF/UA document, where the seal joins the structure tree |
 | [`signed-into-fields.pdf`](https://github.com/lsnepomuceno/signet-pdf/blob/main/samples/signed-into-fields.pdf) | A template's own two signature fields, filled by name rather than appended beside |
 | [`certified.pdf`](https://github.com/lsnepomuceno/signet-pdf/blob/main/samples/certified.pdf) | A certification at `form-filling`, then an approval signature on top of it |
 
@@ -94,8 +95,8 @@ stops matching what the signer produces fails the suite rather than sitting
 there misleading a reader.
 
 It checks the structures it was taught to check, which is not the same as every
-structure the signer writes: the files committed here predate 2.0.0's `/TU`
-description and its structure-tree entries, and the suite is content because
-nothing told it to look. That is written down in
+structure the signer writes, and the gap is closed as it is found: the `/TU`
+description and the structure-tree entries are asserted now, because the files
+went a release out of date without them and nothing noticed. That history is in
 [samples/README.md](https://github.com/lsnepomuceno/signet-pdf/blob/main/samples/README.md)
 rather than left for a reader to find by diffing.
