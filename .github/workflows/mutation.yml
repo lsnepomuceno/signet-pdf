@@ -158,22 +158,23 @@ jobs:
           # write PDF bytes on one side, helpers that touch the filesystem, a
           # process or a key on the other. Every floor is provisional on the
           # same terms as Signing's.
+          # `Support/SrgbProfile.php` is deliberately in no leg. On its own it
+          # was cancelled at the six-hour limit: it builds an ICC profile out of
+          # matrix arithmetic and a tone curve computed in a loop, so nearly
+          # every number in it is a mutant, and the tests that kill those
+          # mutants each run veraPDF. What the file produces is measured by
+          # veraPDF directly instead (docs/spec/quality-policy.md).
           - name: Support (bytes)
             target: Support/Bytes.php,Support/CryptographicStrength.php,Support/PdfDictionary.php,Support/PdfFilters.php,Support/PdfStream.php,Support/Pem.php,Support/PngReader.php
-            min: 68                   # provisional, unmeasured
+            min: 68                   # provisional, still unmeasured
+          # **Corrected from a guess.** This leg was given 68, the namespace's
+          # own floor less six, before anything had measured it. It scored
+          # 58.02, so the guess was the mistake the policy warns about: a target
+          # set ahead of the measurement. 54 is four points below what was
+          # measured, which is the margin every calibrated entry here uses.
           - name: Support (runtime)
             target: Support/Files.php,Support/OpensslEncrypter.php,Support/Probe.php,Support/SigningLog.php,Support/SodiumEncrypter.php,Support/SymfonyProcessRunner.php,Support/TempDirectory.php,Support/TemporaryFile.php
-            min: 68                   # provisional, unmeasured
-          # One file, on its own, and it earns the runner. SrgbProfile builds an
-          # ICC profile out of matrix arithmetic and a tone curve computed in a
-          # loop, so nearly every number in it is a mutant, and the tests that
-          # kill those mutants are the PDF/A ones: each runs veraPDF. Mutating
-          # this file alone had not finished after thirty minutes on a developer
-          # machine, which is the measurement that put it here rather than in the
-          # leg above.
-          - name: Support/SrgbProfile.php
-            target: Support/SrgbProfile.php
-            min: 68                   # provisional, unmeasured
+            min: 54                   # 58.02 measured once
           # Calibrated, and the calibration is the point. The floor was
           # provisional at 72 from two local serial runs of 80.54, on the
           # suspicion that this job would score lower: it counts timeouts and a
@@ -226,46 +227,82 @@ jobs:
       # versions are recorded here instead, and `tests/Pest.php` refuses qpdf
       # output whose shape it cannot read rather than reporting a file with no
       # complaints.
-      # Both binaries are installed only when the runner image does not already
-      # carry them, and every apt call below is bounded. This step has hung for
-      # twenty-five minutes twice on the same pull request: `apt-get update`
-      # waits on a repository that never answers, prints nothing while it does,
-      # and the job sits there until somebody cancels it by hand.
-      #
-      # Acquire::*::Timeout bounds a single request, Acquire::Retries covers the
-      # transient half of that, and DPkg::Lock::Timeout waits for the runner's
-      # own unattended-upgrades rather than failing on the lock it holds at
-      # boot. `timeout-minutes` is the backstop and not the mechanism: with the
-      # bounds above a stalled mirror should fail on its own, and if something
-      # else stalls it becomes a red job in six minutes instead of a run
-      # nobody is watching.
+      - name: Restore the qpdf and poppler packages
+        uses: actions/cache@v4
+        with:
+          path: /tmp/apt-packages
+          # Keyed per leg rather than once for the matrix, so eight jobs
+          # starting together do not race to save the same entry. The packages
+          # are a few megabytes; the warning would be the expensive part.
+          key: apt-qpdf-poppler-${{ env.ImageOS }}-${{ env.ImageVersion }}-leg${{ strategy.job-index }}-v1
+
       - name: Install qpdf and poppler
         timeout-minutes: 6
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -eu
-          missing=""
-          command -v qpdf >/dev/null 2>&1 || missing="$missing qpdf"
-          command -v pdfsig >/dev/null 2>&1 || missing="$missing poppler-utils"
 
-          if [ -n "$missing" ]; then
+          have_both() {
+            command -v qpdf >/dev/null 2>&1 && command -v pdfsig >/dev/null 2>&1
+          }
+
+          # Already in the image, which is the cheapest outcome and the one that
+          # skips `apt-get update` entirely.
+          if ! have_both && ls /tmp/apt-packages/*.deb >/dev/null 2>&1; then
+            echo "Installing from the cached packages."
+            # Not fatal: an archive built for an older image is a cache miss
+            # with extra steps, and the apt path below still runs.
+            sudo dpkg -i /tmp/apt-packages/*.deb || echo "The cached packages did not install; falling back to apt."
+          fi
+
+          if ! have_both; then
+            missing=""
+            command -v qpdf >/dev/null 2>&1 || missing="$missing qpdf"
+            command -v pdfsig >/dev/null 2>&1 || missing="$missing poppler-utils"
+
             apt_get() {
-              sudo apt-get \
+              # ForceIPv4 because the runners reach some mirrors over IPv6 that
+              # accept the connection and then never answer, which is the shape
+              # of stall this step kept hitting.
+              sudo timeout 100 apt-get \
                 -o Acquire::http::Timeout=15 \
                 -o Acquire::https::Timeout=15 \
                 -o Acquire::Retries=2 \
+                -o Acquire::ForceIPv4=true \
                 -o DPkg::Lock::Timeout=120 \
                 "$@"
             }
 
-            # One retry, because a mirror that timed out once is usually
-            # answering by the time the second attempt reaches it.
-            apt_get update -qq || apt_get update -qq
+            # Three bounded attempts rather than one unbounded retry. A stalled
+            # update is killed at 100 seconds and tried again, so the worst case
+            # is five minutes of trying rather than six minutes of waiting.
+            apt_get update -qq || apt_get update -qq || apt_get update -qq
+
+            # Emptied first so the archive directory holds what this step
+            # downloads and nothing an earlier step left behind: everything in
+            # it is installed below, and installing a stranger's package would
+            # be a surprise nobody asked for.
+            sudo apt-get clean
+
+            # Downloaded rather than installed, so what gets cached is exactly
+            # what gets installed.
             # shellcheck disable=SC2086
-            apt_get install -y -qq --no-install-recommends $missing
+            apt_get install -y -qq --no-install-recommends -d $missing
+
+            sudo rm -rf /tmp/apt-packages
+            sudo mkdir -p /tmp/apt-packages
+            sudo cp /var/cache/apt/archives/*.deb /tmp/apt-packages/ 2>/dev/null || true
+            # The cache is saved by the runner user, which cannot read a file
+            # root wrote with the default mask.
+            sudo chmod -R a+r /tmp/apt-packages
+
+            sudo dpkg -i /tmp/apt-packages/*.deb
           fi
 
+          # Unconditional, and the reason is --fail-on-skipped: a test whose
+          # tool is missing calls markTestSkipped(), which the suite reports as
+          # a failure somewhere unrelated to this step.
           qpdf --version | head -1
           pdfsig -v 2>&1 | head -1
 
@@ -480,15 +517,20 @@ jobs:
   # spent four consecutive nights in exactly that state, gating nothing, and it
   # was found by reading job timings while calibrating a different floor (#84).
   #
-  # `if: always()` with an explicit check on the matrix result, because a
-  # cancelled *workflow*, which concurrency does every time a newer run starts,
-  # cancels this job too and therefore stays quiet. A cancelled *job* inside a
-  # run that keeps going is the case worth a report.
+  # `if: always()` and nothing else, because the matrix result is one value for
+  # eight legs: a night where one leg was cancelled at the limit and another
+  # scored below its floor reports `failure`, and a condition naming
+  # `cancelled` never fires. That happened on the first night this job existed.
+  # The step below asks each job for its own conclusion and returns quietly when
+  # none was cancelled.
+  #
+  # A cancelled *workflow*, which concurrency does every time a newer run
+  # starts, cancels this job with it, so `always()` still says nothing then.
   incomplete:
     name: Report a leg that did not finish
     runs-on: ubuntu-latest
     needs: mutate
-    if: always() && needs.mutate.result == 'cancelled'
+    if: always()
 
     permissions:
       contents: read
