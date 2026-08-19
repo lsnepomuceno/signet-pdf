@@ -6,6 +6,7 @@ namespace LSNepomuceno\Signet\Signing\Incremental;
 
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Support\Bytes;
+use LSNepomuceno\Signet\Validation\DerReader;
 
 /**
  * Computes and writes the /ByteRange of the revision being signed.
@@ -20,6 +21,13 @@ final class ByteRangeCalculator
 {
     /** Fixed-width field, so a computed value can replace it byte for byte. */
     public const string FIELD = '**********';
+
+    /**
+     * @param  DerReader  $der  Reads a structure by the length it declares
+     *          about itself, which is the one way to find where the
+     *          placeholder's padding starts (invariant 5).
+     */
+    public function __construct(private readonly DerReader $der = new DerReader()) {}
 
     public static function placeholder(): string
     {
@@ -118,5 +126,45 @@ final class ByteRangeCalculator
     public function signableSpan(string $pdf, int $open, int $close, int $trailing): string
     {
         return substr($pdf, 0, $open) . substr($pdf, $close, $trailing);
+    }
+
+    /**
+     * The CMS of the last signature, cut at the length its own header declares.
+     *
+     * The placeholder is zero-padded on the right, so something has to decide
+     * where the padding starts, and **it must not be rtrim()**. That is
+     * invariant 5: a CMS whose final byte is 0x00 loses it, silently, because
+     * the result is still valid DER of one byte less.
+     *
+     * It matters here rather than only in theory. `Signing\Incremental\DssWriter`
+     * keys the security store by SHA-1 of these bytes and the validator keys it
+     * by SHA-1 of the CMS it read by declared length, so the two disagree
+     * whenever the last byte is zero: the store is written with a /VRI entry
+     * belonging to no signature, and every reader reports the document as
+     * carrying nothing for the signature it was built for (issue #103).
+     *
+     * Empty when there is no readable structure there, which is what an
+     * unfilled placeholder is.
+     *
+     * @throws InvalidPdfFileException
+     */
+    public function lastContents(string $pdf): string
+    {
+        $open = $this->lastContentsOffset($pdf);
+        $close = strpos($pdf, '>', $open);
+
+        if ($close === false) {
+            return '';
+        }
+
+        $hex = substr($pdf, $open + 1, $close - $open - 1);
+
+        if ($hex === '' || preg_match('/^[0-9a-fA-F]+$/', $hex) !== 1) {
+            return '';
+        }
+
+        $binary = hex2bin(strlen($hex) % 2 === 1 ? $hex . '0' : $hex);
+
+        return $binary === false ? '' : $this->der->truncate($binary);
     }
 }

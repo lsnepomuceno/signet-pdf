@@ -27,6 +27,14 @@ final class DerReader
             return 0;
         }
 
+        // ISO/IEC 8825-1 §8.1.2: identifier octet 0x00 is reserved and starts
+        // no structure. It is what an unfilled /Contents placeholder looks
+        // like, all zeros, and reading it as a two-byte structure would hand a
+        // caller something that parses and means nothing (issue #103).
+        if ($binary[0] === "\x00") {
+            return 0;
+        }
+
         $lengthByte = ord($binary[1]);
 
         if ($lengthByte < 0x80) {

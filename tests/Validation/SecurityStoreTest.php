@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use LSNepomuceno\Signet\Signing\Incremental\ByteRangeCalculator;
 use LSNepomuceno\Signet\Support\Files;
 use LSNepomuceno\Signet\Validation\SecurityStoreReader;
 
@@ -122,4 +123,43 @@ it('reads the newest store when a document carries two', function () {
 
     expect($store?->certificates)->toBe(2)
         ->and($store?->crls)->toBe(1);
+});
+
+it('keys the store by the whole CMS, including a final zero byte', function () {
+    // Issue #103, and invariant 5 on the writing side. The /Contents
+    // placeholder is zero-padded, so something decides where the padding
+    // starts, and rtrim() decides wrongly for a CMS whose last byte is 0x00:
+    // the result is still valid DER of one byte less, so nothing complains.
+    //
+    // The store is keyed by SHA-1 of these bytes and the validator keys it by
+    // SHA-1 of the CMS it read by declared length, so one signature in about
+    // 256 was written a /VRI entry belonging to no signature at all. It cost a
+    // red CI on one PHP version and green on the other, in the same run.
+    $der = "\x30\x06\x04\x04\x01\x02\x03\x00";
+
+    $padded = str_pad(bin2hex($der), 64, '0');
+
+    $calculator = new ByteRangeCalculator();
+
+    expect($calculator->lastContents("x /Contents <{$padded}> y"))->toBe($der)
+        // The same bytes with rtrim, which is what was there: one byte short,
+        // and a different SHA-1.
+        ->and(strlen($calculator->lastContents("x /Contents <{$padded}> y")))->toBe(strlen($der));
+});
+
+it('reads the last placeholder, not the first', function () {
+    // Invariant 3. A multi-signature document holds several, and the store
+    // being written belongs to the one just appended.
+    $first = str_pad(bin2hex("\x30\x03\x04\x01\x41"), 32, '0');
+    $last = str_pad(bin2hex("\x30\x03\x04\x01\x5a"), 32, '0');
+
+    expect(new ByteRangeCalculator()->lastContents("/Contents<{$first}> ... /Contents <{$last}>"))
+        ->toBe("\x30\x03\x04\x01\x5a");
+});
+
+it('reads nothing out of a placeholder nobody filled', function () {
+    // An unsigned field carries all zeros, which is not a structure. Empty is
+    // the honest answer, and it keeps the store from being keyed by a hash of
+    // nothing.
+    expect(new ByteRangeCalculator()->lastContents('/Contents <' . str_repeat('0', 64) . '>'))->toBe('');
 });
