@@ -136,3 +136,34 @@ working copy nor the index.
 documentation, no version selector that rewrites the current pages, and no
 maintenance of old prose: an archive is frozen at its tag and is never edited
 again.
+
+## Outcome, the same day: the banner is gone
+
+**The banner said what the version switcher already says, and cost a strip of
+every screen to say it.** With one line at the root and an archive under its own
+prefix, the navigation carries both facts: it names the version, and it lists
+the archive beside the changelog. A second copy above the header was a reader's
+first sight of every page and told them nothing they could not read one row
+lower.
+
+It also broke the site for a release, which is worth recording because the cause
+is not obvious. The default theme positions the navigation, the sidebar, the
+local nav and the hero against `var(--vp-layout-top-height, 0px)`; filling the
+`layout-top` slot without setting that variable leaves all four computing an
+offset of zero, so the navigation sits on the banner and the page body starts
+off-screen.
+
+**Two link rules came out of the same fix, and both had produced a 404.**
+
+- *A link inside this site is written without the base*, because VitePress
+  prepends it. `/signet-pdf/v1/` in a nav entry renders
+  `/signet-pdf/signet-pdf/v1/`, while the same string in a raw anchor does not,
+  which is how two links to the same place came to disagree.
+- *A link between the site and an archive carries `target`*, because they are
+  separate VitePress applications rather than routes of one. The client router
+  skips a link with that attribute and lets the browser navigate; without it the
+  router looked for the archive's path among this build's routes and rendered
+  this site's own 404 at the correct URL.
+
+An archive links back with an absolute URL for the first reason, since it cannot
+express a path outside its own base, and carries `target` for the second.
