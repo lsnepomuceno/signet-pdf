@@ -225,3 +225,39 @@ it('leaves the tagged document byte for byte under the revision', function () {
 
     expect(substr(taggedSigned(), 0, strlen($original)))->toBe($original);
 });
+
+it('joins the tree when the field was already there', function () {
+    // The structure objects are written for any visible signature in a tagged
+    // document, including one that fills a field somebody else laid out. Before
+    // this, the /ParentTree entry was written and the widget carried no
+    // /StructParent, so the tree pointed at a widget that did not point back:
+    // half a tree, which is worse than none (issue #98).
+    [$pfxPath, $password] = debugCertificate();
+
+    $laidOut = signet()->addSignatureField(
+        resource('pdfua-1.pdf'),
+        'SignatureBoard',
+        new SealPlacement(x: 60, y: 400, width: 120, height: 60),
+    )->contents;
+
+    $signed = signet()->newSignature()
+        ->certificate($pfxPath, $password)
+        ->pdfContents($laidOut)
+        ->info(name: 'Ana Silva', reason: 'Board approval')
+        ->intoField('SignatureBoard')
+        ->seal()
+        ->sign()
+        ->contents;
+
+    $revision = appendedRevision($signed, $laidOut);
+
+    expect($revision)->toMatch('#/StructParent (\d+)#')
+        ->and($revision)->toMatch('#(\d+) 0 obj\s*<</Type/StructElem/S/Form#');
+
+    $entry = captured('#/StructParent (\d+)#', $revision)
+        . ' ' . captured('#(\d+) 0 obj\s*<</Type/StructElem/S/Form#', $revision) . ' 0 R';
+
+    expect($revision)->toContain($entry);
+
+    deleteFiles($pfxPath);
+});

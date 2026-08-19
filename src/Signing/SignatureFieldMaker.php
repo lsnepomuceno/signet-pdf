@@ -126,6 +126,11 @@ final readonly class SignatureFieldMaker
             . sprintf('/Rect[%s %s %s %s]', ...$rectangle)
             . "/AP<</N {$appearanceNumber} 0 R>>"
             . '/T ' . $cipher->text($name, $number)
+            // ISO 14289-1 7.18.4: a form field needs a description. An empty
+            // one has no signer to name yet, so it says what it is, and the
+            // signature that fills it replaces this with who signed and why
+            // (docs/decisions/0111-a-field-can-be-created-not-only-filled.md).
+            . '/TU ' . $cipher->text("Signature field {$name}", $number)
             . "/P {$pageNumber} 0 R"
             . '/F 132'
             . '/Ff 0'
