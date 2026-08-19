@@ -376,6 +376,33 @@ function phpFilesUnder(string $directory): Generator
     }
 }
 
+it('declares no test helper twice, whatever the two do', function () {
+    // A fatal, not a subtlety: two files declaring one function name kill the
+    // run the moment both load, with `Cannot redeclare`. It cost a red CI, and
+    // it is invisible to running one file at a time, which is how a new helper
+    // is usually tried out.
+    //
+    // The rule in CLAUDE.md sends a **shared** helper to tests/Pest.php, since
+    // a file-local one is invisible to the others under `--parallel`. This is
+    // the other half of the same rule: a helper that stays local still has to
+    // own its name across the suite.
+    $declared = [];
+
+    foreach (phpFilesUnder(dirname(__DIR__)) as $path => $contents) {
+        if (preg_match_all('/^function ([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/m', $contents, $found) === 0) {
+            continue;
+        }
+
+        foreach ($found[1] as $name) {
+            $declared[$name][] = $path;
+        }
+    }
+
+    $collisions = array_filter($declared, static fn(array $files): bool => count($files) > 1);
+
+    expect($collisions)->toBe([]);
+});
+
 it('never leaves a docblock documenting another docblock', function (string $directory) {
     // What this catches: inserting a method between a docblock and the method
     // it described, which leaves the first one attached to the newcomer and the
