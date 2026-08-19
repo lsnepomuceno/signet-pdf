@@ -144,14 +144,30 @@ jobs:
             target: Signing
             ignore: Signing/Incremental
             min: 60                   # provisional, unmeasured
-          # Left where it is. The lowest observation, 76.73, clears this floor
-          # by 1.73, which is the tightest margin here. Raising it after four
-          # identical runs would be reading steadiness as a guarantee, and
-          # lowering it is what the rule forbids, so it stays and the margin is
-          # written down instead of discovered on a red night.
-          - name: Validation
-            target: Validation
-            min: 75                   # 76.73 x4 nightly
+          # Split before it needs to be, which is the whole difference from
+          # what happened to Signing. This namespace went from 2h49 to 4h42 in
+          # one release, when 0114 added a second signature verifier: every
+          # mutation of it runs the whole suite, and the suite grew too. Six
+          # hours kills a job and reports it as cancelled, so the leg would have
+          # looked like a clean night while gating nothing (#84), and the way to
+          # find that out is not to wait for it.
+          #
+          # **By file**, because src/Validation is flat and has no directory to
+          # divide on, and along the line the namespace already divides: what
+          # reads structures on one side, what reaches a verdict about them on
+          # the other. That puts 1361 lines against 1842, so neither leg is near
+          # the limit at the current pace.
+          #
+          # **Both floors are provisional**, at the namespace's own floor less
+          # six, which is the headroom an unmeasured shape gets here. Calibrate
+          # after two nightlies; docs/spec/quality-policy.md forbids lowering
+          # either.
+          - name: Validation (reading)
+            target: Validation/Asn1Node.php,Validation/Asn1Reader.php,Validation/ChainBuilder.php,Validation/DerReader.php,Validation/PdfSignatureExtractor.php,Validation/Pkcs7Reader.php,Validation/RevocationReader.php,Validation/SecurityStoreReader.php,Validation/TimestampTokenReader.php
+            min: 69                   # provisional, unmeasured
+          - name: Validation (verdicts)
+            target: Validation/CertificationEvaluator.php,Validation/NativeSignatureVerifier.php,Validation/OpenSslCliSignatureVerifier.php,Validation/PdfSignatureValidator.php,Validation/RevisionAnalyzer.php,Validation/RevocationChecker.php,Validation/TrustStore.php,Validation/TrustVerifier.php
+            min: 69                   # provisional, unmeasured
           # Split for the same reason as Signing, and **by file**, because
           # src/Support is flat and has no directory to divide on. The line is
           # drawn where the namespace already divides: helpers that read and

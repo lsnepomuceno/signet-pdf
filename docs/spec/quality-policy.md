@@ -239,6 +239,16 @@ suite, then filed a score regression against a namespace that does not exist,
 which is the misdiagnosis the workflow already separates a crash from for
 exactly this reason.
 
+**And the matrix is checked against the tree**, which is the same failure one
+level up. Two legs are lists of individual files, because their namespace is
+flat and has no directory to split on, so a file dropped from one leaves it
+unscored while the night stays green about the files still listed. Nothing in
+the run can see that: mutating nine files out of ten is a real score for nine
+files. `tests/Project/MutationMatrixTest.php` fails on a file no leg covers, a
+file two legs cover, and a target the tree no longer has. The one file
+deliberately in no leg is named there as well as in the workflow, so an
+exclusion has to be written down twice to exist at all.
+
 The second check exists because the arguments are only one of the ways a run
 arrives at that state, and it is the general case of the argument above about
 the scratch directory: a gate that reports a number it did not measure is the
