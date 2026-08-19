@@ -109,7 +109,7 @@ function expandedTarget(string $path, array $ignored): array
 
     $found = [];
 
-    foreach (phpFilesUnder($absolute) as $file) {
+    foreach (mutableFilesUnder($absolute) as $file) {
         $relative = str_replace(packageRoot() . '/src/', '', $file);
 
         foreach ($ignored as $ignore) {
@@ -125,9 +125,16 @@ function expandedTarget(string $path, array $ignored): array
 }
 
 /**
+ * Every PHP file under a directory, as absolute paths.
+ *
+ * Named for what it is rather than `phpFilesUnder`, which `ArchTest` already
+ * declares over the same tree and yields path-to-contents from. Two file-local
+ * helpers of one name is a fatal error the moment both files load, whatever
+ * either of them does, and that is what happened here.
+ *
  * @return list<string>
  */
-function phpFilesUnder(string $directory): array
+function mutableFilesUnder(string $directory): array
 {
     $found = [];
 
@@ -148,7 +155,7 @@ it('scores every file of every namespace it claims to score', function () {
     $missing = [];
 
     foreach (scoredNamespaces() as $namespace) {
-        foreach (phpFilesUnder(packageRoot() . '/src/' . $namespace) as $file) {
+        foreach (mutableFilesUnder(packageRoot() . '/src/' . $namespace) as $file) {
             $relative = str_replace(packageRoot() . '/src/', '', $file);
 
             if (! in_array($relative, $covered, true) && ! in_array($relative, unscoredFiles(), true)) {
