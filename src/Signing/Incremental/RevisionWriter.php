@@ -147,7 +147,17 @@ final class RevisionWriter
                 $info,
                 $tagged['key'] ?? null,
             )
-            : $this->filledWidget($pdf, $document, $target, $signatureNumber, $appearanceNumber, $lock);
+            : $this->filledWidget(
+                $pdf,
+                $document,
+                $target,
+                $signatureNumber,
+                $appearanceNumber,
+                $lock,
+                $cipher,
+                $info,
+                $tagged['key'] ?? null,
+            );
 
         if ($visible) {
             $offsets[$imageNumber] = $base + strlen($body);
@@ -648,17 +658,47 @@ final class RevisionWriter
      * @throws InvalidPdfFileException
      */
     private function filledWidget(
-        string         $pdf,
-        DocumentInfo   $document,
-        SignatureField $target,
-        int            $signatureNumber,
-        ?int           $formNumber,
-        ?FieldLock     $lock = null,
+        string          $pdf,
+        DocumentInfo    $document,
+        SignatureField  $target,
+        int             $signatureNumber,
+        ?int            $formNumber,
+        ?FieldLock      $lock,
+        ObjectCipher    $cipher,
+        ?SignatureInfo  $info,
+        ?int            $structParent,
     ): string {
         $widget = $this->injectBeforeClose(
             $this->reader->rawObject($pdf, $document, $target->objectNumber),
             "/V {$signatureNumber} 0 R",
         );
+
+        // ISO 14289-1 7.18.4 again, and the half that was missing: a widget
+        // this method fills was written by somebody else, so it arrives with
+        // whatever description the template gave it, which is usually none.
+        // Signing is the moment the signer and the reason are known, which the
+        // template could not have known (issue #98).
+        //
+        // **A description already there is replaced, not kept**, which is the
+        // one place this package overwrites what a document said rather than
+        // appending beside it. A template describes the field it laid out, so
+        // what it wrote describes the *empty* state: a screen reader announcing
+        // "sign here" over a field that is signed tells the one user this
+        // clause exists for something that is not true. Losing the template's
+        // wording is the smaller harm.
+        $description = '/TU ' . $cipher->text($this->describe($info, $target->name), $target->objectNumber);
+
+        $widget = preg_match('/\/TU\s*(\([^)]*\)|<[0-9A-Fa-f]*>)/', $widget) === 1
+            ? (string) preg_replace('/\/TU\s*(\([^)]*\)|<[0-9A-Fa-f]*>)/', $description, $widget, 1)
+            : $this->injectBeforeClose($widget, $description);
+
+        // The structure objects are written whether or not the field is one the
+        // document already carried, so without this the /ParentTree entry
+        // pointed at a widget that did not point back: half a structure tree,
+        // which is worse than none (docs/decisions/0113-the-seal-joins-the-structure-tree.md).
+        if ($structParent !== null && preg_match('/\/StructParent\s+\d+/', $widget) !== 1) {
+            $widget = $this->injectBeforeClose($widget, "/StructParent {$structParent}");
+        }
 
         if ($lock !== null) {
             // A template may already carry a /Lock of its own, and the caller

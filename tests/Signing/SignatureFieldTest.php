@@ -298,3 +298,56 @@ it('reports a zero rectangle for a field that declares none', function () {
         ->and($fields[0]->isVisible())->toBeFalse()
         ->and($fields[0]->pageNumber)->toBe(0);
 });
+
+it('describes the field it fills, and replaces what the template said', function () {
+    // ISO 14289-1 7.18.4. A widget filled here was laid out by somebody else,
+    // so it arrives describing the *empty* state, and a screen reader
+    // announcing "sign here" over a signed field tells the one user the clause
+    // exists for something untrue (issue #98).
+    [$pfxPath, $password] = debugCertificate();
+
+    $laidOut = signet()->addSignatureField(
+        resource('test.pdf'),
+        'SignatureDirector',
+        new SealPlacement(x: 40, y: 120, width: 90, height: 45),
+    )->contents;
+
+    // What the field maker writes for a field with no signer yet.
+    expect($laidOut)->toContain('/TU (Signature field SignatureDirector)');
+
+    $signed = signet()->newSignature()
+        ->certificate($pfxPath, $password)
+        ->pdfContents($laidOut)
+        ->info(name: 'Ana Silva', reason: 'Board approval')
+        ->intoField('SignatureDirector')
+        ->sign()
+        ->contents;
+
+    $revision = substr($signed, strlen($laidOut));
+
+    expect($revision)->toContain('/TU (Signed by Ana Silva, Board approval)')
+        // Replaced rather than joined: two descriptions on one widget settle
+        // nothing, and the stale one is the misleading half.
+        ->and($revision)->not->toContain('/TU (Signature field SignatureDirector)')
+        // Invariant 2: the original object is still in the file, untouched.
+        ->and($laidOut)->toContain('/TU (Signature field SignatureDirector)');
+
+    deleteFiles($pfxPath);
+});
+
+it('names the field when the signature says nothing about itself', function () {
+    // No info at all, which is the case describe() falls back for: the field
+    // still gets a description, because a widget with none is the defect.
+    [$pfxPath, $password] = debugCertificate();
+
+    $signed = signet()->newSignature()
+        ->certificate($pfxPath, $password)
+        ->pdfContents(template())
+        ->intoField('SignatureEmployee')
+        ->sign()
+        ->contents;
+
+    expect(substr($signed, strlen(template())))->toContain('/TU (Signature field SignatureEmployee)');
+
+    deleteFiles($pfxPath);
+});
