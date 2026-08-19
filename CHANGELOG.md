@@ -16,7 +16,7 @@ consumers test their own signing paths with it.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [2.0.0] - 2026-08-18
+## [2.0.0] - 2026-08-19
 
 The first stable release of the standalone package. Everything below shipped in
 one release rather than in a series after it, because the backlog was closed
@@ -49,6 +49,24 @@ work here can substitute for (#48, #56, #59).
   directly is the deeper split, it needs a change in the CMS library underneath,
   and this is its prerequisite (#59)
   ([0116](docs/decisions/0116-signing-has-two-phases.md)).
+
+- **Validation reports the signature policy a signer declared.**
+  `Data\SignatureDetails::$signaturePolicy` carries the
+  `signature-policy-identifier` of RFC 5126 §5.8.1: the OID naming a policy
+  document, the digest of that document, the algorithm behind it, and the
+  `sp-uri` qualifier when there is one.
+
+  It matters in Brazil, where a verifier looks for it before calling a signature
+  ICP-Brasil conformant: a signature carrying none is cryptographically fine and
+  still reported as conformant to nothing. Until now an application could not see
+  it at all.
+
+  **What the document says, not a verdict.** The OID is not matched against a
+  table of known policies, nothing claims the policy was satisfied, and the URI
+  is not fetched, because the network stays behind the injected transport.
+  *Declaring* a policy is the other half and is not here: the attribute is
+  signed, so it has to be contributed before the attributes are signed, and the
+  CMS library underneath exposes no way to do that (#56).
 
 - **Validation no longer needs a process.** `Contracts\SignatureVerifier` is a
   seam like every other one here, with two implementations behind it:
@@ -84,6 +102,16 @@ work here can substitute for (#48, #56, #59).
   accessible does not come back claiming to be. A `/ParentTree` split across
   `/Kids` is left alone for the same reason
   ([0113](docs/decisions/0113-the-seal-joins-the-structure-tree.md)).
+
+  **A field the document already carried gets both as well.** Filling one reuses
+  the widget a template laid out, so neither key was written for it: the
+  description was absent, and the `/ParentTree` entry pointed at a widget
+  carrying no `/StructParent`, which is half a structure tree. A description
+  already there is replaced rather than kept, because a template describes the
+  field it laid out and what it wrote describes the *empty* state: a screen
+  reader announcing "sign here" over a signed field tells the one user 7.18.4
+  exists for something untrue. `Signet::addSignatureField()` writes one too,
+  naming the field, since a field with no signature has no signer to name yet.
 
 - **The documentation site says which release it documents.** It publishes
   nineteen pages off `main` and not one of them named a version, so a reader who
@@ -284,6 +312,14 @@ work here can substitute for (#48, #56, #59).
   `Support\OpensslEncrypter` stays as the reader for the earlier envelope.
 
 ### Changed
+
+- **`Contracts\PdfSigner` has two more methods**, `prepare()` and `complete()`,
+  so an application implementing it by hand has to grow them. `sign()` keeps its
+  signature and its behaviour, `Testing\FakePdfSigner` ships both already, with
+  `assertPrepared()` and `assertCompleted()` beside them, and
+  `Signing\IncrementalSigner` takes `Contracts\SignatureProducer` where it took
+  the concrete `Signing\Cades\CadesBuilder`, which still satisfies it.
+  `UPGRADE.md` carries the path.
 
 - **`Validation\SignatureVerifier` is `Validation\OpenSslCliSignatureVerifier`,
   behind `Contracts\SignatureVerifier`.** The class is unchanged and the name
