@@ -508,6 +508,22 @@ That volume **masks the host `vendor/`**, which is why an IDE reports missing
 classes after a Docker-only install. Fix it with `composer install
 --ignore-platform-reqs` on the host.
 
+### The documentation toolchain pins `vite` past VitePress
+
+`docs/.vitepress/package.json` carries an `overrides` block forcing `vite` to
+`^6.4.3` and `esbuild` to `^0.25.0`.
+
+VitePress 1.6.4 is the newest release of its line and depends on `vite` `^5.4`,
+and every advisory open against that tree is fixed in `6.4.3` with nothing
+backported to 5.x. All four are development-server issues, none of them reaches
+a published page and none reaches anyone installing this package, but
+`npm run dev` is a command a maintainer runs on their own machine and one of the
+four lets any website in the browser read from that server.
+
+The override is the smaller of two evils: the alternative is VitePress 2, which
+is an alpha. It comes out when VitePress ships a release that depends on a
+`vite` with the fixes.
+
 ## Git hooks
 
 Husky runs Pint on the staged PHP files before the commit is created, then
