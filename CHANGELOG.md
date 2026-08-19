@@ -352,6 +352,25 @@ work here can substitute for (#48, #56, #59).
 
 ### Fixed
 
+- **About one B-LT document in 256 carried a security store keyed to no
+  signature.** `Signing\Incremental\DssWriter` recovered the signature's
+  `/Contents` with `rtrim($hex, '0')` to drop the placeholder's padding, and
+  that cannot tell the padding from the DER's own trailing zeros: a CMS whose
+  final byte is `0x00` lost it, and what remained was still valid DER one byte
+  shorter, so nothing complained anywhere.
+
+  The store is keyed by the SHA-1 of those bytes and every validator keys it by
+  the SHA-1 of the CMS read at its declared length, so the `/VRI` entry was
+  written under the hash of a signature that does not exist. A reader then
+  reports a document carrying validation material as carrying none for its own
+  signature, which is the whole point of B-LT.
+
+  The last byte of a CMS is effectively the last byte of a signature value, so
+  it struck at random and had shipped since `1.0.1`. It surfaced as a test
+  failing on one PHP version and passing on the other in the same run.
+  `Validation\DerReader` existed to prevent exactly this and its docblock said
+  so; only the reading side was using it (invariant 5).
+
 - **A revision written onto an encrypted document that uses cross-reference
   streams left `/Encrypt` out of its trailer.** A cross-reference stream's
   dictionary *is* the trailer (§7.5.8.2), and only the classic path repeated the
