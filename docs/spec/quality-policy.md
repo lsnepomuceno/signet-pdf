@@ -335,6 +335,26 @@ Helpers shared across test files must live in `tests/Pest.php`. A helper defined
 inside one test file is invisible to the others under `--parallel`, which fails
 as `Call to undefined function`.
 
+**The suite is parallel-safe, and the default stays serial.** Measured in the
+container: 926 tests in 176 s serially and 76 s on sixteen processes, which is
+roughly 2.3 times faster, and `--fail-on-skipped` combines with it. So
+`vendor/bin/pest --parallel --exclude-group=network` is available to anyone who
+wants it.
+
+It is not what `composer test` runs, for one reason that is not about the tests:
+the `network` group reaches a stranger's timestamp authority, and sixteen
+workers reaching freetsa.org at once is a plausible way to be rate limited. The
+instruments are the second reason to measure before switching: veraPDF is a JVM
+per invocation and pyHanko a Python process, and sixteen at a time is a
+different memory profile from one.
+
+**A test must own what it asserts over.** The one test that could not run in
+parallel watched the *system* temporary directory for a file that must not
+appear, which any other worker signing a document could put there. It now points
+the `Signet` under test at a directory of its own, which is both the fix and a
+stronger assertion: nothing at all may appear, rather than nothing new
+(issue #89).
+
 Patches are expected to come with tests. `tests/Project/ArchTest.php` enforces the
 structural rules, so read it before adding a class.
 
