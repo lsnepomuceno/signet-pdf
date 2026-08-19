@@ -148,6 +148,7 @@ export default defineConfig({
           text: 'Signing',
           slugs: [
             'signing',
+            'two-phase-signing',
             'profiles',
             'seals',
             'templates',

@@ -46,7 +46,7 @@ rarely a reason to reach for one.
 
 ## Contracts
 
-Ten interfaces, and nothing binds them: `Signet` wires the default graph by
+Eleven interfaces, and nothing binds them: `Signet` wires the default graph by
 hand and its constructor is where a replacement goes.
 
 | Contract | Replacing it buys |
@@ -60,6 +60,7 @@ hand and its constructor is where a replacement goes.
 | `PdfSource` | documents that are not local files |
 | `PdfDestination` | somewhere to write that is not a path |
 | `SignatureValidator` | the validator behind `Signet::validate()` |
+| `SignatureProducer` | who makes the CMS, which is how a key on a token, in an HSM or behind a cloud service is used ([two-phase signing](./two-phase-signing.md)) |
 | `SignatureVerifier` | which implementation decides that a signature matches its bytes: the `openssl` binary by default, or `Validation\NativeSignatureVerifier`, which needs no process |
 
 ```php
@@ -115,7 +116,8 @@ What each one means in practice, and what to do about it, is
 
 | Class | Returned by |
 |---|---|
-| `Data\SignedPdf` | `sign()` |
+| `Data\SignedPdf` | `sign()`, and `complete()` |
+| `Data\PreparedSignature` | `prepare()`, carrying the document, the byte range and the digest to be signed |
 | `Data\SignatureReport` | `validate()` |
 | `Data\SignatureDetails` | `$report->latest()`, and each entry of the report |
 | `Data\Signer` | `$report->signers()`, and each link of a chain |

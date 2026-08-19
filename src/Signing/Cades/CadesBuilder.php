@@ -8,8 +8,10 @@ use Com\Tecnick\Pdf\Sign\Signer;
 use Com\Tecnick\Pdf\Sign\Timestamp\Client as TimestampClient;
 use Com\Tecnick\Pdf\Sign\Timestamp\Config as TimestampConfig;
 use LSNepomuceno\Signet\Config\SigningConfig;
+use LSNepomuceno\Signet\Contracts\SignatureProducer;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Data\Certificate;
+use LSNepomuceno\Signet\Enums\DigestAlgorithm;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Exceptions\InvalidCertificateContentException;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
@@ -25,7 +27,7 @@ use Throwable;
  * which had to be un-wrapped from an S/MIME envelope afterwards. The upstream
  * builder assembles the DER directly.
  */
-final readonly class CadesBuilder
+final readonly class CadesBuilder implements SignatureProducer
 {
     public function __construct(
         private SigningConfig $config,
@@ -41,6 +43,7 @@ final readonly class CadesBuilder
      * @throws SignatureTransportException When a timestamp authority the
      *          profile needs did not answer.
      */
+    #[\Override]
     public function build(
         string $content,
         Certificate $certificate,
@@ -161,8 +164,14 @@ final readonly class CadesBuilder
         ];
     }
 
+    #[\Override]
+    public function digest(): DigestAlgorithm
+    {
+        return $this->config->digest;
+    }
+
     private function digestAlgorithm(): string
     {
-        return $this->config->digest->value;
+        return $this->digest()->value;
     }
 }

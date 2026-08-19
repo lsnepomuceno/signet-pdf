@@ -7,11 +7,12 @@ namespace LSNepomuceno\Signet\Testing;
 use LSNepomuceno\Signet\Contracts\PdfSigner;
 use LSNepomuceno\Signet\Data\{Certificate,
     FieldLock,
+    PreparedSignature,
     SealImage,
     SealPlacement,
     SignatureInfo,
     SignedPdf};
-use LSNepomuceno\Signet\Enums\{CertificationLevel, SignatureProfile};
+use LSNepomuceno\Signet\Enums\{CertificationLevel, DigestAlgorithm, SignatureProfile};
 use PHPUnit\Framework\Assert;
 
 /**
@@ -30,6 +31,12 @@ final class FakePdfSigner implements PdfSigner
 {
     /** @var list<array{document: string, fieldName: string, profile: ?SignatureProfile, certification: ?CertificationLevel, sealed: bool}> */
     public array $signed = [];
+
+    /** @var list<PreparedSignature> */
+    public array $prepared = [];
+
+    /** @var list<string> */
+    public array $completed = [];
 
     #[\Override]
     public function sign(
@@ -56,7 +63,76 @@ final class FakePdfSigner implements PdfSigner
 
         // Something the calling code can use: it will read ->contents, call
         // ->save() or ->size(), and a null would fail somewhere unhelpful.
-        return new SignedPdf("%PDF-1.4\n% faked by " . self::class . "\n%%EOF\n");
+        return new SignedPdf($this->fakeDocument());
+    }
+
+    /**
+     * Phase one, faked: nothing is written and no key is involved.
+     *
+     * What comes back is usable rather than a stub. The digest is a real
+     * digest of the faked document, so an application testing a two-phase flow
+     * can send `digestBase64()` to whatever it sends it to, keep the object,
+     * and hand the answer back to complete() exactly as it would in production.
+     */
+    #[\Override]
+    public function prepare(
+        string &$pdfContents,
+        SignatureInfo $info,
+        string $fieldName = 'Signature',
+        ?SealImage $seal = null,
+        ?SealPlacement $placement = null,
+        ?SignatureProfile $profile = null,
+        ?string $intoField = null,
+        ?CertificationLevel $certification = null,
+        ?FieldLock $lock = null,
+        #[\SensitiveParameter]
+        string $documentPassword = '',
+    ): PreparedSignature {
+        $document = $this->fakeDocument();
+
+        $prepared = new PreparedSignature(
+            $document,
+            [0, strlen($document), strlen($document), 0],
+            8192,
+            $profile ?? SignatureProfile::PadesBB,
+            DigestAlgorithm::Sha256,
+            hash('sha256', $document, true),
+            $intoField ?? $fieldName,
+            $certification,
+        );
+
+        $this->prepared[] = $prepared;
+
+        return $prepared;
+    }
+
+    /**
+     * Phase two, faked: the CMS is recorded and nothing is embedded.
+     */
+    #[\Override]
+    public function complete(
+        PreparedSignature $prepared,
+        string $cms,
+        ?Certificate $certificate = null,
+        #[\SensitiveParameter]
+        string $documentPassword = '',
+    ): SignedPdf {
+        $this->completed[] = $cms;
+
+        $this->signed[] = [
+            'document' => $prepared->document,
+            'fieldName' => $prepared->fieldName,
+            'profile' => $prepared->profile,
+            'certification' => $prepared->certification,
+            'sealed' => false,
+        ];
+
+        return new SignedPdf($prepared->document);
+    }
+
+    private function fakeDocument(): string
+    {
+        return "%PDF-1.4\n% faked by " . self::class . "\n%%EOF\n";
     }
 
     /*
@@ -134,6 +210,26 @@ final class FakePdfSigner implements PdfSigner
         Assert::assertTrue($found, $level === null
             ? 'Expected a certified document, and none was.'
             : "Expected a document certified at [{$level->value}], and none was.");
+    }
+
+    /**
+     * A two-phase signature was prepared, whether or not it was finished.
+     */
+    public function assertPrepared(int $times = 1): void
+    {
+        Assert::assertCount($times, $this->prepared);
+    }
+
+    /**
+     * A prepared signature was finished with a CMS from somewhere else.
+     */
+    public function assertCompleted(?string $cms = null): void
+    {
+        Assert::assertNotEmpty($this->completed, 'Expected a prepared signature to be completed, and none was.');
+
+        if ($cms !== null) {
+            Assert::assertContains($cms, $this->completed);
+        }
     }
 
     public function assertSealed(): void

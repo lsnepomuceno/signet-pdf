@@ -38,6 +38,23 @@ $signer->assertNothingSigned();
 the case where what matters is which document was signed rather than that one
 was.
 
+**Two-phase signing is faked too.** `prepare()` returns a real
+`Data\PreparedSignature` over the faked document, digest included, so an
+application can exercise the whole round trip without a certificate:
+
+```php
+$prepared = $signet->newSignature()->pdfContents($pdf)->prepare();
+
+$signer->assertPrepared();
+
+$signet->complete($prepared, $cmsFromYourService);
+
+$signer->assertCompleted();
+```
+
+What the fake records is on `$signer->prepared` and `$signer->completed`. See
+[Two-phase signing](./two-phase-signing.md).
+
 ## A real certificate, generated on the spot
 
 When the test needs real key material rather than a double,

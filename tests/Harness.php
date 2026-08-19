@@ -16,6 +16,7 @@ use LSNepomuceno\Signet\Contracts\CertificateReader;
 use LSNepomuceno\Signet\Contracts\PdfSigner;
 use LSNepomuceno\Signet\Contracts\ProcessRunner;
 use LSNepomuceno\Signet\Contracts\SealRenderer;
+use LSNepomuceno\Signet\Contracts\SignatureProducer;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Contracts\SignatureValidator;
 use LSNepomuceno\Signet\Contracts\SignatureVerifier;
@@ -24,6 +25,7 @@ use LSNepomuceno\Signet\Enums\FontSize;
 use LSNepomuceno\Signet\Enums\ImageDriver;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Seal\InterventionSealRenderer;
+use LSNepomuceno\Signet\Signing\Cades\CadesBuilder;
 use LSNepomuceno\Signet\Signing\Cades\HttpTransport;
 use LSNepomuceno\Signet\Signing\IncrementalSigner;
 use LSNepomuceno\Signet\Support\SymfonyProcessRunner;
@@ -426,6 +428,12 @@ final class Harness
             // differential test, and only there
             // (docs/decisions/0114-verification-has-two-implementations.md).
             SignatureVerifier::class => static fn(self $h): object => $h->make(OpenSslCliSignatureVerifier::class),
+
+            // The seam that lets the private key live somewhere else. The
+            // default is the builder the package ships, so a test that says
+            // nothing measures the real CAdES
+            // (docs/decisions/0116-signing-has-two-phases.md).
+            SignatureProducer::class => static fn(self $h): object => $h->make(CadesBuilder::class),
 
             // The seam invariant 9 is built on: everything the profiles above
             // pades-b-b add rides through here, and a test that can replace it

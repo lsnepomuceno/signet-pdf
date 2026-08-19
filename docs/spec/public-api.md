@@ -546,7 +546,8 @@ What is left:
 | RC4-encrypted documents | refused, deliberately: signing one means writing RC4 back into it ([0030](../decisions/0030-signing-a-document-that-is-encrypted.md)) |
 | A security handler other than the standard one | its key comes from somewhere this package cannot reach, by definition |
 | Fetching revocation at validation time | evaluated from what the document carries, never from the network. That is a decision rather than a gap ([0024](../decisions/0024-revocation-is-evaluated-not-counted.md)) |
-| Signing with an A3 token, a smart card or an HSM | out of scope: this package signs with A1 material it can hold |
+| Signing with an A3 token, a smart card or an HSM | supported through two phases: `prepare()` here, the CMS made where the key is, `complete()` here (docs/decisions/0116-signing-has-two-phases.md) |
+| Handing out the signed attributes for an external key to sign directly | out of scope for now: the CMS assembly underneath exposes no such seam, and issue #59 tracks it |
 
 ## Supplying the chain
 

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace LSNepomuceno\Signet\Signing;
 
 use LSNepomuceno\Signet\Contracts\PdfSigner;
+use LSNepomuceno\Signet\Contracts\SignatureProducer;
 use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Data\FieldLock;
+use LSNepomuceno\Signet\Data\PreparedSignature;
 use LSNepomuceno\Signet\Data\SealImage;
 use LSNepomuceno\Signet\Data\SealPlacement;
 use LSNepomuceno\Signet\Data\SignatureField;
@@ -19,7 +21,6 @@ use LSNepomuceno\Signet\Exceptions\CertificationException;
 use LSNepomuceno\Signet\Exceptions\FieldLockException;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Exceptions\SignatureFieldException;
-use LSNepomuceno\Signet\Signing\Cades\CadesBuilder;
 use LSNepomuceno\Signet\Signing\Incremental\ByteRangeCalculator;
 use LSNepomuceno\Signet\Signing\Incremental\CertificationReader;
 use LSNepomuceno\Signet\Signing\Incremental\DocTimeStampWriter;
@@ -31,6 +32,8 @@ use LSNepomuceno\Signet\Signing\Incremental\RevisionWriter;
 use LSNepomuceno\Signet\Signing\Incremental\SignatureFieldReader;
 use LSNepomuceno\Signet\Support\Bytes;
 use LSNepomuceno\Signet\Support\SigningLog;
+use LSNepomuceno\Signet\Validation\ChainBuilder;
+use LSNepomuceno\Signet\Validation\Pkcs7Reader;
 
 /**
  * Signs by appending a revision, leaving the original bytes untouched.
@@ -59,7 +62,7 @@ final readonly class IncrementalSigner implements PdfSigner
         private DocumentReader $reader,
         private RevisionWriter $writer,
         private ByteRangeCalculator $byteRange,
-        private CadesBuilder $cades,
+        private SignatureProducer $cades,
         private DssWriter $dss,
         private DocTimeStampWriter $archiveTimestamp,
         // Defaulted, not required. 2.2 added both as required parameters and
@@ -77,6 +80,12 @@ final readonly class IncrementalSigner implements PdfSigner
         // logs unasked fills somebody's disk
         // (docs/decisions/0035-the-audit-trail-is-opt-in.md).
         private SigningLog $log = new SigningLog(),
+        // Appended for the same reason, and only the second phase reads them:
+        // a signature completed from somewhere else arrives as a CMS with no
+        // certificate beside it, and B-LT needs the chain
+        // (docs/decisions/0116-signing-has-two-phases.md).
+        private Pkcs7Reader $pkcs7 = new Pkcs7Reader(),
+        private ChainBuilder $chain = new ChainBuilder(),
     ) {}
 
     public function sign(
@@ -93,6 +102,48 @@ final readonly class IncrementalSigner implements PdfSigner
         #[\SensitiveParameter]
         string $documentPassword = '',
     ): SignedPdf {
+        $profile ??= SignatureProfile::PadesBB;
+
+        // The one-shot path is the two-phase one with nothing waiting in the
+        // middle, and that is the point: a second write path is a second place
+        // for the width guard, the placeholder offset and the order the store
+        // and the archive timestamp are appended in to drift apart
+        // (docs/decisions/0116-signing-has-two-phases.md).
+        $prepared = $this->prepare(
+            $pdfContents,
+            $info,
+            $fieldName,
+            $seal,
+            $placement,
+            $profile,
+            $intoField,
+            $certification,
+            $lock,
+            $documentPassword,
+        );
+
+        return $this->complete(
+            $prepared,
+            $this->cades->build($prepared->signableBytes(), $certificate, $profile),
+            $certificate,
+            $documentPassword,
+        );
+    }
+
+    #[\Override]
+    public function prepare(
+        string &$pdfContents,
+        SignatureInfo $info,
+        string $fieldName = 'Signature',
+        ?SealImage $seal = null,
+        ?SealPlacement $placement = null,
+        ?SignatureProfile $profile = null,
+        ?string $intoField = null,
+        ?CertificationLevel $certification = null,
+        ?FieldLock $lock = null,
+        #[\SensitiveParameter]
+        string $documentPassword = '',
+    ): PreparedSignature {
         $profile ??= SignatureProfile::PadesBB;
 
         $document = $this->reader->read($pdfContents, $documentPassword);
@@ -143,46 +194,89 @@ final readonly class IncrementalSigner implements PdfSigner
         // 200 MB not held for the rest of the call (issue #285).
         $pdfContents = '';
 
-        // Both of these rewrite a fixed-width span, so both work on the
-        // document in place rather than returning a new one.
+        // In place, and the reason the offsets stop moving here: the
+        // replacement is the same width as the placeholder by construction, so
+        // everything after this point is a fixed-width overwrite.
         $this->byteRange->apply($signed, self::CONTENTS_HEX_LENGTH);
-        $this->embedSignature($signed, $certificate, $profile);
+
+        [$open, $close, $trailing] = $this->byteRange->readLast($signed);
+
+        $digest = $this->cades->digest();
+
+        return new PreparedSignature(
+            $signed,
+            [0, $open, $close, $trailing],
+            intdiv(self::CONTENTS_HEX_LENGTH, 2),
+            $profile,
+            $digest,
+            hash($digest->value, $this->byteRange->signableSpan($signed, $open, $close, $trailing), true),
+            $fieldName,
+            $certification,
+        );
+    }
+
+    #[\Override]
+    public function complete(
+        PreparedSignature $prepared,
+        string $cms,
+        ?Certificate $certificate = null,
+        #[\SensitiveParameter]
+        string $documentPassword = '',
+    ): SignedPdf {
+        $signed = $prepared->document;
+
+        $this->embed($signed, $cms);
 
         // B-LT and above append the validation material as a further revision,
         // after the signature it vouches for is already in place.
-        if ($profile->needsValidationMaterial()) {
-            $signed = $this->dss->append($signed, $certificate, $documentPassword);
+        if ($prepared->profile->needsValidationMaterial()) {
+            $signed = $certificate === null
+                ? $this->dss->refresh($signed, $this->chains($cms), $documentPassword)
+                : $this->dss->append($signed, $certificate, $documentPassword);
         }
 
         // B-LTA closes with an archive timestamp over the whole file, so the
         // validation material is attested along with the signature.
-        if ($profile->needsArchiveTimestamp()) {
+        if ($prepared->profile->needsArchiveTimestamp()) {
             $signed = $this->archiveTimestamp->append($signed, $documentPassword);
         }
 
         $this->log->record(SigningEvent::SignatureApplied, [
-            'profile' => $profile->value,
-            'field' => $fieldName,
-            'certification' => $certification?->value,
-            'signer' => $certificate->commonName(),
+            'profile' => $prepared->profile->value,
+            'field' => $prepared->fieldName,
+            'certification' => $prepared->certification?->value,
+            // Null when the signature was produced somewhere else, which is
+            // the honest answer: the certificate never reached this process.
+            'signer' => $certificate?->commonName(),
         ]);
 
         return new SignedPdf($signed);
     }
 
     /**
+     * The signer's chain, read back out of the CMS that was just handed in.
+     *
+     * The store needs the certificates the signature was made with, and a
+     * two-phase signature arrives without a Certificate beside it. They are in
+     * the CMS itself, which is where a validator reads them from too.
+     *
+     * @return list<list<string>>
+     */
+    private function chains(string $cms): array
+    {
+        $chain = $this->chain->build($this->pkcs7->certificates($cms));
+
+        return $chain === [] ? [] : [$chain];
+    }
+
+    /**
+     * Writes the CMS into the space held for it.
+     *
      * @throws InvalidPdfFileException
      */
-    private function embedSignature(string &$pdf, Certificate $certificate, SignatureProfile $profile): void
+    private function embed(string &$pdf, string $der): void
     {
-        [$open, $close, $trailing] = $this->byteRange->readLast($pdf);
         $open = $this->byteRange->lastContentsOffset($pdf);
-
-        $der = $this->cades->build(
-            $this->byteRange->signableSpan($pdf, $open, $close, $trailing),
-            $certificate,
-            $profile,
-        );
 
         $hex = bin2hex($der);
 
