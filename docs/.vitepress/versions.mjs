@@ -46,6 +46,17 @@ const ARCHIVES = [
   },
 ]
 
+/**
+ * Where the current line lives, as an absolute URL.
+ *
+ * An archive cannot link to it as an internal path: VitePress prepends the
+ * site's own base to those, and the archive's base is `/signet-pdf/v1/`, so
+ * `/signet-pdf/` renders as `/signet-pdf/v1/signet-pdf/`. An absolute URL is
+ * the one form that leaves an archive's link alone, and an archive is published
+ * at exactly one address for the life of the project.
+ */
+const CURRENT = 'https://lsnepomuceno.github.io/signet-pdf/'
+
 function run(command, args, options = {}) {
   execFileSync(command, args, { stdio: 'inherit', ...options })
 }
@@ -139,7 +150,7 @@ title: ${archive.title}
 as it stood: the specification, the decision records and the history.
 
 For the line that is current now, go to the
-[current documentation](/signet-pdf/).
+[current documentation](${CURRENT}).
 
 The \`${archive.line}\` line had no guide. It was documented by its README, which
 is on the tag, and by the pages below.
@@ -175,21 +186,18 @@ export default defineConfig({
   head: [['meta', { name: 'theme-color', content: '#cf222e' }]],
 
   themeConfig: {
-    release: {
-      version: ${JSON.stringify(archive.tag)},
-      line: ${JSON.stringify(archive.line)},
-      released: true,
-      archived: true,
-    },
-
     nav: [
       { text: 'Specification', link: '/spec/public-api', activeMatch: '^/spec/' },
       { text: 'Decisions', link: '/decisions/README', activeMatch: '^/decisions/' },
       { text: 'History', link: '/history/decision-log', activeMatch: '^/history/' },
       {
-        text: ${JSON.stringify(archive.line)},
+        text: ${JSON.stringify(archive.line + ' (archived)')},
         items: [
-          { text: 'Current documentation', link: '/signet-pdf/' },
+          // Absolute, because an internal path here would get the archive's
+          // own prefix; and with a target, because the router would otherwise
+          // intercept a same-origin link and look for the route inside the
+          // archive, which does not have it.
+          { text: 'Current documentation', link: '${CURRENT}', target: '_self' },
           { text: 'All releases', link: 'https://github.com/lsnepomuceno/signet-pdf/releases' },
         ],
       },

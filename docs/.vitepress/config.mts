@@ -91,10 +91,6 @@ export default defineConfig({
   head: [['meta', { name: 'theme-color', content: '#cf222e' }]],
 
   themeConfig: {
-    // Handed to the client so the banner every page carries can name the line
-    // this build documents (docs/decisions/0112-the-site-documents-one-release-line.md).
-    release: release(),
-
     // `activeMatch` on every entry, because the default is an exact match
     // against `link`: without it "Guide" highlights on the one page it points
     // at and goes dark on the other sixteen, which reads as having left the
@@ -114,8 +110,20 @@ export default defineConfig({
           { text: 'Changelog', link: '/releases/changelog' },
           { text: 'Upgrading', link: '/releases/upgrade' },
           {
+            // Two things this entry has to get right, and both were wrong once.
+            //
+            // **Without the base**, because VitePress prepends it to an
+            // internal link: written as `/signet-pdf/v1/` it rendered
+            // `/signet-pdf/signet-pdf/v1/` and 404'd.
+            //
+            // **With a target**, because the archive is a separate VitePress
+            // application rather than a route of this one. The client router
+            // skips any link carrying a `target` attribute, and without that it
+            // intercepted the click, looked for `/v1/` among this build's
+            // routes, and rendered this site's own 404 at the right URL.
             text: '1.x (archived)',
-            link: '/signet-pdf/v1/',
+            link: '/v1/',
+            target: '_self',
           },
           {
             text: 'All releases',
