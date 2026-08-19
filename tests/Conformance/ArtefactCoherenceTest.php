@@ -91,7 +91,7 @@ it('signs every committed artefact with the certificate the repository holds', f
 it('has artefacts to check, so an empty list cannot pass for a green gate', function () {
     // A glob that silently returns nothing would make the dataset above run no
     // cases at all and report success.
-    expect(signedArtefacts())->toHaveCount(12);
+    expect(signedArtefacts())->toHaveCount(13);
 });
 
 it('signs the foreign fixture with the same certificate, though another tool wrote it', function () {
