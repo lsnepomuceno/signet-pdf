@@ -99,6 +99,7 @@ offers one-shot entry points, and each is covered in the guide:
 | `validate()` | a `Data\SignatureReport` for a document |
 | `signatureFields()` | the signature fields a document declares, signed or not |
 | `addSignatureField()` | lay out an empty field, so a template can be prepared here rather than in a word processor |
+| `complete()` | finish a signature `prepare()` set up, with a CMS made somewhere else |
 | `extendArchive()` | a further archive timestamp, with no certificate involved |
 | `encryptCertificate()` | seal a bundle and its password at rest |
 | `decryptCertificate()` | open what was sealed |
@@ -121,6 +122,7 @@ entry point entirely.
 | **Template fields** | fills a signature field a contract already carries, instead of appending beside it |
 | **Certification** | ISO 32000-1 §12.8.2.2 DocMDP, plus field locks that later signatures honour |
 | **Encrypted documents** | AES-128 and AES-256, signed and re-encrypted under the document's own key |
+| **Two-phase signing** | `prepare()` here, sign on a token, an HSM or a cloud service, `complete()` here: the private key never has to be in this process |
 | **Archive maintenance** | refresh a B-LTA archive with no certificate and no key material involved, from PHP or from a cron entry |
 | **Verification** | the CMS is actually verified, with the timestamp, the profile and revocation reported |
 | **ICP-Brasil identity** | CPF, CNPJ (including the alphanumeric one) and the rest, read from the certificate rather than parsed out of a name |

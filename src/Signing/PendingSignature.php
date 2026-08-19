@@ -14,6 +14,7 @@ use LSNepomuceno\Signet\Contracts\PdfSource;
 use LSNepomuceno\Signet\Contracts\SealRenderer;
 use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Data\FieldLock;
+use LSNepomuceno\Signet\Data\PreparedSignature;
 use LSNepomuceno\Signet\Data\SealImage;
 use LSNepomuceno\Signet\Data\SealLayout;
 use LSNepomuceno\Signet\Data\SealPlacement;
@@ -464,18 +465,7 @@ final class PendingSignature
             throw new FileNotFoundException('no certificate given; call certificate() first');
         }
 
-        if ($this->pdfContents === null && $this->pdfPath !== null) {
-            // Signed once already, and the bytes were released. Reading them
-            // back is cheaper than holding a copy for a reuse that usually
-            // never happens.
-            $this->pdfContents = Files::read($this->pdfPath);
-        }
-
-        if ($this->pdfContents === null) {
-            throw new FileNotFoundException(
-                'no document given; call pdf() first, or pdfContents() again if this builder has already signed',
-            );
-        }
+        $this->pdfContents = $this->document();
 
         $certificate = $this->chain->into($this->certificate, $this->chainMaterial());
 
@@ -499,6 +489,71 @@ final class PendingSignature
         );
 
         return new SignedPdf($signed->contents, $this->signedFileName());
+    }
+
+    /**
+     * Everything sign() does except the signature itself.
+     *
+     * The document comes back with its revision appended, its /ByteRange
+     * filled and its /Contents still empty, which is a complete artefact: the
+     * offsets no longer move, so it can be stored, sent somewhere with a key
+     * this process does not have, and finished later with
+     * `Signet::complete()` (docs/decisions/0116-signing-has-two-phases.md).
+     *
+     * **A certificate is only needed for a seal drawn from one.** Nothing
+     * before the CMS reads a private key, which is the whole reason this half
+     * exists.
+     *
+     * @throws CertificationException
+     * @throws FieldLockException
+     * @throws FileNotFoundException
+     * @throws InvalidPdfFileException
+     * @throws SealPlacementException
+     * @throws SignatureFieldException
+     */
+    public function prepare(): PreparedSignature
+    {
+        if ($this->targetField !== null && $this->placement !== null) {
+            throw SignatureFieldException::placementConflict($this->targetField);
+        }
+
+        $this->pdfContents = $this->document();
+
+        $seal = $this->withSeal ? $this->renderSeal() : null;
+
+        // By reference, for the same reason sign() passes it that way: the
+        // signer releases the original bytes the moment the revision exists.
+        return $this->signer->prepare(
+            $this->pdfContents,
+            $this->info,
+            $this->fieldName,
+            $seal,
+            $seal !== null ? ($this->placement ?? $this->defaultPlacement()) : null,
+            SignatureProfile::resolve($this->profile ?? $this->config->profile),
+            $this->targetField,
+            $this->certification,
+            $this->lock,
+            $this->documentPassword,
+        );
+    }
+
+    /**
+     * The bytes to sign, read from the path when they were released.
+     *
+     * @throws FileNotFoundException
+     */
+    private function document(): string
+    {
+        if ($this->pdfContents === null && $this->pdfPath !== null) {
+            // Signed once already, and the bytes were released. Reading them
+            // back is cheaper than holding a copy for a reuse that usually
+            // never happens.
+            $this->pdfContents = Files::read($this->pdfPath);
+        }
+
+        return $this->pdfContents ?? throw new FileNotFoundException(
+            'no document given; call pdf() first, or pdfContents() again if this builder has already signed',
+        );
     }
 
     /**
@@ -537,7 +592,9 @@ final class PendingSignature
         }
 
         return $this->sealRenderer->render(
-            $this->certificate ?? throw new FileNotFoundException('no certificate'),
+            $this->certificate ?? throw new FileNotFoundException(
+                'a seal drawn from the certificate needs one; call certificate(), or sealFrom() with an image',
+            ),
             $this->sealFontSize,
             $this->sealShowsExpiry,
             layout: $this->sealLayout,

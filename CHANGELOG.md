@@ -21,9 +21,34 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The first stable release of the standalone package. Everything below shipped in
 one release rather than in a series after it, because the backlog was closed
 first: what remains open needs a change in `tecnickcom/tc-lib-pdf-sign` that no
-work here can substitute for (#44, #48, #56, #59).
+work here can substitute for (#48, #56, #59).
 
 ### Added
+
+- **The private key does not have to be in this process.** Signing is
+  `prepare()` and `complete()`, and `sign()` is the two of them with nothing
+  waiting in between. The first phase appends the revision and fills the
+  `/ByteRange`, which is where the offsets stop moving: what comes back is a
+  complete document with an empty `/Contents`, and finishing it is one
+  fixed-width overwrite that can happen in another process, hours later.
+
+  **It takes no certificate at all.** `Data\PreparedSignature` carries the
+  document, the byte range, the reserved width and the digest of the covered
+  bytes, and that digest is exactly the `message-digest` the finished CMS commits
+  to. It survives `serialize()`, so it crosses a queue; usually only
+  `digestBase64()` travels and the document stays where it is.
+
+  `pades-b-lt` and `pades-b-lta` work this way too, with no certificate in the
+  second phase either: the chain the security store needs is read back out of the
+  CMS that was handed in. For the synchronous case,
+  `Contracts\SignatureProducer` is the seam inside `sign()` itself, and
+  `Signing\Cades\CadesBuilder` is the default behind it.
+
+  This is what makes a key on an A3 token, in an HSM or behind a cloud service
+  usable (#44). Handing out the signed attributes for an external key to sign
+  directly is the deeper split, it needs a change in the CMS library underneath,
+  and this is its prerequisite (#59)
+  ([0116](docs/decisions/0116-signing-has-two-phases.md)).
 
 - **Validation no longer needs a process.** `Contracts\SignatureVerifier` is a
   seam like every other one here, with two implementations behind it:
@@ -63,8 +88,9 @@ work here can substitute for (#44, #48, #56, #59).
 - **The documentation site says which release it documents.** It publishes
   nineteen pages off `main` and not one of them named a version, so a reader who
   installed `^1` was reading pages written against `2.x` with nothing on the page
-  to say so. Every page now carries a banner naming the line, read from this
-  file's own topmost heading rather than from a literal that would drift.
+  to say so. The current line is at the root and the `1.x` line is archived
+  beside it under `/v1/`, built from that tag's own markdown, with a version
+  switcher in the navigation on both.
 
   `CHANGELOG.md` and `UPGRADE.md` are pages of the site as well, under
   `/releases/`, and stay canonical in the repository root where GitHub renders

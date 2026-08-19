@@ -6,6 +6,7 @@ namespace LSNepomuceno\Signet\Contracts;
 
 use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Data\FieldLock;
+use LSNepomuceno\Signet\Data\PreparedSignature;
 use LSNepomuceno\Signet\Data\SealImage;
 use LSNepomuceno\Signet\Data\SealPlacement;
 use LSNepomuceno\Signet\Data\SignatureInfo;
@@ -64,6 +65,62 @@ interface PdfSigner
         ?string $intoField = null,
         ?CertificationLevel $certification = null,
         ?FieldLock $lock = null,
+        #[\SensitiveParameter]
+        string $documentPassword = '',
+    ): SignedPdf;
+
+    /**
+     * Everything sign() does except the signature, so the key can be elsewhere.
+     *
+     * The revision is appended and the /ByteRange filled, which is the point at
+     * which the offsets stop moving: what comes back is a complete document
+     * with an empty /Contents, and finishing it is a fixed-width overwrite that
+     * can happen in another process, hours later
+     * (docs/decisions/0116-signing-has-two-phases.md).
+     *
+     * **No certificate is taken.** Nothing before the CMS needs one, so a
+     * signer whose key is on a token or behind a cloud service reaches this
+     * half unchanged. A seal drawn from a certificate is rendered by the caller
+     * and arrives as $seal like any other.
+     *
+     * @throws \LSNepomuceno\Signet\Exceptions\CertificationException
+     * @throws \LSNepomuceno\Signet\Exceptions\FieldLockException
+     * @throws \LSNepomuceno\Signet\Exceptions\InvalidPdfFileException
+     * @throws \LSNepomuceno\Signet\Exceptions\SignatureFieldException
+     */
+    public function prepare(
+        string &$pdfContents,
+        SignatureInfo $info,
+        string $fieldName = 'Signature',
+        ?SealImage $seal = null,
+        ?SealPlacement $placement = null,
+        ?SignatureProfile $profile = null,
+        ?string $intoField = null,
+        ?CertificationLevel $certification = null,
+        ?FieldLock $lock = null,
+        #[\SensitiveParameter]
+        string $documentPassword = '',
+    ): PreparedSignature;
+
+    /**
+     * Writes a finished CMS into the space prepare() held for it.
+     *
+     * @param  string  $cms  The detached CMS, in DER, over the prepared
+     *          signature's covered bytes.
+     * @param  Certificate|null  $certificate  Only the profiles that embed
+     *          validation material read it, and only for the chain. Null is
+     *          the two-phase case: the chain is read back out of the CMS,
+     *          which is where a validator finds it too.
+     *
+     * @throws \LSNepomuceno\Signet\Exceptions\InvalidPdfFileException When
+     *          the CMS does not fit the reserved space.
+     * @throws \LSNepomuceno\Signet\Exceptions\SignatureTransportException
+     *          From pades-b-lta, when the authority did not answer.
+     */
+    public function complete(
+        PreparedSignature $prepared,
+        string $cms,
+        ?Certificate $certificate = null,
         #[\SensitiveParameter]
         string $documentPassword = '',
     ): SignedPdf;

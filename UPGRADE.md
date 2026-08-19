@@ -9,6 +9,28 @@ number (`docs/spec/quality-policy.md`).
 
 # Upgrading to 2.0 from 1.x
 
+## `Contracts\PdfSigner` has two more methods
+
+Signing is `prepare()` then `complete()`, and `sign()` is implemented over them.
+Both are on the contract, so an application that implements `PdfSigner` by hand
+has to grow them:
+
+```php
+public function prepare(string &$pdfContents, SignatureInfo $info, ...): PreparedSignature;
+
+public function complete(PreparedSignature $prepared, string $cms, ...): SignedPdf;
+```
+
+**Nothing changes for a caller.** `sign()` keeps its signature and its
+behaviour, and `Testing\FakePdfSigner` ships both new methods already.
+
+`Signing\IncrementalSigner` now takes `Contracts\SignatureProducer` where it
+took `Signing\Cades\CadesBuilder`. Passing the concrete class still works,
+since it implements the contract.
+
+See docs/decisions/0116-signing-has-two-phases.md, and
+docs/guide/two-phase-signing.md for what the split is for.
+
 ## `Validation\SignatureVerifier` is now a contract with two implementations
 
 The class that answered "does this signature match these bytes" was concrete and

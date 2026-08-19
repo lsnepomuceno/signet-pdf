@@ -19,6 +19,7 @@ use LSNepomuceno\Signet\Contracts\SignatureValidator;
 use LSNepomuceno\Signet\Contracts\SignatureVerifier;
 use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Data\EncryptedCertificate;
+use LSNepomuceno\Signet\Data\PreparedSignature;
 use LSNepomuceno\Signet\Data\SealPlacement;
 use LSNepomuceno\Signet\Data\SignatureField;
 use LSNepomuceno\Signet\Data\SignatureReport;
@@ -155,6 +156,40 @@ final class Signet
             $this->config->signing,
             $this->config->certificate,
         );
+    }
+
+    /**
+     * Finishes a signature prepared earlier, possibly by another process.
+     *
+     * The second half of two-phase signing: `PendingSignature::prepare()`
+     * returns a document whose offsets have stopped moving, and this writes the
+     * CMS into the space held for it
+     * (docs/decisions/0116-signing-has-two-phases.md).
+     *
+     * @param  string  $cms  The detached CMS, in DER, over
+     *          `PreparedSignature::signableBytes()`.
+     * @param  Certificate|null  $certificate  Read only by the profiles that
+     *          embed validation material, and only for the chain. Null is the
+     *          ordinary two-phase case: the chain comes out of the CMS.
+     * @param  string  $documentPassword  The password the document was prepared
+     *          with, when it is encrypted. It is not carried on the prepared
+     *          signature on purpose: that object is written to a queue or a
+     *          database, and a password stored beside the document it opens is
+     *          not a password (docs/decisions/0030-signing-a-document-that-is-encrypted.md).
+     *
+     * @throws InvalidPdfFileException When the CMS does not fit the reserved
+     *          space.
+     * @throws SignatureTransportException From pades-b-lta, when the authority
+     *          did not answer.
+     */
+    public function complete(
+        PreparedSignature $prepared,
+        string $cms,
+        ?Certificate $certificate = null,
+        #[SensitiveParameter]
+        string $documentPassword = '',
+    ): SignedPdf {
+        return $this->signer()->complete($prepared, $cms, $certificate, $documentPassword);
     }
 
     /**

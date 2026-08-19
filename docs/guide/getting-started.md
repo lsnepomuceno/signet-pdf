@@ -114,6 +114,8 @@ general catch still works.
 
 - [Signing a document](./signing.md): the builder in full, from certificate to
   written file, including multiple signatures and the shortcuts.
+- [Two-phase signing](./two-phase-signing.md): preparing here, signing on a
+  token, an HSM or a cloud service, and finishing here.
 - [Profiles and timestamps](./profiles.md): the five PAdES levels, which to ask
   for, and how an archive is extended without a certificate.
 - [Visible seals](./seals.md): where a seal goes, how it is drawn, and how to

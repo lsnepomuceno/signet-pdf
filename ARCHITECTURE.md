@@ -80,7 +80,7 @@ none (docs/decisions/0100-the-core-is-framework-agnostic.md).
 | `src/Validation/` | Reads signatures back, and says whether they verify. |
 | `src/Certificates/` | PKCS#12 and PEM readers, plus the vault. |
 | `src/Config/` | Value objects. The core reads no configuration file. |
-| `src/Contracts/` | The seams: signer, validator, reader, seal, transport, process runner, source, destination, encrypter. |
+| `src/Contracts/` | The seams: signer, CMS producer, validator, verifier, reader, seal, transport, process runner, source, destination, encrypter. |
 | `src/Io/` | Sources and destinations for documents. |
 | `src/Data/` | `final readonly` DTOs. Public return types, so their shape is public. |
 | `src/Console/` | The `signet` command line, over `symfony/console`. |
