@@ -41,6 +41,7 @@ use LSNepomuceno\Signet\Config\TimestampConfig;
 use LSNepomuceno\Signet\Data\SealPlacement;
 use LSNepomuceno\Signet\Enums\CertificationLevel;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
+use LSNepomuceno\Signet\Exceptions\SignatureTransportException;
 use LSNepomuceno\Signet\Signet;
 use LSNepomuceno\Signet\Signing\PendingSignature;
 
@@ -289,16 +290,37 @@ function selected(array $arguments): array
     return array_intersect_key($recipes, array_flip($names));
 }
 
-$arguments = array_slice($argv, 1);
+// $_SERVER rather than $argv: the latter exists only when
+// `register_argc_argv` is on, which a hardened php.ini turns off and static
+// analysis is right to point out. Missing is refused rather than read as "no
+// arguments", since that would quietly rebuild all eleven for somebody who
+// asked for one.
+$parameters = $_SERVER['argv'] ?? null;
+
+if (! \is_array($parameters)) {
+    throw new \RuntimeException('the argument list is unreadable; php.ini needs register_argc_argv=On');
+}
+
+$arguments = \array_slice(\array_values(\array_filter($parameters, \is_string(...))), 1);
 
 foreach (selected($arguments) as $name => $recipe) {
     $path = __DIR__ . '/' . $name . '.pdf';
 
-    echo str_pad($name, 20);
+    echo \str_pad($name, 20);
 
-    $contents = $recipe();
+    try {
+        $contents = $recipe();
+    } catch (SignatureTransportException $exception) {
+        // The expected failure, and the one worth naming rather than answering
+        // with a page of stack trace: three of these carry a token from a live
+        // authority, so an offline machine gets exactly this far.
+        echo "\n\nthis sample needs a live timestamp authority, and " . AUTHORITY . " did not answer:\n  "
+            . $exception->getMessage() . "\n";
 
-    file_put_contents($path, $contents);
+        exit(1);
+    }
 
-    printf("%8.1f KB\n", strlen($contents) / 1024);
+    \file_put_contents($path, $contents);
+
+    \printf("%8.1f KB\n", \strlen($contents) / 1024);
 }
