@@ -68,18 +68,19 @@ it('decodes an object identifier whose first subidentifier spans two bytes', fun
     expect($reader->oid($der, $reader->at($der)))->toBe('2.999.1.1');
 });
 
-it('still decodes the identifiers that fit one byte', function (string $encoded, string $expected) {
+it('still decodes the identifiers that fit one byte', function (string $der, string $expected) {
     // The arcs this package actually meets, so the fix above cannot be a
     // regression dressed as one. ICP-Brasil lives under 2.16.76, which is
     // 40 * 2 + 16 = 96 and fits a byte, which is why nothing had noticed.
-    $der = "\x06" . chr(strlen($encoded)) . $encoded;
-
+    //
+    // Written as whole TLVs rather than assembled from a length: what is read
+    // here is DER, so the fixtures may as well be DER.
     $reader = new Asn1Reader();
 
     expect($reader->oid($der, $reader->at($der)))->toBe($expected);
 })->with([
-    'sha256' => ["\x60\x86\x48\x01\x65\x03\x04\x02\x01", '2.16.840.1.101.3.4.2.1'],
-    'messageDigest' => ["\x2a\x86\x48\x86\xf7\x0d\x01\x09\x04", '1.2.840.113549.1.9.4'],
-    'ICP-Brasil' => ["\x60\x4c\x01\x03\x01", '2.16.76.1.3.1'],
-    'the smallest' => ["\x00", '0.0'],
+    'sha256' => ["\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01", '2.16.840.1.101.3.4.2.1'],
+    'messageDigest' => ["\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x09\x04", '1.2.840.113549.1.9.4'],
+    'ICP-Brasil' => ["\x06\x05\x60\x4c\x01\x03\x01", '2.16.76.1.3.1'],
+    'the smallest' => ["\x06\x01\x00", '0.0'],
 ]);
