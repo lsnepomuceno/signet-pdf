@@ -126,6 +126,7 @@ What each one means in practice, and what to do about it, is
 | `Data\Certificate` | the certificate readers |
 | `Data\RevisionDiff` | `$signature->changesAfter` |
 | `Data\SecurityStore` | `$report->securityStore` |
+| `Data\SignaturePolicy` | `$signature->signaturePolicy`, when the signer declared one |
 | `IcpBrasil\Data\Identity` | `$signer->icpBrasil` |
 | `IcpBrasil\Data\Report` | `icpBrasil()` |
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LSNepomuceno\Signet\Validation;
 
 use LSNepomuceno\Signet\Data\Signer;
+use LSNepomuceno\Signet\Enums\CmsAttribute;
 use LSNepomuceno\Signet\Enums\DigestOid;
 use LSNepomuceno\Signet\Support\Pem;
 use LSNepomuceno\Signet\Support\Probe;
@@ -28,6 +29,9 @@ final class Pkcs7Reader
      * §11.2.
      */
     private const string MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
+
+    /** id-spq-ets-uri, RFC 5126 §5.8.1: where the policy document lives. */
+    private const string POLICY_URI = '1.2.840.113549.1.9.16.5.1';
 
     public function __construct(
         private readonly DerReader $der = new DerReader(),
@@ -126,6 +130,134 @@ final class Pkcs7Reader
                     // PAdES uses, still has a digest worth reporting.
                     'algorithm' => DigestOid::algorithmFor($algorithm),
                 ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The signature policy the signer declared, if they declared one.
+     *
+     * `signature-policy-identifier`, RFC 5126 §5.8.1: an OID naming a policy
+     * document, the digest of that document, and optionally a URI where it can
+     * be fetched. It is what a Brazilian verifier looks for before calling a
+     * signature ICP-Brasil conformant, and a signature carrying none is
+     * cryptographically fine and still reported as conformant to nothing
+     * (issue #56).
+     *
+     * **What comes back is what the document declares, uninterpreted.** The OID
+     * is not matched against a table of known policies, and no claim is made
+     * that the policy is satisfied: that needs the policy artefacts themselves,
+     * read from the authority that published them, and it is the half this
+     * package cannot yet write either.
+     *
+     * `signaturePolicyImplied` is the other arm of the CHOICE and is read as
+     * absent. It names no policy and carries no digest, so there is nothing to
+     * report and RFC 5126 deprecates it.
+     *
+     * @return array{oid: string, digestAlgorithm: string, digest: string, uri: string|null}|null
+     *         The digest is lowercase hex.
+     */
+    public function signaturePolicy(string $der): ?array
+    {
+        $value = $this->signedAttribute($der, CmsAttribute::SignaturePolicy->value);
+
+        if ($value === null) {
+            return null;
+        }
+
+        // SignaturePolicyId: sigPolicyId, sigPolicyHash, then the optional
+        // qualifiers. The implied arm is a NULL rather than a sequence, so it
+        // has no children and falls out here.
+        $parts = $this->asn1->childrenOf($der, $value);
+
+        $oid = $this->asn1->oid($der, $parts[0] ?? null);
+        $hash = isset($parts[1]) ? $this->asn1->childrenOf($der, $parts[1]) : [];
+
+        if ($oid === null || count($hash) < 2) {
+            return null;
+        }
+
+        return [
+            'oid' => $oid,
+            'digestAlgorithm' => DigestOid::algorithmFor($this->asn1->oid($der, $this->asn1->path($der, $hash[0], [0]))),
+            'digest' => bin2hex($hash[1]->content($der)),
+            'uri' => isset($parts[2]) ? $this->policyUri($der, $parts[2]) : null,
+        ];
+    }
+
+    /**
+     * The `sp-uri` qualifier, which is the only one worth reporting.
+     *
+     * RFC 5126 §5.8.1 defines two others: a user notice meant to be shown to a
+     * person, and a document specification. Neither identifies the policy, so
+     * neither belongs in a field named for where the policy can be found.
+     */
+    private function policyUri(string $der, Asn1Node $qualifiers): ?string
+    {
+        foreach ($this->asn1->childrenOf($der, $qualifiers) as $qualifier) {
+            $pair = $this->asn1->childrenOf($der, $qualifier);
+
+            if (count($pair) < 2 || $this->asn1->oid($der, $pair[0]) !== self::POLICY_URI) {
+                continue;
+            }
+
+            $uri = $pair[1]->content($der);
+
+            return $uri === '' ? null : $uri;
+        }
+
+        return null;
+    }
+
+    /**
+     * The value of one signed attribute, by OID.
+     *
+     * The walk is the same one `messageDigest()` makes and is kept here rather
+     * than duplicated: a second copy of "find signerInfos from the end, then
+     * match [0] IMPLICIT by tag" is a second place for the two traps in
+     * invariant 4 to be got wrong.
+     */
+    private function signedAttribute(string $der, string $oid): ?Asn1Node
+    {
+        $root = $this->asn1->at($der);
+
+        if ($root === null) {
+            return null;
+        }
+
+        $signedData = $this->asn1->path($der, $root, [1, 0]);
+
+        if ($signedData === null) {
+            return null;
+        }
+
+        $fields = $this->asn1->childrenOf($der, $signedData);
+        $signerInfo = $fields === []
+            ? null
+            : $this->asn1->path($der, $fields[count($fields) - 1], [0]);
+
+        if ($signerInfo === null) {
+            return null;
+        }
+
+        foreach ($this->asn1->childrenOf($der, $signerInfo) as $part) {
+            // signedAttrs is [0] IMPLICIT, so context-specific and constructed,
+            // and matched by tag because the fields before it are not all
+            // mandatory.
+            if ($part->tag !== 0xA0) {
+                continue;
+            }
+
+            foreach ($this->asn1->childrenOf($der, $part) as $attribute) {
+                $pair = $this->asn1->childrenOf($der, $attribute);
+
+                if (count($pair) < 2 || $this->asn1->oid($der, $pair[0]) !== $oid) {
+                    continue;
+                }
+
+                return $this->asn1->path($der, $pair[1], [0]);
             }
         }
 

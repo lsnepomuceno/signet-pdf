@@ -23,6 +23,12 @@ enum CmsAttribute: string
     /** id-messageDigest, RFC 5652 §11.2. */
     case MessageDigest = '1.2.840.113549.1.9.4';
 
+    /**
+     * id-aa-ets-sigPolicyId, RFC 5126 §5.8.1: the policy the signer declared
+     * they were signing under, which is what a Brazilian verifier looks for.
+     */
+    case SignaturePolicy = '1.2.840.113549.1.9.16.2.15';
+
     /** id-signingTime, RFC 5652 §11.3. */
     case SigningTime = '1.2.840.113549.1.9.5';
 }

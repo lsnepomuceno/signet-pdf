@@ -7,6 +7,7 @@ namespace LSNepomuceno\Signet\Validation;
 use LSNepomuceno\Signet\Contracts\SignatureValidator;
 use LSNepomuceno\Signet\Contracts\SignatureVerifier;
 use LSNepomuceno\Signet\Data\SignatureDetails;
+use LSNepomuceno\Signet\Data\SignaturePolicy;
 use LSNepomuceno\Signet\Data\SignatureReport;
 use LSNepomuceno\Signet\Enums\CertificationLevel;
 use LSNepomuceno\Signet\Enums\RevocationStatus;
@@ -98,6 +99,7 @@ final readonly class PdfSignatureValidator implements SignatureValidator
             [$open, $close, $trailing] = $signature['byteRange'];
 
             $digest = $this->reader->messageDigest($signature['cms']);
+            $policy = $this->reader->signaturePolicy($signature['cms']);
             $ordered = $this->chains->build($this->reader->certificates($signature['cms']));
             $chain = $this->reader->signersFromPem($ordered);
 
@@ -153,6 +155,9 @@ final readonly class PdfSignatureValidator implements SignatureValidator
                 digestAlgorithm: $digest['algorithm'] ?? null,
                 changesAfter: $this->revisions->after($pdfContents, $signature['coverageEnd']),
                 timestampDigestAlgorithm: $stamp['digest'],
+                signaturePolicy: $policy === null
+                    ? null
+                    : new SignaturePolicy($policy['oid'], $policy['digestAlgorithm'], $policy['digest'], $policy['uri']),
                 profile: SignatureProfile::classify(
                     $signature['subFilter'],
                     $stamp['verified'] === true,
