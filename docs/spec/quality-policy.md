@@ -361,10 +361,13 @@ structural rules, so read it before adding a class.
 Independent verification is done with poppler's `pdfsig`; it has caught bugs the
 suite passed straight through. `samples/` holds one signed PDF per profile plus
 a six-signature document, and `tests/Conformance/SamplesTest.php` fails when
-they stop being this version's output. **No generator ships here**: the spikes
-that produced them live in the package this one was extracted from, so
-regenerating after a change to `src/Signing/` is a manual step until one is
-written.
+they stop being this version's output. **The generator is `samples/generate.php`**,
+run with `composer samples:build`, and it signs with the certificate committed
+beside it rather than minting one per run. Three of the samples carry a token
+from a live authority, so regenerating after a change to `src/Signing/` is a
+release step rather than something the suite can do;
+`.github/workflows/samples.yml` runs it on demand for an environment that has no
+outbound access, and publishes an artefact rather than committing.
 
 **PDF/A conformance is measured with veraPDF**, the reference validator. It is
 installed in the development image and in CI, so it runs everywhere the suite

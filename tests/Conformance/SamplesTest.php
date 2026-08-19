@@ -21,9 +21,9 @@ use LSNepomuceno\Signet\Support\Files;
  * carry the structures the current signer writes, which is what would have
  * caught it.
  *
- * No generator ships here: the script that produced them lives in
- * lsnepomuceno/laravel-a1-pdf-sign, so regenerating is a manual step
- * `samples/`.
+ * Regenerating is `composer samples:build`, which runs `samples/generate.php`.
+ * Three of the files carry a token from a live timestamp authority, so it is a
+ * release step rather than something this suite can do.
  */
 
 /**

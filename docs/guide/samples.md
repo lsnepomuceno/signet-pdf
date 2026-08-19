@@ -74,11 +74,20 @@ pdfsig samples/six-signatures.pdf
 
 ## Regenerating them
 
-They are reproducible rather than archived: the generator signs with the
-committed certificate instead of minting a new identity per run, which is what
-once left a signed fixture pointing at a certificate the repository no longer
-held, with nothing failing
+They are reproducible rather than archived: `samples/generate.php` signs with
+the committed certificate instead of minting a new identity per run, which is
+what once left a signed fixture pointing at a certificate the repository no
+longer held, with nothing failing
 ([0036](../decisions/0036-the-signed-artefacts-are-reproducible.md)).
+
+```bash
+composer samples:build                 # all of them
+composer samples:build -- pades-b-b    # one, by name
+```
+
+Three of them carry a token from a live timestamp authority, so this needs the
+internet and cannot use the local authority the tests use: a sample stamped by
+something that is not a third party proves nothing about one that is.
 
 `tests/Conformance/SamplesTest.php` checks them on every run, so a sample that
 stops matching what the signer produces fails the suite rather than sitting
