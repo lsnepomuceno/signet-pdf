@@ -116,11 +116,16 @@ attributes and signing the hash of **those**, not the hash of the document. So
 whoever assembles the CMS needs the key, and the split this package can offer is
 the one where it hands over a digest and takes back an assembled CAdES.
 
+<!-- Every rectangular label here stays on one line. A node or edge label that
+     wraps to two gets its second line clipped by the box, which is a mermaid
+     and theme interaction rather than anything this page can set. Diamonds are
+     not affected. -->
+
 ```mermaid
 flowchart TD
-    A["prepare()<br/>document, /ByteRange, digest"] --> B{"What does the key holder return?"}
-    B -->|"A detached CAdES in DER"| C["complete()<br/>one fixed-width overwrite"]
-    B -->|"Only a signature over a hash"| D["Not yet: issue #59"]
+    A["prepare()"] -->|"the digest"| B{"What does the key holder return?"}
+    B -->|"A detached CAdES"| C["complete()"]
+    B -->|"A raw signature"| D["Not yet: issue #59"]
     C --> E["Signed PDF"]
 ```
 
