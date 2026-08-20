@@ -10,14 +10,14 @@
 # It compares the last SemVer tag against HEAD, so the baseline moves on its own
 # as releases are cut and there is no list to maintain.
 #
-# **It reports, it does not block.** Every release since 2.0 has added a method
-# or a parameter to a published contract, and each shipped as a minor with a
-# "Breaking for implementers" section, because calling the contracts is
-# unaffected and only implementing them is not. A gate that fails on every
-# release of that shape would be turned off within two of them, so it writes
-# what it found into the job summary instead, where it is read rather than
-# worked around. Whether a break is acceptable stays a judgement, and the
-# summary is what informs it.
+# **It reports, it does not block.** Adding a method to a published contract is
+# a breaking change here and ships in a major release
+# (docs/decisions/0117-a-contract-addition-is-a-major-release.md), so what this
+# job finds decides a version number rather than a merge. Blocking would fail
+# the pull request that is legitimately on its way to that major, and a gate
+# that fails on every release of its own shape is a gate that gets turned off
+# within two of them. It writes what it found into the job summary instead,
+# where it is read rather than worked around.
 #
 # **The tool is installed in a directory of its own, not into require-dev.**
 # Two reasons, and both are specific to this repository: it needs ext-intl and a

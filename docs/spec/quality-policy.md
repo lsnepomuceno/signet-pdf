@@ -633,19 +633,25 @@ It compares the last SemVer tag against `HEAD` and writes what it found into the
 job summary, without failing the build.
 
 That is a deliberate weakening, decided after the check fired on its second real
-pull request. **Every release since 2.0 has added a method or a parameter to a
-published contract**: 2.1 added `signFromPem()`, 2.2 added `signatureFields()`
-and two parameters to `PdfSigner::sign()`, 2.3 added a parameter to
-`SignatureValidator` and to the package's entry point. Each shipped as a minor
-with a "Breaking
-for implementers" section, because calling the contracts is unaffected and only
-implementing them is not.
+pull request.
 
-A gate that fails on every release of that shape is a gate that gets switched
-off within two of them, and one nobody reads is worse than one that reports. The
-report is the point: it caught a break in 2.2 that was not deliberate, the
-signer's constructor arity, which is exactly what a person needs told and not
-what a person needs blocked.
+**The argument for it used to rest on a release history that is not this
+package's.** It read that every release since 2.0 had added a method or a
+parameter to a published contract, naming 2.1, 2.2 and 2.3, and those are
+`lsnepomuceno/laravel-a1-pdf-sign`'s releases. The prose came across with the
+code during the extraction. This package has published 1.0.0, 1.0.1, 2.0.0 and
+2.0.1.
+
+The correction matters because the paragraph also carried that package's answer
+to what such a release is numbered, a minor with a "Breaking for implementers"
+section, and this one's answer is the opposite: adding a method to a contract is
+a breaking change and ships in a major
+([0117](../decisions/0117-a-contract-addition-is-a-major-release.md)).
+
+**What the job finds decides a version number, not a merge.** Blocking would
+fail the pull request that is legitimately on its way to that major, and a gate
+that fails on every release of its own shape is a gate that gets switched off
+within two of them. One nobody reads is worse than one that reports.
 
 The judgement it informs stays a judgement. A break is answered in
 [UPGRADE.md](../releases/upgrade.md), in the release notes and in the version number.

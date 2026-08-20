@@ -660,3 +660,9 @@ release, the same as any other public promise.
 changes the public shape**. The contracts in `Contracts\` may be implemented by
 consumers, so adding a method to one is a breaking change for them even though
 callers are unaffected.
+
+**Both ship in a major release**
+([0117](../decisions/0117-a-contract-addition-is-a-major-release.md)). There is
+no minor with a section explaining the break: a consumer implementing a contract
+is doing what this page invites, and a caret range has to be safe without
+reading release notes to find out.
