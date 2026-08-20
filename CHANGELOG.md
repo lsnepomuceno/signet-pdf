@@ -16,6 +16,20 @@ consumers test their own signing paths with it.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.0.1] - 2026-08-20
+
+Nothing in `src/` differs from the `2.0.0` tag. This release exists so that
+`^2` resolves to that code.
+
+`2.0.0` was tagged twice. The first tag pointed at a commit that predated
+two-phase signing, the signature policy in validation and the security store
+key fix, all three of which the 2.0.0 notes describe, so it was deleted and
+re-cut onto the commit that carries them. Packagist read the tag list from
+GitHub during the thirty-nine seconds between the two pushes, and cached the
+earlier commit against the version. A published version's reference cannot be
+corrected from the repository side, so the answer is a version it has not seen
+yet.
+
 ## [2.0.0] - 2026-08-20
 
 The first stable release of the standalone package. Everything below shipped in
@@ -621,6 +635,7 @@ guarantee and an encryption envelope rather than a dependency.
   in `lsnepomuceno/laravel-a1-pdf-sign`, which remains a separate
   implementation rather than a consumer of this one.
 
+[2.0.1]: https://github.com/lsnepomuceno/signet-pdf/compare/2.0.0...2.0.1
 [2.0.0]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.1...2.0.0
 [1.0.1]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/lsnepomuceno/signet-pdf/releases/tag/1.0.0
