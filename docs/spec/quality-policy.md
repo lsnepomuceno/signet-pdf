@@ -74,18 +74,25 @@ the namespaces where a test that only asserts "it did not throw" would keep
 passing with broken cryptography.
 
 **It runs nightly, not on pull requests** (`.github/workflows/mutation.yml`),
-one runner per namespace, each with its own floor. Measured on the nightly runs
-of 2026-08-09 through 2026-08-12, read from the job logs:
+one runner per leg, each with its own floor. Measured on the nightly runs of
+2026-08-09 through 2026-08-20, read from the job logs:
 
 | Leg | Measured | Lowest | Floor | Margin |
 |---|---|---|---|---|
-| `Certificates` | 68.07 x4, 72.40 | 68.07 | 64 | 4.07 |
-| `Signing/Incremental` | none yet | | 60 | provisional |
-| `Signing (rest)` | 73.80 | 73.80 | 60 | provisional |
-| `Validation` | 76.73 x4, 77.67 | 76.73 | 75 | **1.73** |
+| `Certificates` | 68.07 x4, 72.40 x2 | 68.07 | 64 | 4.07 |
+| `Signing/Incremental (revision)` | none yet | | 60 | provisional |
+| `Signing/Incremental (geometry)` | none yet | | 60 | provisional |
+| `Signing/Incremental (readers)` | none yet | | 60 | provisional |
+| `Signing/Incremental (writers)` | none yet | | 60 | provisional |
+| `Signing (rest)` | 73.80, 73.65 | 73.65 | 60 | provisional |
+| `Validation (reading)` | 81.03 | 81.03 | 69 | provisional |
+| `Validation (verdicts)` | 74.57 | 74.57 | 69 | provisional |
 | `Support (bytes)` | none yet | | 68 | provisional |
-| `Support (runtime)` | 58.02 | 58.02 | 54 | 4.02 |
-| `IcpBrasil` | 80.54 x4, 81.82 | 80.54 | 76 | 4.54 |
+| `Support (runtime)` | 58.02, 58.40 | 58.02 | 54 | 4.02 |
+| `IcpBrasil` | 80.54 x4, 81.82 x2 | 80.54 | 76 | 4.54 |
+
+The unsplit `Validation` leg it replaces measured 76.73 x4 and 77.67 against a
+floor of 75, which is the tightest margin any leg here has run at.
 
 **The split legs are new, and the reason was a defect rather than a schedule.** `src/Signing` and `src/Support` were **cancelled at exactly six
 hours** on four consecutive nightlies. Six hours is GitHub's hard limit for a
@@ -132,6 +139,40 @@ straight: the first is calibration, the second is switching a gate off.
 **`Validation` is the next one to reach the cliff.** It took 2h49 before this
 release and 4h42 after it, because `src/Validation` gained a second verifier.
 Nothing needs doing yet, and something will.
+
+### Splitting by directory was not enough
+
+`Signing/Incremental` was itself cancelled at six hours on the nightly of
+2026-08-20, with five of its seventeen files never reached (#108). The job log
+says where the time went:
+
+| File | Time |
+|---|---|
+| `RevisionWriter.php` | 2h45 |
+| `PageGeometry.php` | 1h52, and still running when the job was killed |
+| `ByteRangeCalculator.php` | 32 min |
+| `XrefStreamReader.php` | 19 min |
+| the eight other files that ran | 25 min together |
+
+Two files are nearly five of the six hours, so each has a leg of its own now,
+and what is left divides where the directory already divides: reading an
+existing document on one side, writing the new revision on the other, at around
+forty measured minutes each.
+
+**Line count is not the measure**, and this is the second time that has been
+demonstrated here. `PageGeometry.php` is 302 lines and had run for 1h52 without
+finishing, while eight files of between 49 and 213 lines finished in twenty-five
+minutes between them, and the 523-line `DocumentReader.php` was never reached at
+all. What costs time is how many mutants a file carries and what the tests that
+kill them cost, and geometry is arithmetic: nearly every number in it is a
+mutant, and the tests that kill those mutants render a seal. `Support\SrgbProfile`
+is the same shape, and is excluded from scoring for it.
+
+**A leg that dies to the runner is not a score either.** `Support (bytes)` came
+back as *failed* on that same night, at exit code 143 with the runner reporting
+a shutdown signal, an hour into a run that had scored nothing yet. It reads like
+a regression in the job list and it is an eviction, so it is worth telling the
+two apart before treating one as the other.
 
 **`Support\SrgbProfile` is not mutation tested, deliberately.** A leg holding
 that one file was cancelled at six hours. It builds an ICC profile out of matrix
