@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 import { release } from './release'
 import { index, pages, sections } from './sidebar'
 
@@ -11,7 +12,21 @@ import { index, pages, sections } from './sidebar'
  * than copied. `/docs` is `export-ignore` in `.gitattributes`, so none of this
  * reaches the package a consumer installs.
  */
-export default defineConfig({
+// Wrapped in withMermaid so a ```mermaid block renders as a diagram rather than
+// as its own source. It is here for one page: docs/guide/two-phase-signing.md
+// describes a handshake across four participants, browser, server, package and
+// token, and a sequence is what prose is worst at.
+//
+// **It is not free, and the number is the argument.** `mermaid` brings 116
+// packages, which is most of what this site installs. It stays because the
+// alternative was worse rather than because the cost is small: a fenced block
+// with no plugin renders as source on the very site the documentation is read
+// on, and boxes drawn in text cannot show a message crossing back.
+//
+// Docs only. `/docs` is `export-ignore`, so none of it reaches an installed
+// package, and the archive built by versions.mjs generates its own config
+// without this.
+export default withMermaid(defineConfig({
   title: 'Signet PDF',
   description:
     'Sign PDF files with A1 certificates, and verify the signatures already in them.',
@@ -197,4 +212,4 @@ export default defineConfig({
       copyright: 'Copyright © Lucas Nepomuceno',
     },
   },
-})
+}))
