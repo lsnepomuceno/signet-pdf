@@ -190,7 +190,6 @@ final readonly class StartSignature
             ->pdf($documentPath)
             ->info(name: $signerName, reason: 'Service agreement')
             ->profile(SignatureProfile::PadesBB)
-            ->seal()
             ->prepare();
 
         return [
@@ -315,6 +314,89 @@ final readonly class FinishSignature
         return $this->signet->complete($prepared, $cms)->save("/documents/{$id}-signed.pdf");
     }
 }
+```
+
+### The certificate, when you need it at all
+
+Neither phase needs the certificate to produce a valid signature. Two things
+want it anyway, and both are satisfied by the **public** certificate, which a
+signing service will hand over on request:
+
+| Wants it | For | Without it |
+|---|---|---|
+| `seal()` in phase one | the signer's name, issuer and expiry, drawn into the appearance | `sealFrom()` with your own artwork, or no seal |
+| `complete()`, third argument | building the security store from the bundle's own chain | the chain is read out of the CMS instead, which is where a validator reads it from too |
+
+**The readers will not take a certificate on its own.** `certificate()`,
+`certificateContents()`, `certificatePem()` and `certificateFromPem()` all
+require the private key, and say so:
+
+```
+No PEM private key block found in the bundle; signing needs the key, not the
+certificate alone.
+```
+
+That is right for the ordinary case and wrong for this one, where the key is the
+one thing you are never going to have. So build the value object from the public
+certificate and hand it over with `usingCertificate()`:
+
+```php
+use LSNepomuceno\Signet\Data\Certificate;
+
+/**
+ * The signer's certificate, fetched from wherever it is published: the signing
+ * service's own API, an LDAP directory, a column you filled when the signer
+ * enrolled.
+ */
+final readonly class PublicCertificates
+{
+    public function __construct(private HttpClientInterface $http) {}
+
+    public function forSigner(string $identifier): Certificate
+    {
+        $pem = $this->http
+            ->request('GET', "https://provider.example.com/certificates/{$identifier}")
+            ->getContent();
+
+        $x509 = openssl_x509_read($pem);
+        $parsed = openssl_x509_parse($pem);
+
+        if ($x509 === false || $parsed === false) {
+            throw new RuntimeException("the certificate for {$identifier} did not parse");
+        }
+
+        return new Certificate(
+            original: $pem,
+            openssl: $x509,
+            data: $parsed,
+            password: '',
+        );
+    }
+}
+```
+
+Then phase one can draw the seal, still with no key in the process:
+
+```php
+$prepared = $this->signet->newSignature()
+    ->pdf($documentPath)
+    ->usingCertificate($this->certificates->forSigner($signerId))
+    ->info(name: $signerName, reason: 'Service agreement')
+    ->seal()
+    ->prepare();
+```
+
+**Nothing here reads a private key.** The seal takes the common name, the issuer
+and the expiry out of the parsed certificate, and the security store takes the
+PEM certificates out of `original`, so `original` should carry the intermediates
+too when you have them.
+
+If the service publishes DER rather than PEM, convert before constructing:
+
+```php
+$pem = "-----BEGIN CERTIFICATE-----\n"
+    . chunk_split(base64_encode($der), 64, "\n")
+    . "-----END CERTIFICATE-----\n";
 ```
 
 ### An HSM, on your own side
