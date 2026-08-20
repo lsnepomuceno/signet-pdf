@@ -131,15 +131,41 @@ jobs:
           # while gating nothing (#84). Incremental/ is 63% of the namespace by
           # line count, which makes it the natural cut.
           #
-          # **The two floors are provisional**, at the namespace's own floor
+          # **The floors are provisional**, at the namespace's own floor
           # less six, which is the headroom an unmeasured shape got the last
           # time one was added: IcpBrasil started eight points below its local
           # pair and was calibrated to four once two nightlies had measured it.
           # Raise them after two runs; the rule in docs/spec/quality-policy.md
-          # forbids lowering either.
-          - name: Signing/Incremental
-            target: Signing/Incremental
-            min: 60                   # provisional, unmeasured
+          # forbids lowering any of them.
+          # Split again, by file, because splitting by directory was not
+          # enough: the Incremental leg was itself cancelled at six hours on the
+          # nightly of 2026-08-20, with five of its seventeen files never
+          # reached (#108).
+          #
+          # **The cut follows the clock rather than the line count**, read from
+          # that run's log. RevisionWriter took 2h45 and PageGeometry was still
+          # running after 1h52 when the job was killed, so two files account for
+          # nearly five of the six hours and each gets a leg of its own. What is
+          # left divides where the directory already divides, reading an
+          # existing document on one side and writing the new revision on the
+          # other, at around forty measured minutes each.
+          #
+          # **All four floors are provisional**, because the leg they come from
+          # never finished and so never produced a score to inherit. Calibrate
+          # after two nightlies; the rule in docs/spec/quality-policy.md forbids
+          # lowering any of them.
+          - name: Signing/Incremental (revision)
+            target: Signing/Incremental/RevisionWriter.php
+            min: 60                   # provisional, unmeasured. 2h45 on 2026-08-20
+          - name: Signing/Incremental (geometry)
+            target: Signing/Incremental/PageGeometry.php
+            min: 60                   # provisional, unmeasured. 1h52 and unfinished
+          - name: Signing/Incremental (readers)
+            target: Signing/Incremental/CertificationReader.php,Signing/Incremental/DocumentInfo.php,Signing/Incremental/DocumentReader.php,Signing/Incremental/FieldLockReader.php,Signing/Incremental/FormFieldReader.php,Signing/Incremental/ObjectStreamReader.php,Signing/Incremental/SignatureFieldReader.php,Signing/Incremental/XrefStreamReader.php,Signing/Incremental/XrefSubsections.php
+            min: 60                   # provisional, unmeasured. 38 min for seven of the nine
+          - name: Signing/Incremental (writers)
+            target: Signing/Incremental/ByteRangeCalculator.php,Signing/Incremental/DocTimeStampWriter.php,Signing/Incremental/DssWriter.php,Signing/Incremental/SealAppearance.php,Signing/Incremental/StructureTreeWriter.php,Signing/Incremental/XrefStreamWriter.php
+            min: 60                   # provisional, unmeasured. 39 min for three of the six
           - name: Signing (rest)
             target: Signing
             ignore: Signing/Incremental
