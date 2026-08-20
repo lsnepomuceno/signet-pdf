@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 import { release } from './release'
 import { index, pages, sections } from './sidebar'
 
@@ -11,7 +12,7 @@ import { index, pages, sections } from './sidebar'
  * than copied. `/docs` is `export-ignore` in `.gitattributes`, so none of this
  * reaches the package a consumer installs.
  */
-export default defineConfig({
+export default withMermaid(defineConfig({
   title: 'Signet PDF',
   description:
     'Sign PDF files with A1 certificates, and verify the signatures already in them.',
@@ -197,4 +198,4 @@ export default defineConfig({
       copyright: 'Copyright © Lucas Nepomuceno',
     },
   },
-})
+}))
