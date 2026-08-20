@@ -16,7 +16,7 @@ consumers test their own signing paths with it.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [2.0.0] - 2026-08-19
+## [2.0.0] - 2026-08-20
 
 The first stable release of the standalone package. Everything below shipped in
 one release rather than in a series after it, because the backlog was closed
