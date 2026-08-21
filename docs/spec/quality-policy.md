@@ -174,6 +174,23 @@ a shutdown signal, an hour into a run that had scored nothing yet. It reads like
 a regression in the job list and it is an eviction, so it is worth telling the
 two apart before treating one as the other.
 
+It then did it twice more, and reading three nights together said what one could
+not: the eviction is caused by the run rather than suffered by it. The job dies
+inside `src/Support/PdfFilters.php` every time, the fourth of the seven files in
+that leg, which means `PdfStream.php`, `Pem.php` and `PngReader.php` had never
+been mutated once. That file holds the RunLength and LZW decoders, both of which
+grow their output by concatenation, and a mutant that removes a loop's bound
+there does not stop.
+
+**The two ends had different limits, which is what hid it.** The container pins
+`memory_limit = 1G`, so the same mutant is killed locally and scored as a killed
+mutant. The workflow pinned nothing, so it grew until the host reclaimed the
+runner. The workflow now pins the container's value, and the general form of
+that is a rule rather than a fix: **a limit that differs between the two ends
+measures two different suites**, because running out of memory kills a mutant
+and a score is a count of killed mutants. Every number in the table above is
+comparable to a local run only for as long as the two agree (#118).
+
 **`Support\SrgbProfile` is not mutation tested, deliberately.** A leg holding
 that one file was cancelled at six hours. It builds an ICC profile out of matrix
 arithmetic and a tone curve computed in a loop, so nearly every number in it is
@@ -185,6 +202,22 @@ a stronger statement about that file than a mutation score would be.
 steps, so the reporting step inside it cannot fire; a separate job asks each job
 for its own conclusion afterwards and opens the same kind of tracking issue a
 score regression does.
+
+**So does a leg that was torn down**, and it needed a different question. An
+evicted job is reported as a plain `failure`, indistinguishable by conclusion
+from a leg that scored below its floor, so the separate job asks whether the
+leg's `Record the score` step reached a conclusion. That step carries
+`if: always()` and therefore cannot be skipped by anything this workflow writes:
+a leg that reached it reported for itself, and a leg that did not was stopped
+before it could. The shape differs between evictions, which is the part that
+had to be measured rather than assumed. Two of the three nights report the later
+steps as `skipped` and still carry a `Complete job`; the third reports `null`
+for all of them and carries no `Complete job` at all, and a check written from
+either shape alone calls the other a leg that reported for itself.
+
+A leg that fails *before* the run, on a package install, is deliberately outside
+both: its `Record the score` does reach a conclusion, and what it needs is not a
+tracking issue but the install to be retried (#72).
 
 That job stayed silent the first night it existed, and the reason is worth
 recording: it was conditioned on the matrix result being `cancelled`, and a
