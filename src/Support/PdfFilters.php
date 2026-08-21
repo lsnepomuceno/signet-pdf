@@ -36,8 +36,30 @@ use LSNepomuceno\Signet\Enums\StreamFilter;
  */
 final readonly class PdfFilters
 {
+    /**
+     * The ceiling every filter decodes under, in bytes.
+     *
+     * **Compression ratios are not bounded by anything in the format**, and the
+     * streams reached here arrive from a document that was handed to this
+     * package rather than produced by it. Measured through `decode()`: 194 KB
+     * of `/FlateDecode` yields 200 MB, and `/Filter [/FlateDecode
+     * /FlateDecode]` is a legal chain that nothing dedupes, so 1038 bytes yield
+     * 400 MB at a peak of 772 MB. A third name in that chain multiplies it
+     * again. Exhausting memory is a fatal error in PHP rather than an
+     * exception, so there is nothing to catch and the process is simply gone.
+     *
+     * 64 MiB is chosen from what the three callers legitimately read rather
+     * than from what feels safe: a cross-reference stream for a document of a
+     * million objects decodes to roughly 20 MB, an object stream to far less,
+     * and the largest of them is a certificate revocation list out of a
+     * document security store, which for a busy authority reaches tens of
+     * megabytes.
+     */
+    public const int MAXIMUM_DECODED_BYTES = 64 * 1024 * 1024;
+
     public function __construct(
         private PdfDictionary $dictionaries = new PdfDictionary(),
+        private int $maximumDecodedBytes = self::MAXIMUM_DECODED_BYTES,
     ) {}
 
     /**
@@ -62,6 +84,16 @@ final readonly class PdfFilters
             $decoded = $this->apply($filter, $decoded, $parameters[$index] ?? '');
 
             if ($decoded === null) {
+                return null;
+            }
+
+            // The backstop, and it is the reason the property holds for the
+            // chain rather than for one filter at a time. Each decoder already
+            // stops itself at the ceiling, which is what keeps the memory from
+            // being allocated in the first place; this catches the stage that
+            // is bounded only in relation to its own input, and every filter
+            // added after this one for free.
+            if (strlen($decoded) > $this->maximumDecodedBytes) {
                 return null;
             }
         }
@@ -181,10 +213,19 @@ final readonly class PdfFilters
      */
     private function inflate(string $data): ?string
     {
-        $decoded = Probe::run(static fn() => gzuncompress($data));
+        // The ceiling goes to zlib rather than being checked afterwards: both
+        // functions stop at it and return false, so the bytes past it are never
+        // allocated. Checking the result would mean holding the whole
+        // expansion first, which is the failure this exists to prevent. The
+        // false they return there is the same false they return for a payload
+        // that is not deflate at all, and both mean the same thing to the
+        // caller, that this stream does not decode.
+        $limit = $this->maximumDecodedBytes;
+
+        $decoded = Probe::run(static fn() => gzuncompress($data, $limit));
 
         if ($decoded === false) {
-            $decoded = Probe::run(static fn() => gzinflate($data));
+            $decoded = Probe::run(static fn() => gzinflate($data, $limit));
         }
 
         return $decoded === false ? null : $decoded;
@@ -274,6 +315,9 @@ final readonly class PdfFilters
     /**
      * Run-length, §7.4.5: a length byte, then either a literal run or a
      * repeated byte, ending at 128.
+     *
+     * Two input bytes stand for as many as 128 output ones, so the ceiling is
+     * tested each time round rather than at the end.
      */
     private function runLength(string $data): ?string
     {
@@ -282,6 +326,10 @@ final readonly class PdfFilters
         $length = strlen($data);
 
         while ($position < $length) {
+            if (strlen($out) > $this->maximumDecodedBytes) {
+                return null;
+            }
+
             $marker = ord($data[$position++]);
 
             if ($marker === 128) {
@@ -369,6 +417,14 @@ final readonly class PdfFilters
                 }
 
                 $out .= $entry;
+
+                // A dictionary entry grows by one byte each time one is added,
+                // and the table reaches 4096, so a code near the end stands for
+                // thousands of output bytes. The ceiling is therefore tested
+                // per code rather than per input byte.
+                if (strlen($out) > $this->maximumDecodedBytes) {
+                    return null;
+                }
 
                 if ($previous !== null) {
                     $dictionary[$next++] = $previous . $entry[0];
