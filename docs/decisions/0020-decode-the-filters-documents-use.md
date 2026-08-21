@@ -89,6 +89,31 @@ it produces plausible bytes that are wrong from the first width change onward.
   zlib's header and checksum would make the stream larger than the bytes they
   compress ([0009](0009-cross-reference-streams.md)).
 
+### Every filter decodes under a ceiling, added afterwards
+
+Deciding to decode more filters decided something else that was not noticed at
+the time: **the expansion is chosen by whoever wrote the document, and this
+package reads documents it was handed.** Nothing in the format bounds a
+compression ratio. Measured through `decode()` afterwards, 194 KB of
+`/FlateDecode` yields 200 MB, and `/Filter [/FlateDecode /FlateDecode]` is a
+legal chain that nothing dedupes, so 1038 bytes yield 400 MB at a peak of
+772 MB. A third name in that chain multiplies it again.
+
+That reaches every caller, since `XrefStreamReader`, `ObjectStreamReader` and
+`RevocationReader` all decode streams out of the document under a signature.
+Exhausting memory is a fatal error in PHP rather than an exception, so there is
+nothing to catch: signing an uploaded document would take the process with it.
+
+`PdfFilters::MAXIMUM_DECODED_BYTES` is 64 MiB, from what those three callers
+legitimately read rather than from what feels safe, and it is a constructor
+argument so an application that reads larger revocation lists can raise it.
+Flate hands the ceiling to zlib, which stops there rather than expanding first;
+LZW and run-length test it as they grow; and `decode()` tests every stage of a
+chain, which is what makes the property hold for a decoder that does not test
+for itself and for any filter added later. Past the ceiling a stream is `null`,
+which is the answer this record already chose for a stream that does not
+decode.
+
 ## Alternatives rejected
 
 | | Why not |

@@ -16,6 +16,29 @@ consumers test their own signing paths with it.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- **A compressed stream in a document now decodes under a ceiling.** Nothing in
+  the PDF format bounds a compression ratio, and `Support\PdfFilters` reads
+  streams out of the document being signed or validated, so a small payload
+  could expand until the process ran out of memory. Measured through
+  `decode()`: 194 KB of `/FlateDecode` yielded 200 MB, and 1038 bytes declaring
+  the legal chain `/Filter [/FlateDecode /FlateDecode]` yielded 400 MB at a peak
+  of 772 MB. PHP treats exhausting memory as a fatal error rather than an
+  exception, so an application signing an uploaded document had nothing to
+  catch.
+
+  Every filter now decodes under `PdfFilters::MAXIMUM_DECODED_BYTES`, 64 MiB,
+  and a stream past it is reported as one that does not decode. The value is a
+  constructor argument: an application whose documents carry revocation lists
+  larger than that can raise it with
+  `new PdfFilters(maximumDecodedBytes: ...)`.
+
+  Nothing this package writes is affected, and no document that decoded within
+  the ceiling before behaves differently.
+
 ## [2.0.1] - 2026-08-20
 
 Nothing in `src/` differs from the `2.0.0` tag. This release exists so that

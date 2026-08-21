@@ -284,3 +284,90 @@ it('signs a document whose cross-reference stream is compressed with a predictor
     expect($report->isValid())->toBeTrue()
         ->and($report->signatures)->toHaveCount(1);
 });
+
+/**
+ * The same decode under a ceiling small enough to reach in a test, so the
+ * mechanism is exercised without allocating what the real one allows.
+ */
+function decodedUnderCeiling(string $raw, string $dictionary, int $ceiling): ?string
+{
+    return new PdfFilters(maximumDecodedBytes: $ceiling)->decode($raw, $dictionary);
+}
+
+it('refuses a flate stream that expands past the ceiling', function () {
+    // Compression ratio is not bounded by anything in the format, and the bytes
+    // reaching here come from a document this package was handed.
+    $payload = (string) gzcompress(str_repeat('A', 200_000), 9);
+
+    expect(strlen($payload))->toBeLessThan(1_000)
+        ->and(decodedUnderCeiling($payload, '<</Filter /FlateDecode>>', 4_096))->toBeNull();
+});
+
+it('refuses a raw deflate stream that expands past the ceiling', function () {
+    // The headerless form takes the second branch of inflate(), which has its
+    // own call and would keep its own ceiling if one were forgotten there.
+    $payload = (string) gzdeflate(str_repeat('A', 200_000), 9);
+
+    expect(decodedUnderCeiling($payload, '<</Filter /FlateDecode>>', 4_096))->toBeNull();
+});
+
+it('refuses a chain whose second stage expands past the ceiling', function () {
+    // A chain may name the same filter twice and nothing dedupes it, which is
+    // what turns a bounded ratio into an unbounded one: measured through
+    // decode(), 1038 bytes of /Filter [/FlateDecode /FlateDecode] yield 400 MB.
+    $payload = (string) gzcompress((string) gzcompress(str_repeat('A', 2_000_000), 9), 9);
+
+    expect(decodedUnderCeiling($payload, '<</Filter [/FlateDecode /FlateDecode]>>', 16_384))->toBeNull();
+});
+
+it('refuses a run-length stream that expands past the ceiling', function () {
+    // Two input bytes stand for as many as 128 output ones.
+    $payload = str_repeat("\x81A", 10_000);
+
+    expect(strlen($payload))->toBe(20_000)
+        ->and(decodedUnderCeiling($payload, '<</Filter /RunLengthDecode>>', 4_096))->toBeNull();
+});
+
+it('refuses an LZW stream that expands past the ceiling', function () {
+    // The specification's own worked example again, rather than a payload built
+    // by an encoder written here: the ceiling is what is under test, so the
+    // fixture only has to be something the decoder accepts and expands, and one
+    // checked against the standard is the one to reach for. A dictionary entry
+    // grows by a byte each time one is added and the table reaches 4096, so a
+    // code near the end stands for thousands of output bytes, which is why the
+    // check sits per code rather than per input byte.
+    $encoded = "\x80\x0b\x60\x50\x22\x0c\x0c\x85\x01";
+
+    expect(decodedUnderCeiling($encoded, '<</Filter/LZWDecode>>', 4))->toBeNull()
+        ->and(decodedUnderCeiling($encoded, '<</Filter/LZWDecode>>', 1_000))->toBe('-----A---B');
+});
+
+it('refuses an ASCII85 stream past the ceiling, through the chain backstop', function () {
+    // ASCII85 grows by four bytes per 'z' and has no ceiling of its own: it is
+    // the filter the check in decode() exists for, and the one that shows the
+    // backstop covers a decoder that does not test for itself.
+    $payload = str_repeat('z', 10_000);
+
+    expect(decodedUnderCeiling($payload, '<</Filter /ASCII85Decode>>', 4_096))->toBeNull()
+        ->and(strlen((string) decodedUnderCeiling($payload, '<</Filter /ASCII85Decode>>', 1_000_000)))
+        ->toBe(40_000);
+});
+
+it('decodes a stream that sits just under the ceiling', function () {
+    // The guard has to refuse a bomb without refusing a large legitimate
+    // stream, and a ceiling is only useful if both halves hold.
+    $payload = (string) gzcompress(str_repeat('C', 8_000), 9);
+
+    expect(decodedUnderCeiling($payload, '<</Filter /FlateDecode>>', 8_192))
+        ->toBe(str_repeat('C', 8_000));
+});
+
+it('reads a cross-reference stream under the real ceiling, not a test one', function () {
+    // Everything above injects a ceiling to stay cheap, which would pass just
+    // as well if the default were never wired to anything. This one goes
+    // through the unconfigured constructor that the rest of the package uses.
+    $rows = str_repeat("\x01\x00\x00\x00\x0a\x00", 2_000);
+
+    expect(decoded((string) gzcompress($rows, 9), '<</Filter /FlateDecode>>'))->toBe($rows)
+        ->and(PdfFilters::MAXIMUM_DECODED_BYTES)->toBe(64 * 1024 * 1024);
+});
