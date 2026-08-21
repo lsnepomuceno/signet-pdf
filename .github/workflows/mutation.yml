@@ -232,6 +232,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # `memory_limit` is the same 1G the container pins in .docker/Dockerfile,
+      # and the two have to agree rather than merely both exist. A mutation
+      # score is a count of mutants the suite kills, and running out of memory
+      # kills one: a limit that differs between the two ends measures two
+      # different suites and makes the numbers in docs/spec/quality-policy.md
+      # incomparable to a local run.
+      #
+      # **Without it the leg does not fail, it disappears.** `Support (bytes)`
+      # spent three consecutive nights being torn down inside
+      # `src/Support/PdfFilters.php`, whose RunLength and LZW decoders grow
+      # their output by concatenation: a mutant that flips a loop condition
+      # there never stops, and with no ceiling it grew until the host reclaimed
+      # the runner. The job reported `failure` with every step after the run
+      # marked `skipped`, which is not a score and was not a state either
+      # reporter below recognised (#118). Under a limit the same mutant is a
+      # killed mutant, which is the verdict it deserves.
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -239,6 +255,7 @@ jobs:
           extensions: mbstring, dom, fileinfo, openssl, sodium, json, gd, imagick, bcmath, sqlite3
           coverage: pcov
           tools: composer:v2
+          ini-values: memory_limit=1G
 
       # The four installs below are main_action.yml's, verbatim, and they are
       # here for a sharper reason than going green.
@@ -553,11 +570,20 @@ jobs:
 
             await github.rest.issues.create({ owner, repo, title, body, labels: ['mutation'] })
 
+  # Two ways a leg stops without scoring, and the step above fires for neither.
+  #
   # A leg that runs out of the six-hour limit GitHub gives a hosted job is
   # reported as **cancelled**, not as a failure, so the run summary reads as a
   # clean night and the step above never fires. `src/Signing` and `src/Support`
   # spent four consecutive nights in exactly that state, gating nothing, and it
   # was found by reading job timings while calibrating a different floor (#84).
+  #
+  # A leg whose runner is **torn down** is reported as a plain failure, and the
+  # step above cannot fire because it is inside the job that died. `Support
+  # (bytes)` spent three consecutive nights there, which is worse than the first
+  # case: a cancelled leg at least shows six hours on the clock, while this one
+  # reads as an ordinary red job among legs that are red for real reasons
+  # (#118).
   #
   # `if: always()` and nothing else, because the matrix result is one value for
   # eight legs: a night where one leg was cancelled at the limit and another
@@ -592,44 +618,104 @@ jobs:
               run_id: context.runId,
             })
 
-            const stopped = jobs
-              .filter(job => job.conclusion === 'cancelled' && job.name !== 'Report a leg that did not finish')
-              .map(job => `- \`${job.name}\`, ${job.started_at} to ${job.completed_at}`)
+            const legs = jobs.filter(job => job.name !== 'Report a leg that did not finish')
 
-            if (stopped.length === 0) {
-              return
+            const describe = job => `- \`${job.name}\`, ${job.started_at} to ${job.completed_at}`
+
+            // Killed at the six-hour limit, which GitHub reports as cancelled.
+            const cancelled = legs.filter(job => job.conclusion === 'cancelled').map(describe)
+
+            // Torn down before it could say anything, which GitHub reports as a
+            // plain failure and is therefore indistinguishable from a score
+            // regression by conclusion alone.
+            //
+            // `Record the score` carries `if: always()`, so no condition this
+            // workflow writes can skip it: a leg that reached it reported for
+            // itself, through the step inside the job, and a leg whose copy of
+            // it never reached a conclusion was stopped before that step ran.
+            // The reporter inside the job went down with it, which is why this
+            // state had gone unfiled three nights running (#118).
+            //
+            // **A teardown has two shapes, and the difference is not cosmetic.**
+            // On 2026-08-20 and 2026-08-21 the steps after the run are reported
+            // as `skipped` and the job still carries a `Complete job`; on
+            // 2026-08-19 the same leg reported `null` for every one of them and
+            // no `Complete job` at all. Reading only the first shape classifies
+            // the second as a leg that reported for itself, and that night is
+            // precisely one where nothing was filed.
+            //
+            // An infrastructure failure before the run is deliberately not here:
+            // its `Record the score` does reach a conclusion, and the step
+            // inside the job already declines to call that a regression.
+            const scored = job => (job.steps ?? []).some(
+              step => step.name === 'Record the score'
+                && step.conclusion !== null
+                && step.conclusion !== 'skipped'
+            )
+
+            const vanished = legs
+              .filter(job => job.conclusion === 'failure' && !scored(job))
+              .map(describe)
+
+            // One open issue per kind, commented on rather than reopened
+            // nightly: without this the same state files a fresh issue every
+            // night until someone fixes it.
+            const report = async (title, body) => {
+              const open = await github.paginate(github.rest.issues.listForRepo, {
+                owner,
+                repo,
+                state: 'open',
+                labels: 'mutation',
+              })
+
+              const existing = open.find(issue => issue.title === title)
+
+              if (existing) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body })
+                return
+              }
+
+              await github.rest.issues.create({ owner, repo, title, body, labels: ['mutation'] })
             }
 
-            const title = 'Mutation legs did not finish'
-
-            const body = [
-              `These legs were cancelled rather than scored:`,
-              ``,
-              ...stopped,
-              ``,
-              `Run: ${run}`,
-              ``,
-              `**Six hours is GitHub's hard limit for a job on a hosted runner**, and it is`,
-              `reported as cancelled rather than as a failure, which is why a run in this state`,
-              `looks green. A leg that does not finish is a floor that gates nothing.`,
-              ``,
-              `Split it by mutated path, never with \`--shard\`, and give the new legs`,
-              `provisional floors to be calibrated from two nightlies. See`,
-              `docs/spec/quality-policy.md.`,
-            ].join('\n')
-
-            const open = await github.paginate(github.rest.issues.listForRepo, {
-              owner,
-              repo,
-              state: 'open',
-              labels: 'mutation',
-            })
-
-            const existing = open.find(issue => issue.title === title)
-
-            if (existing) {
-              await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body })
-              return
+            if (cancelled.length > 0) {
+              await report('Mutation legs did not finish', [
+                `These legs were cancelled rather than scored:`,
+                ``,
+                ...cancelled,
+                ``,
+                `Run: ${run}`,
+                ``,
+                `**Six hours is GitHub's hard limit for a job on a hosted runner**, and it is`,
+                `reported as cancelled rather than as a failure, which is why a run in this state`,
+                `looks green. A leg that does not finish is a floor that gates nothing.`,
+                ``,
+                `Split it by mutated path, never with \`--shard\`, and give the new legs`,
+                `provisional floors to be calibrated from two nightlies. See`,
+                `docs/spec/quality-policy.md.`,
+              ].join('\n'))
             }
 
-            await github.rest.issues.create({ owner, repo, title, body, labels: ['mutation'] })
+            if (vanished.length > 0) {
+              await report('Mutation legs were torn down before scoring', [
+                `These legs failed without recording a score, so the reporter inside the job`,
+                `never ran either:`,
+                ``,
+                ...vanished,
+                ``,
+                `Run: ${run}`,
+                ``,
+                `**This is neither a score regression nor the six-hour limit.** Every step after`,
+                `the mutation run is marked \`skipped\`, \`Record the score\` included, and that`,
+                `step carries \`if: always()\`: no condition in this workflow can skip it, so the`,
+                `job was stopped rather than finished. Nothing can be said about coverage`,
+                `quality from a run in this state.`,
+                ``,
+                `The cause this has actually had is memory. A mutant that removes the bound from`,
+                `a loop in a decoder grows its output until the host reclaims the runner, and`,
+                `the workflow answers that by pinning \`memory_limit\` to the value the container`,
+                `uses, so such a mutant is killed as a mutant (#118). A leg arriving here again`,
+                `means that limit is too high for it, or that the cause is a different one. Read`,
+                `the log before touching any test.`,
+              ].join('\n'))
+            }
