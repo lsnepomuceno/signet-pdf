@@ -250,3 +250,91 @@ it('keeps every guard that sign() has', function () {
 
     deleteFiles($pfxPath);
 });
+
+it('takes a certificate that arrived on its own, with no private key', function () {
+    // The four documented ways in all require the key, correctly for what they
+    // are for. This flow never has one, so it needed a way in of its own:
+    // before it, the route was usingCertificate() with a hand-assembled value
+    // object, which put openssl_x509_read() into application code for what is
+    // conceptually "here is the certificate" (#116).
+    [$certificatePem] = LSNepomuceno\Signet\Testing\DebugCertificate::makePem();
+
+    $pending = signet()->newSignature()
+        ->certificatePublic($certificatePem)
+        ->pdf(resource('test.pdf'));
+
+    $prepared = $pending->prepare();
+
+    expect($prepared->signableBytes())->not->toBe('');
+});
+
+it('reads the identity out of a certificate it cannot sign with', function () {
+    // What phase one wants from a certificate is all public, which is the
+    // premise the whole flow rests on.
+    [$certificatePem] = LSNepomuceno\Signet\Testing\DebugCertificate::makePem();
+
+    $certificate = resolve(LSNepomuceno\Signet\Certificates\PemCertificateReader::class)
+        ->readPublic($certificatePem);
+
+    expect(LSNepomuceno\Signet\Support\Pem::hasPrivateKey($certificate->original))->toBeFalse()
+        ->and($certificate->commonName())->not->toBeNull()
+        ->and($certificate->expiresAt())->toBeInt()
+        ->and($certificate->password)->toBe('');
+});
+
+it('refuses to sign with it, and says which half of the flow it is for', function () {
+    // The failure this names is calling the wrong one of prepare() and sign().
+    // It used to surface four calls later as an OpenSSL string about a key that
+    // could not be read, which describes a corrupt key rather than an absent
+    // one.
+    [$certificatePem] = LSNepomuceno\Signet\Testing\DebugCertificate::makePem();
+
+    $sign = fn() => signet()->newSignature()
+        ->certificatePublic($certificatePem)
+        ->pdf(resource('test.pdf'))
+        ->sign();
+
+    expect($sign)->toThrow(
+        LSNepomuceno\Signet\Exceptions\MissingPrivateKeyException::class,
+        'it can prepare a signature but not produce one',
+    );
+});
+
+it('keeps that refusal catchable as the exception it used to be', function () {
+    // Additive rather than breaking: an application already catching the
+    // general certificate exception around sign() keeps catching this.
+    [$certificatePem] = LSNepomuceno\Signet\Testing\DebugCertificate::makePem();
+
+    expect(fn() => signet()->newSignature()
+        ->certificatePublic($certificatePem)
+        ->pdf(resource('test.pdf'))
+        ->sign())
+        ->toThrow(LSNepomuceno\Signet\Exceptions\InvalidCertificateContentException::class);
+});
+
+it('refuses input that is not a certificate', function () {
+    [, $privateKeyPem] = LSNepomuceno\Signet\Testing\DebugCertificate::makePem(false);
+
+    // A private key on its own is PEM, and it is not a certificate.
+    expect(fn() => signet()->newSignature()->certificatePublic($privateKeyPem))
+        ->toThrow(LSNepomuceno\Signet\Exceptions\InvalidPemContentException::class)
+        // Binary is the likeliest mistake, and it is reported as misrouted
+        // rather than as malformed.
+        ->and(fn() => signet()->newSignature()->certificatePublic("\x30\x82\x01\x0a"))
+        ->toThrow(LSNepomuceno\Signet\Exceptions\InvalidPemContentException::class);
+});
+
+it('signs in two phases through the new entry point, and the result verifies', function () {
+    // The end of the story the issue tells: a certificate with no key goes in,
+    // an outside signer produces the CMS, and the document validates.
+    [$certificatePem] = LSNepomuceno\Signet\Testing\DebugCertificate::makePem();
+
+    $prepared = signet()->newSignature()
+        ->certificatePublic($certificatePem)
+        ->pdf(resource('test.pdf'))
+        ->prepare();
+
+    $signed = signet()->complete($prepared, cmsFor($prepared, testCertificate()));
+
+    expect(resolve(SignatureValidator::class)->validate($signed->contents)->isValid())->toBeTrue();
+});

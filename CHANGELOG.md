@@ -18,6 +18,41 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`PendingSignature::certificatePublic($certificatePem)`**, a way in for a
+  certificate that arrived without its private key. The four existing entry
+  points all require the key, correctly, since signing needs it; the two-phase
+  flow never has one, and both things it does with a certificate read only
+  public material. The route until now was `usingCertificate()` with a
+  hand-assembled `Data\Certificate`, which put `openssl_x509_read()` and a
+  four-argument constructor into application code
+  ([0116](docs/decisions/0116-signing-has-two-phases.md)).
+
+  A builder made this way is for `prepare()`, which is why it is a method of
+  its own rather than a flag on one of the four. `sign()` still works if the
+  application has bound a `Contracts\SignatureProducer` that holds the key
+  elsewhere, and raises `MissingPrivateKeyException` from the default producer,
+  which is the one that needs it.
+
+- **`Exceptions\MissingPrivateKeyException`**, raised by
+  `Signing\Cades\CadesBuilder` when the certificate carries no key. It
+  **extends `InvalidCertificateContentException`**, which is what the case used
+  to arrive as, so an existing catch keeps matching. The message names both
+  halves of the flow instead of reporting an OpenSSL error about a key that
+  could not be read, which described a corrupt key rather than an absent one.
+
+  It comes from the producer rather than from `sign()` deliberately: `sign()`
+  routes through `Contracts\SignatureProducer`, so an application that bound one
+  holding the key elsewhere signs from a keyless certificate quite happily.
+
+- **`Support\Pem::hasPrivateKey()`**, which reports whether a private key block
+  is present rather than whether it loads. Loading answers false to a key that
+  is absent and to one that is merely locked, and those are different faults.
+
+- `Certificates\PemCertificateReader::readPublic()` and
+  `Certificates\CertificateParser::parsePublic()`, the two steps underneath it.
+
 ### Fixed
 
 - **A compressed stream in a document now decodes under a ceiling.** Nothing in

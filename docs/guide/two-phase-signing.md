@@ -327,71 +327,57 @@ signing service will hand over on request:
 | `seal()` in phase one | the signer's name, issuer and expiry, drawn into the appearance | `sealFrom()` with your own artwork, or no seal |
 | `complete()`, third argument | building the security store from the bundle's own chain | the chain is read out of the CMS instead, which is where a validator reads it from too |
 
-**The readers will not take a certificate on its own.** `certificate()`,
-`certificateContents()`, `certificatePem()` and `certificateFromPem()` all
-require the private key, and say so:
+**The four ordinary ways in all require the private key**, correctly for what
+they are for: `certificate()`, `certificateContents()`, `certificatePem()` and
+`certificateFromPem()` exist to produce a signature, and that needs the key.
 
-```
-No PEM private key block found in the bundle; signing needs the key, not the
-certificate alone.
-```
-
-That is right for the ordinary case and wrong for this one, where the key is the
-one thing you are never going to have. So build the value object from the public
-certificate and hand it over with `usingCertificate()`:
-
-```php
-use LSNepomuceno\Signet\Data\Certificate;
-
-/**
- * The signer's certificate, fetched from wherever it is published: the signing
- * service's own API, an LDAP directory, a column you filled when the signer
- * enrolled.
- */
-final readonly class PublicCertificates
-{
-    public function __construct(private HttpClientInterface $http) {}
-
-    public function forSigner(string $identifier): Certificate
-    {
-        $pem = $this->http
-            ->request('GET', "https://provider.example.com/certificates/{$identifier}")
-            ->getContent();
-
-        $x509 = openssl_x509_read($pem);
-        $parsed = openssl_x509_parse($pem);
-
-        if ($x509 === false || $parsed === false) {
-            throw new RuntimeException("the certificate for {$identifier} did not parse");
-        }
-
-        return new Certificate(
-            original: $pem,
-            openssl: $x509,
-            data: $parsed,
-            password: '',
-        );
-    }
-}
-```
-
-Then phase one can draw the seal, still with no key in the process:
+This flow never has one, so it has a way in of its own:
 
 ```php
 $prepared = $this->signet->newSignature()
     ->pdf($documentPath)
-    ->usingCertificate($this->certificates->forSigner($signerId))
+    ->certificatePublic($this->certificates->pemForSigner($signerId))
     ->info(name: $signerName, reason: 'Service agreement')
     ->seal()
     ->prepare();
 ```
 
+`certificatePublic()` takes the certificate in PEM and nothing else. Where it
+comes from is yours: the signing service's own API, an LDAP directory, a column
+you filled when the signer enrolled.
+
+```php
+/**
+ * The signer's certificate, fetched from wherever it is published.
+ */
+final readonly class PublicCertificates
+{
+    public function __construct(private HttpClientInterface $http) {}
+
+    public function pemForSigner(string $identifier): string
+    {
+        return $this->http
+            ->request('GET', "https://provider.example.com/certificates/{$identifier}")
+            ->getContent();
+    }
+}
+```
+
 **Nothing here reads a private key.** The seal takes the common name, the issuer
 and the expiry out of the parsed certificate, and the security store takes the
-PEM certificates out of `original`, so `original` should carry the intermediates
+PEM certificates out of it, so the PEM you pass should carry the intermediates
 too when you have them.
 
-If the service publishes DER rather than PEM, convert before constructing:
+**A builder made this way can `prepare()` and cannot `sign()`**, which is the
+reason the method is named apart rather than being a flag on one of the four.
+Calling `sign()` raises `MissingPrivateKeyException`, which says exactly that
+instead of reporting a key that could not be read.
+
+`usingCertificate()` still takes a `Data\Certificate` you assembled yourself,
+and there is no longer a reason to reach for it here.
+
+
+If the service publishes DER rather than PEM, convert before passing it in:
 
 ```php
 $pem = "-----BEGIN CERTIFICATE-----\n"

@@ -99,3 +99,53 @@ when the certificate never reached this process, which is the honest answer.
   `Signing\Cades\CadesBuilder`. Passing the concrete class still works.
 - `docs/spec/public-api.md` no longer lists the external key as out of scope. It
   now lists what is: the signed-attributes split.
+
+### The certificate needed a way in of its own, added afterwards
+
+The seam was built and the certificate was left behind. Every documented way of
+getting one into `Signing\PendingSignature` required the private key, which is
+right for the four that exist to sign and wrong for a flow whose premise is that
+the key is somewhere this process cannot reach.
+
+Two things here still want a certificate and both read only public material:
+`seal()` in phase one takes `commonName()`, the issuer and `expiresAt()`, and
+`complete()` takes the certificates out of it for the security store. So the
+route was `usingCertificate()` with a hand-assembled value object, which put
+`openssl_x509_read()`, `openssl_x509_parse()` and a four-argument constructor
+into application code for what is conceptually "here is the certificate" (#116).
+
+`certificatePublic(string $certificatePem)` does that construction inside the
+package. It is additive on a concrete class, so a minor under
+[0117](0117-a-contract-addition-is-a-major-release.md).
+
+**Named apart from the four rather than added as a flag on one of them**,
+because the builder it produces cannot do what a builder normally can: it can
+`prepare()` and it cannot `sign()`. A flag would have made that an argument at a
+call site far from the failure.
+
+**And the failure now says what is wrong.** It used to surface as an OpenSSL
+error string about a key that could not be read, which describes a corrupt key
+rather than an absent one and sends the reader to look at a file that is not the
+problem. `Exceptions\MissingPrivateKeyException` names both halves of the flow
+and says which one this builder is for. It **extends
+`InvalidCertificateContentException`**, the exception the case used to arrive
+as, so an application already catching that keeps catching this.
+
+**It is raised by `Signing\Cades\CadesBuilder`, not by `PendingSignature`, and
+the first attempt had it the other way round.** Refusing in `sign()` reads
+better, and it is wrong: `sign()` routes through
+`Contracts\SignatureProducer`, which is the seam this very record added so that
+an outside signer can hold the key. A producer backed by an HSM signing from a
+keyless certificate is that seam working, and a check on the builder would have
+forbidden the case the seam exists for. `Testing\FakePdfSigner` says the same
+thing from the other end: it signs nothing, needs no key, and eleven of its
+tests failed against that first placement.
+
+So the rule the record ends with is narrower than it looked. **The key is
+required by the producer that uses it, and by nothing above.**
+
+The distinction between an absent key and an unreadable one is drawn by
+`Support\Pem::hasPrivateKey()`, which asks whether a block is present rather
+than whether it loads, because loading answers false to both. A bundle whose key
+is encrypted under a password that did not open it still has a key, and saying
+it has none would be the same misdirection in the opposite direction.

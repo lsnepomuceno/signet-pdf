@@ -199,6 +199,42 @@ final class PendingSignature
         return $this;
     }
 
+    /**
+     * A certificate on its own, with no private key, for the flow where the key
+     * is somewhere this process cannot reach it.
+     *
+     * **This builder is for `prepare()`**, which is the whole reason the method
+     * is named apart from the four above rather than being a flag on one of
+     * them. Everything phase one needs from a certificate is public: `seal()`
+     * draws from `commonName()`, the issuer and `expiresAt()`, and `complete()`
+     * reads the chain out of it for the security store
+     * (docs/decisions/0116-signing-has-two-phases.md).
+     *
+     * Before this, the way through was `usingCertificate()` with a
+     * hand-assembled value object, which put `openssl_x509_read()` and a
+     * four-argument constructor into application code for what is
+     * conceptually "here is the certificate".
+     *
+     * Calling `sign()` afterwards raises `MissingPrivateKeyException`, which
+     * says that rather than reporting a key that could not be read. It is the
+     * default CMS producer that refuses, not this builder: an application that
+     * has bound a `Contracts\SignatureProducer` holding the key elsewhere can
+     * call `sign()` with a certificate from here and it works, which is what
+     * that seam is for.
+     *
+     * @param  string  $certificatePem  The certificate in PEM. A bundle that also
+     *                                  carries a key is accepted, and the key goes unused.
+     *
+     * @throws InvalidPemContentException When the input is not PEM at all.
+     * @throws InvalidCertificateContentException When it is PEM and not a certificate.
+     */
+    public function certificatePublic(string $certificatePem): self
+    {
+        $this->certificate = $this->pemReader->readPublic($certificatePem);
+
+        return $this;
+    }
+
     public function usingCertificate(Certificate $certificate): self
     {
         $this->certificate = $certificate;
@@ -451,7 +487,10 @@ final class PendingSignature
      * @throws SignatureFieldException
      * @throws InvalidCertificateContentException When a supplied chain
      *          certificate cannot be read, or is not part of this signer's
-     *          chain.
+     *          chain. Its `MissingPrivateKeyException` subclass arrives when
+     *          the certificate carries no key and the producer in use is the
+     *          one that needs it, which is the default: `certificatePublic()`
+     *          produces such a builder on purpose, and it is for `prepare()`.
      * @throws SignatureTransportException From pades-b-t up, when the
      *          timestamp authority did not answer.
      */
