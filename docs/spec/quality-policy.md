@@ -82,6 +82,7 @@ one runner per leg, each with its own floor. Measured on the nightly runs of
 | `Certificates` | 68.07 x4, 72.40 x2 | 68.07 | 64 | 4.07 |
 | `Signing/Incremental (revision)` | none yet | | 60 | provisional |
 | `Signing/Incremental (geometry)` | none yet | | 60 | provisional |
+| `Signing/Incremental (document)` | none yet | | 60 | provisional |
 | `Signing/Incremental (readers)` | none yet | | 60 | provisional |
 | `Signing/Incremental (writers)` | none yet | | 60 | provisional |
 | `Signing (rest)` | 73.80, 73.65 | 73.65 | 60 | provisional |
@@ -168,6 +169,27 @@ kill them cost, and geometry is arithmetic: nearly every number in it is a
 mutant, and the tests that kill those mutants render a seal. `Support\SrgbProfile`
 is the same shape, and is excluded from scoring for it.
 
+### An estimate taken from an unfinished run is not a measurement
+
+The `readers` leg was given "38 min for seven of the nine" as its estimate, and
+it was cancelled at six hours on the first night it ran (#117). The number was
+not wrong about the seven files it described. It was read from a run that never
+reached the other two, and one of those was the whole problem:
+
+| File | Time on 2026-08-21 |
+|---|---|
+| `DocumentReader.php` | 3h03 |
+| `XrefStreamReader.php` | 21 min |
+| `SignatureFieldReader.php` | 17 min |
+| the six other files that ran | 13 min together |
+
+`DocumentReader.php` now has a leg of its own, on the same reasoning that gave
+one to `RevisionWriter.php`. The general lesson is the one this section keeps
+paying for: **a file that was never reached contributes nothing to a timing, and
+reads exactly like a file that is cheap.** An estimate drawn from a cancelled
+run has to name which files it did not measure, or it will be read as covering
+all of them.
+
 **A leg that dies to the runner is not a score either.** `Support (bytes)` came
 back as *failed* on that same night, at exit code 143 with the runner reporting
 a shutdown signal, an hour into a run that had scored nothing yet. It reads like
@@ -190,6 +212,14 @@ that is a rule rather than a fix: **a limit that differs between the two ends
 measures two different suites**, because running out of memory kills a mutant
 and a score is a count of killed mutants. Every number in the table above is
 comparable to a local run only for as long as the two agree (#118).
+
+That cuts both ways, and it is why the table carries a date. A mutant that used
+to burn its whole timeout, or take the runner down, now dies at the limit and is
+counted as killed, so a leg carrying such mutants can score *higher* from
+2026-08-21 onwards without a single test having changed. Any floor calibrated
+from a measurement taken before that night is calibrated against a different
+suite, and none of them is raised on the strength of the first night that
+follows it.
 
 **`Support\SrgbProfile` is not mutation tested, deliberately.** A leg holding
 that one file was cancelled at six hours. It builds an ICC profile out of matrix
