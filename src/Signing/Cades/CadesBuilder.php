@@ -14,6 +14,7 @@ use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Enums\DigestAlgorithm;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Exceptions\InvalidCertificateContentException;
+use LSNepomuceno\Signet\Exceptions\MissingPrivateKeyException;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
 use LSNepomuceno\Signet\Exceptions\SignatureTransportException;
 use LSNepomuceno\Signet\Support\Pem;
@@ -39,6 +40,10 @@ final readonly class CadesBuilder implements SignatureProducer
      * @param  string  $content  The ByteRange-covered bytes to sign.
      *
      * @throws InvalidCertificateContentException
+     * @throws MissingPrivateKeyException When the certificate arrived without
+     *          one. This producer is the half of the two-phase flow that needs
+     *          a key, and a producer that holds it elsewhere replaces this
+     *          class rather than reaching into it.
      * @throws ProcessRunTimeException
      * @throws SignatureTransportException When a timestamp authority the
      *          profile needs did not answer.
@@ -117,6 +122,21 @@ final readonly class CadesBuilder implements SignatureProducer
      */
     private function privateKey(Certificate $certificate): \OpenSSLAsymmetricKey
     {
+        // Absent and unreadable are different faults, and loading answers false
+        // to both. A certificate that arrived on its own is what
+        // `certificatePublic()` produces on purpose, for a flow whose key is on
+        // a token or behind a service, so reporting it as a key that could not
+        // be read sends the reader to look at a file that is not the problem.
+        //
+        // **This is the one producer that needs the key**, which is why the
+        // check is here rather than on the builder. `Contracts\SignatureProducer`
+        // exists so an external signer can hold the key instead, and one of
+        // those signing from a keyless certificate is the seam working rather
+        // than a mistake (docs/decisions/0116-signing-has-two-phases.md).
+        if (! Pem::hasPrivateKey($certificate->original)) {
+            throw new MissingPrivateKeyException();
+        }
+
         $key = openssl_pkey_get_private($certificate->original, $certificate->password);
 
         if ($key === false) {

@@ -58,6 +58,37 @@ final class CertificateParser
     }
 
     /**
+     * The same, for a certificate that arrived without a private key.
+     *
+     * It is `parse()` without the `openssl_x509_check_private_key()` step,
+     * which is the only thing in there that needs a key. The result carries an
+     * empty password because there is nothing for one to open, and
+     * `Certificate::hasPrivateKey()` answers false for it.
+     *
+     * Signing is not possible from this, and that is the point rather than a
+     * limitation: the two-phase flow reads the certificate for what is public
+     * about it and the key never enters the process
+     * (docs/decisions/0116-signing-has-two-phases.md).
+     *
+     * @throws InvalidCertificateContentException
+     */
+    public function parsePublic(string $pem): Certificate
+    {
+        $x509 = Probe::run(static fn() => openssl_x509_read($pem));
+
+        if ($x509 === false) {
+            throw new InvalidCertificateContentException();
+        }
+
+        return new Certificate(
+            original: $pem,
+            openssl: $x509,
+            data: $this->parsedData($x509),
+            password: '',
+        );
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function parsedData(\OpenSSLCertificate $x509): array

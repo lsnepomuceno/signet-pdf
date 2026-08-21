@@ -26,9 +26,6 @@ use SensitiveParameter;
  */
 final readonly class PemCertificateReader implements CertificateReader
 {
-    /** Covers PRIVATE KEY, RSA PRIVATE KEY, EC PRIVATE KEY and ENCRYPTED PRIVATE KEY. */
-    private const string PRIVATE_KEY_PATTERN = '/-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----/';
-
     /** ASN.1 SEQUENCE. Both a DER certificate and a PKCS#12 bundle open with it. */
     private const string DER_PREFIX = "\x30";
 
@@ -94,6 +91,28 @@ final readonly class PemCertificateReader implements CertificateReader
     }
 
     /**
+     * Reads a certificate that arrived on its own, with no private key.
+     *
+     * The two entry points above both refuse this, correctly for what they are
+     * for: signing needs the key. The two-phase flow does not have one and
+     * never will, since the key sits on a token, in an HSM or behind a cloud
+     * service, and what it needs from the certificate is public
+     * (docs/decisions/0116-signing-has-two-phases.md).
+     *
+     * A bundle that does carry a key is accepted rather than refused: it is
+     * the same certificate either way, and the key simply goes unused here.
+     *
+     * @throws InvalidPemContentException When the input is not PEM at all.
+     * @throws InvalidCertificateContentException When it is PEM and not a certificate.
+     */
+    public function readPublic(string $certificatePem): Certificate
+    {
+        $this->requireCertificate($certificatePem, 'the certificate');
+
+        return $this->parser->parsePublic($certificatePem);
+    }
+
+    /**
      * @throws InvalidPemContentException
      */
     private function requireCertificate(string $contents, string $label): void
@@ -115,7 +134,7 @@ final readonly class PemCertificateReader implements CertificateReader
      */
     private function requirePrivateKey(string $contents, string $label): void
     {
-        if (preg_match(self::PRIVATE_KEY_PATTERN, $contents) === 1) {
+        if (Pem::hasPrivateKey($contents)) {
             return;
         }
 

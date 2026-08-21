@@ -49,6 +49,25 @@ final readonly class Pem
     }
 
     /**
+     * Whether a private key block is present at all.
+     *
+     * **Present, not usable**, and the distinction is the whole reason this
+     * exists beside a call that tries to load the key. A bundle with no block
+     * carries no key and never will; a bundle with a block that will not load
+     * has one, under a password that did not open it or in bytes that are
+     * damaged. Those are different faults for whoever reads the message, and
+     * loading alone cannot tell them apart, since it answers false to both.
+     *
+     * The armour varies by key type, `RSA PRIVATE KEY`, `EC PRIVATE KEY` and
+     * the unqualified PKCS#8 `PRIVATE KEY` among them, so this matches the
+     * shape rather than listing them.
+     */
+    public static function hasPrivateKey(string $contents): bool
+    {
+        return preg_match('/-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----/', $contents) === 1;
+    }
+
+    /**
      * The DER bytes inside one PEM certificate.
      *
      * Null when the body is not valid base64, which the caller reports in its

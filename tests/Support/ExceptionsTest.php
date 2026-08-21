@@ -40,7 +40,7 @@ it('finds every exception rather than a list somebody has to remember', function
     // covered the moment it exists. This asserts the directory is actually
     // being read, since a glob that silently returns nothing would make the
     // test above pass with no cases at all.
-    expect(glob(dirname(__DIR__, 2) . '/src/Exceptions/*.php'))->toHaveCount(20);
+    expect(glob(dirname(__DIR__, 2) . '/src/Exceptions/*.php'))->toHaveCount(21);
 });
 
 it('names a wrong password as a wrong password', function () {

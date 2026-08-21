@@ -156,7 +156,15 @@ Certificate input, one of:
 | `certificateContents($bytes, $password)` | PKCS#12 bytes already in hand |
 | `certificatePem($path, $keyPath, $password)` | PEM, key combined or separate |
 | `certificateFromPem($contents, $key, $password)` | PEM bytes already in hand |
+| `certificatePublic($certificatePem)` | a certificate with **no private key** |
 | `usingCertificate($certificate)` | an already-parsed `Data\Certificate` |
+
+The first four require the private key, because signing needs it.
+`certificatePublic()` is for the flow where the key is on a token, in an HSM or
+behind a cloud service and will never enter this process
+([0116](../decisions/0116-signing-has-two-phases.md)): the builder it produces
+can `prepare()` and raises `Exceptions\MissingPrivateKeyException` from
+`sign()`.
 
 `pdf($path, $password)` takes the **document's** password as its second
 argument, when the document is encrypted. It is unrelated to the certificate's:
