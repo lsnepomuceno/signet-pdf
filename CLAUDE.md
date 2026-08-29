@@ -81,10 +81,14 @@ There is no Testbench and no application to boot. `tests/Harness.php` provides
 the three things the container used to: autowiring, rebinding and mutable
 configuration. It lives in `tests/` and must stay there.
 
-`openssl` on `PATH` is **not** required to run the suite: `Testing\DebugCertificate`
-generates throwaway PKCS#12 bundles through the ext-openssl functions. The
-binary is only needed by `OpenSslCliCertificateReader` and
-`Validation\OpenSslCliSignatureVerifier`.
+`openssl` on `PATH` is **not** required to build a certificate:
+`Testing\DebugCertificate` generates throwaway PKCS#12 bundles through the
+ext-openssl functions. It **is** required to run the suite, because three things
+have no ext-openssl equivalent: `Certificates\OpenSslCliCertificateReader`
+(legacy PFX under OpenSSL 3.x), `Validation\OpenSslCliSignatureVerifier`, and
+the fixtures that answer for a certificate,
+`Testing\LocalTimestampAuthority` and `Testing\LocalRevocationAuthority::crlFor()`,
+since ext-openssl can issue neither a timestamp token nor a CRL.
 
 Tests in the `network` group hit a live timestamp authority (freetsa.org) and
 fail offline. Everything they cover is also gated offline through
@@ -131,7 +135,11 @@ The pipeline, all under `Signing/Incremental/`:
 3. `ByteRangeCalculator::apply()` fills `/ByteRange` with the real offsets.
 4. `Cades\CadesBuilder` builds the detached CMS with
    `Com\Tecnick\Pdf\Sign\Signer`, **not** `openssl_pkcs7_sign()`, which cannot
-   emit the ESS `signing-certificate-v2` attribute PAdES requires.
+   emit the ESS `signing-certificate-v2` attribute PAdES requires. It builds it
+   from the **digest** of the covered bytes rather than from the bytes
+   (`Contracts\DigestSignatureProducer`, 0122), and the key that signs the
+   assembled attributes may be outside this process entirely
+   (`Contracts\SigningKey`, 0120).
 5. The hex payload is written back with `substr_replace()` at a fixed width.
 6. `DssWriter` (B-LT and above) appends the Document Security Store;
    `DocTimeStampWriter` (B-LTA) closes with an archive timestamp.

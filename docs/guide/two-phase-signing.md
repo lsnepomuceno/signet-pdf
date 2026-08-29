@@ -668,18 +668,67 @@ $signet = new Signet(signer: new IncrementalSigner(
 this substitution and the split above are the same mechanism seen from two
 sides.
 
+## The seam one level deeper: a raw signature
+
+The producer above returns a **complete CAdES**, which serves a signer that can
+assemble one. A PKCS#11 token, a smart card, a cloud KMS and every Brazilian
+cloud certificate cannot: each takes bytes and returns a raw RSA or ECDSA
+signature.
+
+`Contracts\SigningKey` is the seam for those, and what it receives is the DER
+encoding of the **signed attributes**, not the digest of the document. That is
+what a CAdES signature is computed over, and everything needed to build them is
+public material the signer already has
+([0120](../decisions/0120-a-key-can-live-outside-the-process.md)).
+
+```php
+use LSNepomuceno\Signet\Contracts\SigningKey;
+use LSNepomuceno\Signet\Enums\DigestAlgorithm;
+use LSNepomuceno\Signet\Enums\SignatureEncoding;
+
+final readonly class TokenKey implements SigningKey
+{
+    public function sign(string $payload, DigestAlgorithm $digest): string
+    {
+        // Whatever reaches the token, the HSM or the provider's API. A service
+        // that asks for a hash computes it over $payload with $digest and
+        // nothing else.
+        return $this->client->sign($payload, $digest->value);
+    }
+
+    public function encoding(): SignatureEncoding
+    {
+        // Der for openssl and PKCS#11, P1363 for a provider that returns the
+        // fixed-width r and s. Declared rather than guessed: the two are not
+        // reliably distinguishable, and the wrong answer produces a signature
+        // that verifies against nothing.
+        return SignatureEncoding::Der;
+    }
+}
+```
+
+Bind it and sign through the ordinary entry point. The certificate arrives
+through `certificatePublic()`, because there is no key to read:
+
+```php
+$signed = new Signet(signingKey: new TokenKey(...))->newSignature()
+    ->certificatePublic($certificatePem)
+    ->pdf('/path/contract.pdf')
+    ->profile(SignatureProfile::PadesBT)
+    ->sign();
+```
+
+Everything else is unchanged: the timestamp for `pades-b-t` and above is
+requested **over the signature**, so it is added after the key answers, and the
+document-level phases above still work if the signer needs a consent step in the
+middle.
+
 ## What is not here yet
 
-**Handing out the signed attributes and taking back a raw RSA or ECDSA
-signature**, which is what a PKCS#11 token and most cloud certificates actually
-offer. That needs the CMS assembly itself to expose the split, and the library
-underneath does not yet:
-[#59](https://github.com/lsnepomuceno/signet-pdf/issues/59) tracks it, and the
-change it waits on is
-[tecnickcom/tc-lib-pdf-sign#1](https://github.com/tecnickcom/tc-lib-pdf-sign/issues/1).
-
-Everything on this page is the prerequisite for that, and it is already enough
-for a signer that returns a complete CAdES.
+**A client for any specific provider.** BirdID, VidaaS and NeoID each have their
+own API, their own OAuth flow and their own consent step, and the network stays
+behind `Contracts\SignatureTransport` (invariant 9). What ships is the seam; the
+provider client is the application's, or a package of its own.
 
 ## Testing your own flow
 
