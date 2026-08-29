@@ -7,6 +7,7 @@ namespace LSNepomuceno\Signet\Validation;
 use LSNepomuceno\Signet\Data\Signer;
 use LSNepomuceno\Signet\Enums\CmsAttribute;
 use LSNepomuceno\Signet\Enums\DigestOid;
+use LSNepomuceno\Signet\Enums\PolicyQualifier;
 use LSNepomuceno\Signet\Support\Pem;
 use LSNepomuceno\Signet\Support\Probe;
 
@@ -24,15 +25,6 @@ use LSNepomuceno\Signet\Support\Probe;
  */
 final class Pkcs7Reader
 {
-    /**
-     * The signed attribute holding the digest of what was signed, RFC 5652
-     * §11.2.
-     */
-    private const string MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
-
-    /** id-spq-ets-uri, RFC 5126 §5.8.1: where the policy document lives. */
-    private const string POLICY_URI = '1.2.840.113549.1.9.16.5.1';
-
     public function __construct(
         private readonly DerReader $der = new DerReader(),
         private readonly Asn1Reader $asn1 = new Asn1Reader(),
@@ -114,7 +106,7 @@ final class Pkcs7Reader
             foreach ($this->asn1->childrenOf($der, $part) as $attribute) {
                 $pair = $this->asn1->childrenOf($der, $attribute);
 
-                if (count($pair) < 2 || $this->asn1->oid($der, $pair[0]) !== self::MESSAGE_DIGEST) {
+                if (count($pair) < 2 || $this->asn1->oid($der, $pair[0]) !== CmsAttribute::MessageDigest->value) {
                     continue;
                 }
 
@@ -199,7 +191,7 @@ final class Pkcs7Reader
         foreach ($this->asn1->childrenOf($der, $qualifiers) as $qualifier) {
             $pair = $this->asn1->childrenOf($der, $qualifier);
 
-            if (count($pair) < 2 || $this->asn1->oid($der, $pair[0]) !== self::POLICY_URI) {
+            if (count($pair) < 2 || $this->asn1->oid($der, $pair[0]) !== PolicyQualifier::Uri->value) {
                 continue;
             }
 

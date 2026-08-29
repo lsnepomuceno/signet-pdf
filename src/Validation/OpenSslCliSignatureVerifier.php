@@ -135,7 +135,7 @@ final readonly class OpenSslCliSignatureVerifier implements SignatureVerifier
                     escapeshellarg($out->path),
                 ));
 
-                return (string) file_get_contents($out->path);
+                return $out->contents();
             });
         });
     }

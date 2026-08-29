@@ -564,3 +564,112 @@ it('declares strict types in every file, including the ones with no class in the
 
     expect($missing)->toBe([]);
 });
+
+/**
+ * No OID is written down twice.
+ *
+ * An object identifier is a fact about a specification, and this package needs
+ * several of them in more than one place: it **writes** the attribute that
+ * `Validation\Pkcs7Reader` **reads** back. Two halves of one fact, and nothing
+ * stopped them being two literals until this gate.
+ *
+ * It is not hypothetical. `id-spq-ets-uri` was a private constant in the reader
+ * and became a second private constant in `Signing\Cades\PolicyAttribute` when
+ * the writing half arrived; `id-messageDigest` was in `Enums\CmsAttribute`, in
+ * `Pkcs7Reader` and in `Validation\NativeSignatureVerifier`, three copies of
+ * one string. A value needed twice belongs in `Enums\`, which is the
+ * convention's own answer (docs/spec/conventions.md).
+ *
+ * **What it deliberately does not decide** is whether an OID stated *once*
+ * should be an enum anyway. That is the "could a second value of this kind ever
+ * be right?" question, it needs a human, and the convention says so about
+ * itself. This gate catches the mechanical half: the same digits, twice.
+ *
+ * Tokenised rather than grepped, so an OID inside a docblock, where several are
+ * cited as references, does not trip it.
+ */
+it('states no object identifier twice', function () {
+    $seen = [];
+
+    foreach (phpFilesUnder(packageRoot() . '/src') as $path => $contents) {
+        foreach (token_get_all($contents) as $token) {
+            if (! is_array($token) || $token[0] !== T_CONSTANT_ENCAPSED_STRING) {
+                continue;
+            }
+
+            $value = trim($token[1], "'\"");
+
+            // Dotted digits, at least four arcs: shorter than that is a version
+            // number or a fragment of one, and every OID this package names is
+            // longer.
+            if (preg_match('/^[0-2](\.\d+){3,}$/', $value) !== 1) {
+                continue;
+            }
+
+            $seen[$value][$path] = true;
+        }
+    }
+
+    $duplicated = [];
+
+    foreach ($seen as $oid => $paths) {
+        if (count($paths) > 1) {
+            $duplicated[$oid] = array_keys($paths);
+        }
+    }
+
+    expect($duplicated)->toBe([]);
+});
+
+/**
+ * The filesystem is reached through `Support\Files`, and nowhere else.
+ *
+ * `file_get_contents()` and `file_put_contents()` return `false` on failure,
+ * and that `false` arriving at a `string` parameter was this package's most
+ * common typing defect. `Files::read()` raises `FileNotFoundException` naming
+ * the path instead, and the rest of the helper exists so the failure modes are
+ * written down once (docs/spec/conventions.md).
+ *
+ * The rule was review-only and was broken twice in one session, both times in
+ * `src/Testing/`, where a fixture writes a configuration file for `openssl`.
+ * Neither was caught by anything, because a file that writes successfully looks
+ * exactly like one that does not.
+ *
+ * `Support\Files` itself is the one exemption, by path: it is the wrapper.
+ *
+ * **The other half of the rule stays with a reviewer.** A name built from
+ * `random_bytes()` should be `Uuid::v7()`, and `random_bytes()` for a key or an
+ * IV is exactly right: the two are the same call and no gate can tell them
+ * apart.
+ */
+it('reaches the filesystem through the helper that names its failures', function () {
+    $banned = ['file_get_contents', 'file_put_contents', 'mkdir', 'unlink', 'is_dir'];
+    $found = [];
+
+    foreach (phpFilesUnder(packageRoot() . '/src') as $path => $contents) {
+        if ($path === 'src/Support/Files.php') {
+            continue;
+        }
+
+        $tokens = token_get_all($contents);
+
+        foreach ($tokens as $index => $token) {
+            if (! is_array($token) || $token[0] !== T_STRING || ! in_array($token[1], $banned, true)) {
+                continue;
+            }
+
+            // The call, rather than the word: a method of the same name, a
+            // constant, or the function named in prose is not this.
+            $next = $tokens[$index + 1] ?? null;
+            $previous = $tokens[$index - 1] ?? null;
+
+            if ($next !== '(' || (is_array($previous) && $previous[0] === T_OBJECT_OPERATOR)) {
+                continue;
+            }
+
+            $found[] = "{$path}: {$token[1]}()";
+        }
+    }
+
+    expect(array_values(array_unique($found)))->toBe([]);
+});
