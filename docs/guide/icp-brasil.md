@@ -86,6 +86,68 @@ narrower alphabet and is unaffected.
 value for `A` and none for `a`, and folding case quietly is how a validator
 accepts a document number nobody issued. Uppercase before asking.
 
+## Declaring a signature policy
+
+A PAdES signature this package produces is conformant to ETSI EN 319 142-1 and,
+by default, declares no **policy**. A Brazilian verifier looks for that
+declaration before calling a signature ICP-Brasil conformant, so a document
+signed with an e-CPF is cryptographically fine and reported as conformant to
+nothing by ITI's own Verificador
+([0121](../decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md)).
+
+Name a policy in the configuration and every signature carries the
+`signature-policy-identifier` signed attribute:
+
+```php
+use LSNepomuceno\Signet\IcpBrasil\Enums\SignaturePolicy;
+
+$signet = new Signet(new SignetConfig(new SigningConfig(
+    profile: SignatureProfile::PadesBT,
+    policy: SignaturePolicy::forProfile(SignatureProfile::PadesBT)?->identifier(),
+)));
+```
+
+`forProfile()` returns the newest policy in force for that profile, which is
+what a new signature should declare. The four families map onto the four
+profiles:
+
+| Family | Declares | Profile |
+|---|---|---|
+| AD-RB | a basic reference | `pades-b-b` |
+| AD-RT | a time reference | `pades-b-t` |
+| AD-RC | complete references | `pades-b-lt` |
+| AD-RA | archival references | `pades-b-lta` |
+
+Every version ITI has published is a case, superseded ones included, so a
+document declaring an older policy can still be named when it is read back.
+**The values are read from the artefact rather than transcribed**:
+`http://politicas.icpbrasil.gov.br/LPA_PAdES.der`, read on 2026-08-29, committed
+at `tests/Resources/icp-brasil/LPA_PAdES.der`, and compared against the enum by
+a test. A wrong policy hash produces a signature that declares conformance and
+fails it.
+
+### Reading a declaration back
+
+```php
+$report = $signet->validate($path);
+$signature = $report->latest();
+
+$signature?->signaturePolicy?->oid;   // what the document says it kept to
+
+new PolicyConformance()->check($report, $signature);   // whether it did
+```
+
+`IcpBrasil\PolicyConformance` reports an unknown identifier, a digest that
+disagrees with the published list, a policy that was not in force when the
+document was signed, and a signature carrying less than the policy demands: a
+`pades-b-b` signature declaring AD-RT is the last case.
+
+::: warning `isValid()` consults none of this
+A signature that declares a policy it does not satisfy is still
+cryptographically valid. Keeping to a policy and verifying are different
+questions, and this layer does not get to redefine the second.
+:::
+
 ## Conformance is not trust
 
 ::: warning `conforms()` is not `isTrusted()`
