@@ -1,0 +1,82 @@
+[
+  {
+    "query": "o teste tests/Signing/StructureTreeTest.php quebrou depois que eu mexi no DssWriter, e o pdfsig diz que a assinatura nao cobre o documento inteiro. me ajuda a entender o que aconteceu",
+    "should_trigger": true
+  },
+  {
+    "query": "assinei um pdf aqui com o perfil b-lt e o Adobe Reader diz que a assinatura e invalida, mas o nosso PdfSignatureValidator diz que ta tudo certo. quem ta errado",
+    "should_trigger": true
+  },
+  {
+    "query": "6 testes de B-LTA falhando com 'Refusing the SHA-1 signing-certificate attribute' e eu nao mexi em nada de timestamp nesse branch",
+    "should_trigger": true
+  },
+  {
+    "query": "o pyhanko nao acha assinatura nenhuma num pdf que a gente assinou, mas o pdfsig acha as duas normalmente. investiga isso",
+    "should_trigger": true
+  },
+  {
+    "query": "preciso ver quais atributos assinados existem no CMS do samples/pades-b-lt.pdf, principalmente se o signing-certificate-v2 esta la ou se saiu a v1",
+    "should_trigger": true
+  },
+  {
+    "query": "vou escrever um script rapido pra ver o que o ByteRangeCalculator ta calculando no documento de seis assinaturas, me ajuda a montar",
+    "should_trigger": true
+  },
+  {
+    "query": "tests/Validation/SecurityStoreTest.php passa no php 8.4 e falha no 8.5 no mesmo run. isso faz algum sentido pra voce?",
+    "should_trigger": true
+  },
+  {
+    "query": "the DSS entry is being written under a hash nobody can find. help me trace where the /VRI key actually comes from",
+    "should_trigger": true
+  },
+  {
+    "query": "depois do meu ultimo commit o six-signatures.pdf ficou com a primeira assinatura corrompida e as outras cinco intactas",
+    "should_trigger": true
+  },
+  {
+    "query": "qpdf --check reclama do xref no arquivo que a gente acabou de assinar mas o documento abre normal no chrome",
+    "should_trigger": true
+  },
+  {
+    "query": "adiciona um enum novo pro tipo de politica ICP-Brasil la em src/IcpBrasil/Enums",
+    "should_trigger": false
+  },
+  {
+    "query": "escreve o registro de decisao explicando por que a verificacao tem duas implementacoes",
+    "should_trigger": false
+  },
+  {
+    "query": "abre o PR do bump do tc-lib-pdf-sign e fica de olho nos checks",
+    "should_trigger": false
+  },
+  {
+    "query": "como eu configuro o freetsa como TSA na aplicacao que consome o pacote? tem exemplo no guia?",
+    "should_trigger": false
+  },
+  {
+    "query": "documenta no guia como validar uma assinatura pelo CLI, com o --json",
+    "should_trigger": false
+  },
+  {
+    "query": "o composer install ta falhando no container php85 com erro de memoria do composer",
+    "should_trigger": false
+  },
+  {
+    "query": "renomeia Pkcs7Reader pra CmsReader e atualiza todas as citacoes em comentario",
+    "should_trigger": false
+  },
+  {
+    "query": "quanto tempo leva a suite inteira hoje? quero saber se vale paralelizar mais",
+    "should_trigger": false
+  },
+  {
+    "query": "explica pra mim o que e um DocTimeStamp e por que ele nao conta no isValid",
+    "should_trigger": false
+  },
+  {
+    "query": "gera os samples de novo, o generate.php mudou e os arquivos ficaram desatualizados",
+    "should_trigger": false
+  }
+]

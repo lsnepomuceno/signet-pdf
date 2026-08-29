@@ -1,0 +1,82 @@
+[
+  {
+    "query": "preciso de um objeto que carregue o resultado da checagem de politica, com os findings e uma mensagem por finding. onde coloco e com que forma",
+    "should_trigger": true
+  },
+  {
+    "query": "cria um contrato novo pra assinatura remota via PKCS#11, o token fica fora do processo",
+    "should_trigger": true
+  },
+  {
+    "query": "vou adicionar o OID do sigPolicyId no PolicyAttribute, uso constante privada ou tem lugar melhor",
+    "should_trigger": true
+  },
+  {
+    "query": "onde e que eu ponho um helper que le o CRL distribution point do certificado? Support ou Validation?",
+    "should_trigger": true
+  },
+  {
+    "query": "add an exception for when the timestamp authority answers with a malformed token, and wire it into the transport",
+    "should_trigger": true
+  },
+  {
+    "query": "quero um enum novo pros tipos de qualificador de politica, sao dois valores fixados pela RFC",
+    "should_trigger": true
+  },
+  {
+    "query": "esse metodo novo devia devolver array ou um objeto de valor? ele lista o que nao bateu na conformidade",
+    "should_trigger": true
+  },
+  {
+    "query": "preciso escrever uma classe que envolve o openssl pra gerar CRL nos testes, em que namespace ela entra",
+    "should_trigger": true
+  },
+  {
+    "query": "vou criar o equivalente do NativeSignatureVerifier pro timestamp, me ajuda a colocar no lugar certo",
+    "should_trigger": true
+  },
+  {
+    "query": "adiciona uma constante com a largura reservada do /Contents, hoje ta hardcoded em dois lugares",
+    "should_trigger": true
+  },
+  {
+    "query": "o pdfsig diz que a assinatura nao cobre o documento todo, investiga por favor",
+    "should_trigger": false
+  },
+  {
+    "query": "commita isso e abre o PR com o assignee de sempre",
+    "should_trigger": false
+  },
+  {
+    "query": "escreve o ADR de por que o core nao le configuracao nenhuma",
+    "should_trigger": false
+  },
+  {
+    "query": "refatora o CadesBuilder pra reduzir o numero de argumentos do construtor, ta com cinco",
+    "should_trigger": false
+  },
+  {
+    "query": "roda o phpstan no container e me mostra so os erros de nivel max",
+    "should_trigger": false
+  },
+  {
+    "query": "explica o que o BaseData faz e por que todo Data estende dele",
+    "should_trigger": false
+  },
+  {
+    "query": "atualiza o composer.json pra permitir php 8.5 tambem",
+    "should_trigger": false
+  },
+  {
+    "query": "escreve os testes que faltam pro PolicyConformance que ja existe",
+    "should_trigger": false
+  },
+  {
+    "query": "traduz os comentarios do DerReader que ficaram em portugues por engano",
+    "should_trigger": false
+  },
+  {
+    "query": "quantas classes tem hoje em src/Validation?",
+    "should_trigger": false
+  }
+]

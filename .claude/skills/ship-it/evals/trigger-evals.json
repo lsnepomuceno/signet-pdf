@@ -1,0 +1,82 @@
+[
+  {
+    "query": "terminei a implementacao, pode commitar e abrir o PR",
+    "should_trigger": true
+  },
+  {
+    "query": "sobe isso pro repositorio pra mim",
+    "should_trigger": true
+  },
+  {
+    "query": "abre o PR e fica esperando os checks passarem",
+    "should_trigger": true
+  },
+  {
+    "query": "faz o merge do 134 e atualiza a main aqui local",
+    "should_trigger": true
+  },
+  {
+    "query": "corrigi um typo no README, manda direto pra main que e uma linha so",
+    "should_trigger": true
+  },
+  {
+    "query": "preciso cortar a 2.1.0, o Unreleased ja tem tudo que entrou",
+    "should_trigger": true
+  },
+  {
+    "query": "qual nome de branch eu uso pra essa mudanca do policy attribute?",
+    "should_trigger": true
+  },
+  {
+    "query": "esqueci de atualizar o changelog antes do commit e ja commitei, e agora",
+    "should_trigger": true
+  },
+  {
+    "query": "commit this with a proper conventional commit message and open the pull request",
+    "should_trigger": true
+  },
+  {
+    "query": "os checks do PR passaram todos, pode seguir com o resto",
+    "should_trigger": true
+  },
+  {
+    "query": "roda o composer check no container php85 e me mostra o resultado",
+    "should_trigger": false
+  },
+  {
+    "query": "o PHP 8.5 quebrou no CI com dead catch no SymfonyProcessRunner, resolve",
+    "should_trigger": false
+  },
+  {
+    "query": "escreve o registro de decisao dessa mudanca antes de qualquer coisa",
+    "should_trigger": false
+  },
+  {
+    "query": "adiciona a classe PolicyReport em src/IcpBrasil/Data seguindo o padrao",
+    "should_trigger": false
+  },
+  {
+    "query": "me mostra os ultimos 5 commits da main com uma linha cada",
+    "should_trigger": false
+  },
+  {
+    "query": "por que o pdfsig reclama da assinatura desse arquivo aqui?",
+    "should_trigger": false
+  },
+  {
+    "query": "explica a diferenca entre merge e squash e qual o github ta configurado pra usar",
+    "should_trigger": false
+  },
+  {
+    "query": "quantos PRs abertos tem hoje no repositorio?",
+    "should_trigger": false
+  },
+  {
+    "query": "atualiza a descricao do PR 130 explicando o timeout que aconteceu no merge",
+    "should_trigger": false
+  },
+  {
+    "query": "o gh nao ta autenticado nessa maquina, resolve isso pra mim",
+    "should_trigger": false
+  }
+]

@@ -1,0 +1,82 @@
+[
+  {
+    "query": "documenta por que a gente aceita o binding SHA-1 do timestamp mesmo sabendo que a flag e mais larga do que precisava",
+    "should_trigger": true
+  },
+  {
+    "query": "preciso registrar em algum lugar que o rebuild do laravel-a1-pdf-sign vai ser em cima desse pacote",
+    "should_trigger": true
+  },
+  {
+    "query": "escreve um ADR sobre assinar documento maior que a memoria, com os tres estagios que a gente combinou",
+    "should_trigger": true
+  },
+  {
+    "query": "eu ia explicar no corpo do PR por que nao fizemos um caminho streaming separado, mas ficou grande demais pra caber la",
+    "should_trigger": true
+  },
+  {
+    "query": "a decisao 0116 nao vale mais depois dessa mudanca. o que eu faco com ela, apago?",
+    "should_trigger": true
+  },
+  {
+    "query": "adiciona a linha do registro novo no indice das decisoes, esqueci na hora",
+    "should_trigger": true
+  },
+  {
+    "query": "we changed the transport to retry twice before failing. does that need a decision record or is it too small?",
+    "should_trigger": true
+  },
+  {
+    "query": "qual o proximo numero livre pra um registro de decisao novo?",
+    "should_trigger": true
+  },
+  {
+    "query": "registra que psr/log e a unica dependencia nao-Symfony e o motivo disso",
+    "should_trigger": true
+  },
+  {
+    "query": "essa mudanca quebra a API publica e eu quero deixar escrito o porque antes de comecar a mexer",
+    "should_trigger": true
+  },
+  {
+    "query": "atualiza o CHANGELOG com a entrada do SigningKey na secao Added",
+    "should_trigger": false
+  },
+  {
+    "query": "documenta no guia como usar o SigningKey numa aplicacao que tem KMS",
+    "should_trigger": false
+  },
+  {
+    "query": "le a decisao 0104 e me explica em duas linhas o que ela decidiu",
+    "should_trigger": false
+  },
+  {
+    "query": "abre uma issue no github propondo o versionamento da documentacao no vitepress",
+    "should_trigger": false
+  },
+  {
+    "query": "o SpecTest ta falhando com um caminho de documentacao que nao resolve, acha qual e",
+    "should_trigger": false
+  },
+  {
+    "query": "corrige o link quebrado que tem no README das decisoes apontando pro 0037",
+    "should_trigger": false
+  },
+  {
+    "query": "roda a suite so da pasta Validation pra eu ver se ficou verde",
+    "should_trigger": false
+  },
+  {
+    "query": "faz o merge do PR 134 e volta pra main",
+    "should_trigger": false
+  },
+  {
+    "query": "resume pra mim o que mudou entre a 2.0.0 e a 2.0.1",
+    "should_trigger": false
+  },
+  {
+    "query": "escreve o comentario no Jira com o link do PR no topo",
+    "should_trigger": false
+  }
+]

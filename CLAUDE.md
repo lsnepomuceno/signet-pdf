@@ -271,7 +271,13 @@ questions to ask before writing rather than after.
 
 They are committed to the repository rather than kept per machine, so
 `tests/Project/SpecTest.php` walks them like any other documentation: a
-`docs/...` path one of them cites has to resolve.
+documentation path one of them cites has to resolve.
+
+**A skill is only consulted if its description matches, and that is measured
+rather than assumed.** Each carries twenty queries in
+`evals/trigger-evals.json`, ten that must trigger it and ten near misses that
+must not, and `.claude/skills/README.md` holds the baseline and how to run them.
+Measure before and after changing a description, and keep the negatives at zero.
 
 ## Commits
 
