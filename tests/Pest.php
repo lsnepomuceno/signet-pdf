@@ -150,6 +150,44 @@ function debugCertificate(): array
 }
 
 /**
+ * A revocable identity, and a transport that can actually answer for it.
+ *
+ * Bound here rather than in each test because the two halves have to come from
+ * the same generation: the store embeds a CRL only when it verifies against the
+ * certificate's issuer, so a list signed by any other authority is gathered and
+ * then dropped
+ * (docs/decisions/0119-revocation-material-is-verified-before-it-is-embedded.md).
+ *
+ * @return array{0: string, 1: string, 2: string} The PFX path, its password,
+ *          and the CRL the bound authority serves, which is what a test
+ *          comparing the embedded bytes needs.
+ */
+function revocableIdentity(): array
+{
+    [$pfx, $password, $issuerPem, $issuerKeyPem] = LSNepomuceno\Signet\Testing\DebugCertificate::makeRevocable();
+
+    $crl = LSNepomuceno\Signet\Testing\LocalRevocationAuthority::crlFor(
+        resolve(LSNepomuceno\Signet\Contracts\ProcessRunner::class),
+        $issuerPem,
+        $issuerKeyPem,
+    );
+
+    harness()->bind(
+        LSNepomuceno\Signet\Contracts\SignatureTransport::class,
+        fn(): LSNepomuceno\Signet\Testing\LocalRevocationAuthority
+            => new LSNepomuceno\Signet\Testing\LocalRevocationAuthority(
+                resolve(LSNepomuceno\Signet\Contracts\ProcessRunner::class),
+                crl: $crl,
+            ),
+    );
+
+    $path = tempFile('.pfx');
+    file_put_contents($path, $pfx);
+
+    return [$path, $password, $crl];
+}
+
+/**
  * Generates a throwaway PEM certificate on disk, in both shapes the entry point
  * accepts: certificate and key as separate files, and the two combined.
  *

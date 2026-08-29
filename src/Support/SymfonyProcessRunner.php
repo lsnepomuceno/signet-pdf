@@ -55,19 +55,20 @@ final readonly class SymfonyProcessRunner implements ProcessRunner
         $this->guardProcessesAreAvailable();
         $this->guardBinaryExists($command);
 
+        // One try around both calls, because only the first of them is
+        // declared to raise a LogicException: symfony/process 8.1.5 stopped
+        // declaring it on run(), and a catch of its own there became dead code
+        // the analyser fails on. The translation still covers the call, since
+        // an exception from either lands here.
         try {
             $process = ($this->factory ?? self::build(...))($command);
-        } catch (LogicException $exception) {
-            throw $this->translate($exception);
-        }
 
-        $process->setTimeout($this->timeout);
+            $process->setTimeout($this->timeout);
 
-        if ($usePathEnv) {
-            $process->setEnv(['PATH' => (string) getenv('PATH')]);
-        }
+            if ($usePathEnv) {
+                $process->setEnv(['PATH' => (string) getenv('PATH')]);
+            }
 
-        try {
             $process->run();
         } catch (LogicException $exception) {
             throw $this->translate($exception);

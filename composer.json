@@ -53,7 +53,7 @@
         "symfony/http-client-contracts": "^3.6",
         "symfony/process": "^8",
         "symfony/uid": "^8",
-        "tecnickcom/tc-lib-pdf-sign": "^1.1"
+        "tecnickcom/tc-lib-pdf-sign": "^2.0"
     },
     "require-dev": {
         "ext-tokenizer": "*",

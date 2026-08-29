@@ -6,9 +6,8 @@ use LSNepomuceno\Signet\Contracts\ProcessRunner;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Signing\ArchiveExtender;
-use LSNepomuceno\Signet\Support\Files;
-use LSNepomuceno\Signet\Testing\DebugCertificate;
 use LSNepomuceno\Signet\Testing\LocalRevocationAuthority;
+use LSNepomuceno\Signet\Testing\LocalTimestampAuthority;
 use LSNepomuceno\Signet\Validation\SecurityStoreReader;
 
 /**
@@ -25,10 +24,10 @@ use LSNepomuceno\Signet\Validation\SecurityStoreReader;
  * verifiable, and the archive timestamp then covers it.
  */
 beforeEach(function () {
-    harness()->bind(SignatureTransport::class, fn(): LocalRevocationAuthority => new LocalRevocationAuthority(
-        resolve(ProcessRunner::class),
-        crl: Files::read(resource('revocation/crl-good.der')),
-    ));
+    // The default for this file: real tokens, no network. A test that needs
+    // revocation material as well takes `revocableIdentity()`, which rebinds
+    // this to an authority that can answer for the certificate it hands out.
+    harness()->bind(SignatureTransport::class, LocalTimestampAuthority::class);
 
     setConfig('signature.timestamp.url', 'https://timestamp.invalid/tsr');
 });
@@ -39,10 +38,7 @@ beforeEach(function () {
  */
 function archivedDocument(): string
 {
-    [$pfx, $password] = DebugCertificate::makeRevocable();
-
-    $path = tempFile('.pfx');
-    file_put_contents($path, $pfx);
+    [$path, $password] = revocableIdentity();
 
     $signed = signet()->newSignature()
         ->certificate($path, $password)
@@ -59,7 +55,9 @@ it('gathers revocation material a certificate points at', function () {
     // The precondition for everything below, and the reason
     // DebugCertificate::makeRevocable() exists: collectValidationMaterial reads
     // the endpoints out of the certificate, so one carrying none is never asked
-    // about, whatever transport is bound.
+    // about, whatever transport is bound. It reads them from a certificate an
+    // authority issued, since a list is now checked against that issuer before
+    // it is embedded.
     $store = resolve(SecurityStoreReader::class)->read(archivedDocument());
 
     expect($store->crls)->toBeGreaterThan(0);
