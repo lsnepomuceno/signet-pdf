@@ -76,7 +76,7 @@ default graph by hand, and its constructor is the substitution point
 said "bound in the service provider" until 2026-08-18, describing an
 arrangement that left with the framework.
 
-Five are replaced by passing them to `Signet`:
+Six are replaced by passing them to `Signet`:
 
 | | |
 |---|---|
@@ -85,6 +85,7 @@ Five are replaced by passing them to `Signet`:
 | `Contracts\PdfSigner` | the signer itself, which is how `Testing\FakePdfSigner` is installed |
 | `Contracts\CertificateReader` | how a certificate is parsed |
 | `Contracts\SignatureVerifier` | which implementation answers "does this signature match these bytes": `Validation\OpenSslCliSignatureVerifier` by default, `Validation\NativeSignatureVerifier` where no process can be run ([0114](../decisions/0114-verification-has-two-implementations.md)) |
+| `Contracts\SigningKey` | where the private key is, when it is not in the certificate: a token, an HSM, a cloud signing service ([0120](../decisions/0120-a-key-can-live-outside-the-process.md)) |
 
 Two more are constructor arguments of the classes that hold them:
 
@@ -163,8 +164,26 @@ The first four require the private key, because signing needs it.
 `certificatePublic()` is for the flow where the key is on a token, in an HSM or
 behind a cloud service and will never enter this process
 ([0116](../decisions/0116-signing-has-two-phases.md)): the builder it produces
-can `prepare()` and raises `Exceptions\MissingPrivateKeyException` from
-`sign()`.
+can `prepare()`, and it can `sign()` when a `Contracts\SigningKey` is bound.
+With neither, `sign()` raises `Exceptions\MissingPrivateKeyException`.
+
+**A key that is somewhere else signs through the ordinary entry point.** Bind an
+implementation of `Contracts\SigningKey` and the signed attributes are handed to
+it, a raw signature comes back, and the CMS is assembled around it
+([0120](../decisions/0120-a-key-can-live-outside-the-process.md)):
+
+```php
+$signed = new Signet(signingKey: $key)->newSignature()
+    ->certificatePublic($certificatePem)
+    ->pdf($path)
+    ->profile(SignatureProfile::PadesBT)
+    ->sign();
+```
+
+The key declares how what it returns is encoded, through
+`Enums\SignatureEncoding`: `Der` for the SEQUENCE `openssl_sign()` and PKCS#11
+produce, `P1363` for the fixed-width concatenation many cloud APIs return. RSA
+has one encoding, so both cases mean the same thing for it.
 
 `pdf($path, $password)` takes the **document's** password as its second
 argument, when the document is encrypted. It is unrelated to the certificate's:
@@ -554,8 +573,8 @@ What is left:
 | RC4-encrypted documents | refused, deliberately: signing one means writing RC4 back into it ([0030](../decisions/0030-signing-a-document-that-is-encrypted.md)) |
 | A security handler other than the standard one | its key comes from somewhere this package cannot reach, by definition |
 | Fetching revocation at validation time | evaluated from what the document carries, never from the network. That is a decision rather than a gap ([0024](../decisions/0024-revocation-is-evaluated-not-counted.md)) |
-| Signing with an A3 token, a smart card or an HSM | supported through two phases: `prepare()` here, the CMS made where the key is, `complete()` here (docs/decisions/0116-signing-has-two-phases.md) |
-| Handing out the signed attributes for an external key to sign directly | out of scope for now: the CMS assembly underneath exposes no such seam, and issue #59 tracks it |
+| Signing with an A3 token, a smart card or an HSM | supported two ways: synchronously through `Contracts\SigningKey` (docs/decisions/0120-a-key-can-live-outside-the-process.md), or across a queue through `prepare()` and `complete()` (docs/decisions/0116-signing-has-two-phases.md) |
+| A client for any specific cloud certificate provider | out of scope, and deliberately: each has its own API, its own OAuth flow and its own consent step. What ships is the seam |
 
 ## Supplying the chain
 

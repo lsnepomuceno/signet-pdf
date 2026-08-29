@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace LSNepomuceno\Signet\Signing\Cades;
 
+use Com\Tecnick\Pdf\Sign\Cms\SignatureEncoding as CadesSignatureEncoding;
+use Com\Tecnick\Pdf\Sign\Config as CadesConfig;
 use Com\Tecnick\Pdf\Sign\Signer;
 use Com\Tecnick\Pdf\Sign\Timestamp\Client as TimestampClient;
 use LSNepomuceno\Signet\Config\SigningConfig;
 use LSNepomuceno\Signet\Contracts\SignatureProducer;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
+use LSNepomuceno\Signet\Contracts\SigningKey;
 use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Enums\DigestAlgorithm;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
@@ -29,10 +32,17 @@ use Throwable;
  */
 final readonly class CadesBuilder implements SignatureProducer
 {
+    /**
+     * @param  SigningKey|null  $key  Where the private key is, when it is not
+     *          in the certificate. Given one, the signed attributes are handed
+     *          out and a raw signature is taken back, and nothing here ever
+     *          holds a key (docs/decisions/0120-a-key-can-live-outside-the-process.md).
+     */
     public function __construct(
         private SigningConfig $config,
         private SignatureTransport $transport,
         private Signer $signer = new Signer(),
+        private ?SigningKey $key = null,
     ) {}
 
     /**
@@ -54,18 +64,37 @@ final readonly class CadesBuilder implements SignatureProducer
         SignatureProfile $profile,
     ): string {
         [$certDer, $chainDer] = $this->certificates($certificate);
-        $privateKey = $this->privateKey($certificate);
+
+        // Outside the try, and that is load-bearing: a certificate that arrived
+        // without its key is a fault of the input, and wrapping it below would
+        // report it as a signing process that failed.
+        $privateKey = $this->key === null ? $this->privateKey($certificate) : null;
 
         [$timestampClient, $timestampTransport] = $this->timestamp($profile);
 
+        $configuration = $profile->toCadesConfig($this->digestAlgorithm());
+        $signingTime = time();
+
         try {
+            if ($privateKey === null) {
+                return $this->signElsewhere(
+                    $content,
+                    $certDer,
+                    $chainDer,
+                    $configuration,
+                    $signingTime,
+                    $timestampClient,
+                    $timestampTransport,
+                );
+            }
+
             return $this->signer->sign(
                 $content,
                 $certDer,
                 $privateKey,
                 $chainDer,
-                $profile->toCadesConfig($this->digestAlgorithm()),
-                time(),
+                $configuration,
+                $signingTime,
                 $timestampClient,
                 $timestampTransport,
             );
@@ -79,6 +108,56 @@ final readonly class CadesBuilder implements SignatureProducer
         } catch (Throwable $exception) {
             throw new ProcessRunTimeException('CAdES signing failed: ' . $exception->getMessage());
         }
+    }
+
+    /**
+     * The three steps of a signature whose key is somewhere else.
+     *
+     * The digest of the covered bytes goes into the signed attributes, those
+     * attributes come back as the bytes to sign, the key signs them, and the
+     * CMS is assembled around the signature that comes back. The timestamp for
+     * B-T and above is requested **over the signature**, so it is added after
+     * the key answered rather than before (RFC 3161, ETSI EN 319 122-1 §5.2.4).
+     *
+     * @param  list<string>  $chainDer
+     * @param  (callable(string): string)|null  $timestampTransport
+     *
+     * @throws ProcessRunTimeException
+     * @throws SignatureTransportException
+     */
+    private function signElsewhere(
+        string $content,
+        string $certDer,
+        array $chainDer,
+        CadesConfig $configuration,
+        int $signingTime,
+        ?TimestampClient $timestampClient,
+        ?callable $timestampTransport,
+    ): string {
+        $key = $this->key;
+
+        if ($key === null) {
+            throw new ProcessRunTimeException('no signing key was bound');
+        }
+
+        $digest = $this->digest();
+
+        $request = $this->signer->prepare(
+            hash($digest->value, $content, binary: true),
+            $certDer,
+            $configuration,
+            $signingTime,
+        );
+
+        return $this->signer->buildFromSignature(
+            $request,
+            $key->sign($this->signer->signaturePayload($request), $digest),
+            $chainDer,
+            $configuration,
+            $timestampClient,
+            $timestampTransport,
+            CadesSignatureEncoding::from($key->encoding()->value),
+        );
     }
 
     /**
