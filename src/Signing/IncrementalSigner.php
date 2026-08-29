@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LSNepomuceno\Signet\Signing;
 
+use LSNepomuceno\Signet\Contracts\DigestSignatureProducer;
 use LSNepomuceno\Signet\Contracts\PdfSigner;
 use LSNepomuceno\Signet\Contracts\SignatureProducer;
 use LSNepomuceno\Signet\Data\Certificate;
@@ -122,12 +123,16 @@ final readonly class IncrementalSigner implements PdfSigner
             $documentPassword,
         );
 
-        return $this->complete(
-            $prepared,
-            $this->cades->build($prepared->signableBytes(), $certificate, $profile),
-            $certificate,
-            $documentPassword,
-        );
+        // From the digest the prepared signature already carries, when the
+        // producer can: `signableBytes()` assembles a copy of nearly the whole
+        // document, and peak memory is what decides the largest document this
+        // package can sign at all
+        // (docs/decisions/0122-signing-a-document-larger-than-memory.md).
+        $cms = $this->cades instanceof DigestSignatureProducer
+            ? $this->cades->buildFromDigest($prepared->digestValue, $certificate, $profile)
+            : $this->cades->build($prepared->signableBytes(), $certificate, $profile);
+
+        return $this->complete($prepared, $cms, $certificate, $documentPassword);
     }
 
     #[\Override]
@@ -209,7 +214,7 @@ final readonly class IncrementalSigner implements PdfSigner
             intdiv(self::CONTENTS_HEX_LENGTH, 2),
             $profile,
             $digest,
-            hash($digest->value, $this->byteRange->signableSpan($signed, $open, $close, $trailing), true),
+            $this->byteRange->digestOfSpan($signed, $open, $close, $trailing, $digest),
             $fieldName,
             $certification,
         );

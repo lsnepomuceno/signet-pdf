@@ -9,11 +9,13 @@ use Com\Tecnick\Pdf\Sign\Config as CadesConfig;
 use Com\Tecnick\Pdf\Sign\Signer;
 use Com\Tecnick\Pdf\Sign\Timestamp\Client as TimestampClient;
 use LSNepomuceno\Signet\Config\SigningConfig;
+use LSNepomuceno\Signet\Contracts\DigestSignatureProducer;
 use LSNepomuceno\Signet\Contracts\SignatureProducer;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Contracts\SigningKey;
 use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Enums\DigestAlgorithm;
+use LSNepomuceno\Signet\Enums\SignatureEncoding;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Exceptions\InvalidCertificateContentException;
 use LSNepomuceno\Signet\Exceptions\MissingPrivateKeyException;
@@ -30,7 +32,7 @@ use Throwable;
  * which had to be un-wrapped from an S/MIME envelope afterwards. The upstream
  * builder assembles the DER directly.
  */
-final readonly class CadesBuilder implements SignatureProducer
+final readonly class CadesBuilder implements DigestSignatureProducer, SignatureProducer
 {
     /**
      * @param  PolicyAttribute  $policy  Encodes the signature policy the
@@ -81,15 +83,16 @@ final readonly class CadesBuilder implements SignatureProducer
 
         try {
             if ($privateKey === null) {
-                return $this->signElsewhere(
-                    $content,
+                return $this->assemble(
+                    hash($this->digestAlgorithm(), $content, binary: true),
                     $certDer,
                     $chainDer,
                     $configuration,
                     $signingTime,
+                    $attributes,
+                    null,
                     $timestampClient,
                     $timestampTransport,
-                    $attributes,
                 );
             }
 
@@ -117,57 +120,139 @@ final readonly class CadesBuilder implements SignatureProducer
     }
 
     /**
-     * The three steps of a signature whose key is somewhere else.
+     * The CMS for a document nobody has to hold.
      *
-     * The digest of the covered bytes goes into the signed attributes, those
-     * attributes come back as the bytes to sign, the key signs them, and the
-     * CMS is assembled around the signature that comes back. The timestamp for
-     * B-T and above is requested **over the signature**, so it is added after
-     * the key answered rather than before (RFC 3161, ETSI EN 319 122-1 §5.2.4).
+     * `build()` takes the covered bytes, which for a large document is a second
+     * copy of nearly the whole file held while the CMS is assembled, and peak
+     * memory is what decides the largest document this package can sign at all
+     * ([#48](https://github.com/lsnepomuceno/signet-pdf/issues/48)). Nothing
+     * about CAdES needs those bytes: the signed attributes carry their digest,
+     * and a digest can be computed a chunk at a time
+     * (docs/decisions/0122-signing-a-document-larger-than-memory.md).
      *
-     * @param  list<string>  $chainDer
-     * @param  (callable(string): string)|null  $timestampTransport
-     * @param  array<string, string>  $attributes  Extra signed attributes, as
-     *          OID to encoded value.
+     * @param  string  $digest  Of the covered bytes, raw, under `digest()`.
      *
+     * @throws InvalidCertificateContentException
+     * @throws MissingPrivateKeyException
      * @throws ProcessRunTimeException
      * @throws SignatureTransportException
      */
-    private function signElsewhere(
-        string $content,
+    #[\Override]
+    public function buildFromDigest(
+        string $digest,
+        Certificate $certificate,
+        SignatureProfile $profile,
+    ): string {
+        [$certDer, $chainDer] = $this->certificates($certificate);
+
+        // As in build(): a certificate with no key is a fault of the input, and
+        // it must not be reported as a signing process that failed.
+        $privateKey = $this->key === null ? $this->privateKey($certificate) : null;
+
+        [$timestampClient, $timestampTransport] = $this->timestamp($profile);
+
+        try {
+            return $this->assemble(
+                $digest,
+                $certDer,
+                $chainDer,
+                $profile->toCadesConfig($this->digestAlgorithm()),
+                time(),
+                $this->extraSignedAttributes(),
+                $privateKey,
+                $timestampClient,
+                $timestampTransport,
+            );
+        } catch (SignatureTransportException $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            throw new ProcessRunTimeException('CAdES signing failed: ' . $exception->getMessage());
+        }
+    }
+
+    /**
+     * The three steps a signature takes when the bytes are not in hand.
+     *
+     * The digest goes into the signed attributes, those attributes come back as
+     * the bytes to sign, something signs them, and the CMS is assembled around
+     * the signature. The timestamp for B-T and above is requested **over the
+     * signature**, so it is added after the signing step rather than before
+     * (RFC 3161, ETSI EN 319 122-1 §5.2.4).
+     *
+     * Whoever signs is the only difference between a key in the bundle and a
+     * key on a token: the attributes, their order and the assembly are the same
+     * for both, which is why this is one method rather than two.
+     *
+     * @param  list<string>  $chainDer
+     * @param  array<string, string>  $attributes  Extra signed attributes, as
+     *          OID to encoded value.
+     * @param  (callable(string): string)|null  $timestampTransport
+     *
+     * @throws ProcessRunTimeException
+     */
+    private function assemble(
+        string $digest,
         string $certDer,
         array $chainDer,
         CadesConfig $configuration,
         int $signingTime,
+        array $attributes,
+        ?\OpenSSLAsymmetricKey $privateKey,
         ?TimestampClient $timestampClient,
         ?callable $timestampTransport,
-        array $attributes = [],
     ): string {
+        $request = $this->signer->prepare($digest, $certDer, $configuration, $signingTime, $attributes);
+        $payload = $this->signer->signaturePayload($request);
+
+        [$signature, $encoding] = $privateKey === null
+            ? $this->signedElsewhere($payload)
+            : [$this->signHere($payload, $privateKey), SignatureEncoding::Der];
+
+        return $this->signer->buildFromSignature(
+            $request,
+            $signature,
+            $chainDer,
+            $configuration,
+            $timestampClient,
+            $timestampTransport,
+            CadesSignatureEncoding::from($encoding->value),
+        );
+    }
+
+    /**
+     * @return array{0: string, 1: SignatureEncoding}
+     *
+     * @throws ProcessRunTimeException
+     */
+    private function signedElsewhere(string $payload): array
+    {
         $key = $this->key;
 
         if ($key === null) {
             throw new ProcessRunTimeException('no signing key was bound');
         }
 
-        $digest = $this->digest();
+        return [$key->sign($payload, $this->digest()), $key->encoding()];
+    }
 
-        $request = $this->signer->prepare(
-            hash($digest->value, $content, binary: true),
-            $certDer,
-            $configuration,
-            $signingTime,
-            $attributes,
-        );
+    /**
+     * The signature over the payload, made with the key from the bundle.
+     *
+     * `openssl_sign()` produces PKCS#1 v1.5 for RSA and the DER SEQUENCE for
+     * ECDSA, which is what `SignatureEncoding::Der` names.
+     *
+     * @throws ProcessRunTimeException
+     */
+    private function signHere(string $payload, \OpenSSLAsymmetricKey $privateKey): string
+    {
+        $signature = '';
 
-        return $this->signer->buildFromSignature(
-            $request,
-            $key->sign($this->signer->signaturePayload($request), $digest),
-            $chainDer,
-            $configuration,
-            $timestampClient,
-            $timestampTransport,
-            CadesSignatureEncoding::from($key->encoding()->value),
-        );
+        if (! openssl_sign($payload, $signature, $privateKey, $this->digestAlgorithm())) {
+            throw new ProcessRunTimeException('the signed attributes could not be signed');
+        }
+
+        /** @var string $signature */
+        return $signature;
     }
 
     /**

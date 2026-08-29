@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LSNepomuceno\Signet\Signing\Incremental;
 
+use LSNepomuceno\Signet\Enums\DigestAlgorithm;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Support\Bytes;
 use LSNepomuceno\Signet\Validation\DerReader;
@@ -126,6 +127,49 @@ final class ByteRangeCalculator
     public function signableSpan(string $pdf, int $open, int $close, int $trailing): string
     {
         return substr($pdf, 0, $open) . substr($pdf, $close, $trailing);
+    }
+
+    /**
+     * The digest of that span, without ever assembling it.
+     *
+     * `signableSpan()` returns a copy of nearly the whole document, and on a
+     * large file that copy is what decides whether the signature can be
+     * produced at all. Hashing is incremental by nature, so the span is fed
+     * through in chunks and the peak cost is one chunk rather than one document
+     * (docs/decisions/0122-signing-a-document-larger-than-memory.md).
+     *
+     * The result is identical to hashing the assembled span: the same bytes
+     * arrive in the same order, which is the whole of what a digest depends on.
+     */
+    public function digestOfSpan(
+        string $pdf,
+        int $open,
+        int $close,
+        int $trailing,
+        DigestAlgorithm $algorithm,
+    ): string {
+        $context = hash_init($algorithm->value);
+
+        $this->update($context, $pdf, 0, $open);
+        $this->update($context, $pdf, $close, $trailing);
+
+        return hash_final($context, binary: true);
+    }
+
+    /**
+     * One range of the document, a chunk at a time.
+     *
+     * 8 MiB, which is large enough that the call overhead disappears against
+     * the hashing itself and small enough to stay well inside any limit a
+     * document this size is being signed under.
+     */
+    private function update(\HashContext $context, string $pdf, int $from, int $length): void
+    {
+        $chunk = 8 * 1024 * 1024;
+
+        for ($position = 0; $position < $length; $position += $chunk) {
+            hash_update($context, substr($pdf, $from + $position, min($chunk, $length - $position)));
+        }
     }
 
     /**

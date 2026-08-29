@@ -75,6 +75,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `Data\SignaturePolicy` rather than the regional enum, so the core still knows
   nothing about which policies exist.
 
+- **`Contracts\DigestSignatureProducer`**, a producer that builds the CMS from
+  a digest instead of from the covered bytes.
+  `Signing\Cades\CadesBuilder` implements it, and signing uses it, so the copy
+  of nearly the whole document that `PreparedSignature::signableBytes()` made is
+  not made at all. `Signing\Incremental\ByteRangeCalculator::digestOfSpan()`
+  hashes the covered span in chunks rather than assembling it first.
+
+  **This does not raise the largest signable document yet**, and the measurement
+  says why: the peak is the revision being assembled while the original is still
+  held, which is a later stage of the same work
+  ([0122](docs/decisions/0122-signing-a-document-larger-than-memory.md)).
+  `tests/Signing/MemoryFootprintTest.php` records the ratio so a regression is a
+  failing test rather than a support question.
+
 - **`Testing\LocalRevocationAuthority::crlFor()`**, which signs a real CRL with
   the authority that issued the certificate under test.
   `Testing\DebugCertificate::makeRevocable()` now issues from a throwaway
