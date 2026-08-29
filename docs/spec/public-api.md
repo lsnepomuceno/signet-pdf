@@ -42,8 +42,11 @@ src/
 │   ├── Reader.php                        # the identity a certificate carries
 │   ├── Validator.php                     # structural conformance, never trust
 │   ├── NationalRegistry.php              # CPF and CNPJ check digits
+│   ├── PolicyConformance.php             # whether a signature kept to the
+│   │                                     # policy it declared
 │   ├── Data/                             # Identity, Report
-│   └── Enums/                            # CertificateType, Finding, OtherName
+│   └── Enums/                            # CertificateType, Finding, OtherName,
+│                                         # PolicyFinding, SignaturePolicy
 ├── Signing/
 │   ├── PendingSignature.php              # the fluent builder
 │   ├── IncrementalSigner.php             # bound to PdfSigner
@@ -231,6 +234,36 @@ $signet->icpBrasil($pfxPath, $password);     // IcpBrasil\Data\Report
 $signet->newSignature();            // Signing\PendingSignature
 $signet->vault();                   // Certificates\CertificateVault
 ```
+
+### Declaring an ICP-Brasil policy
+
+A PAdES signature that names no policy is cryptographically valid and is
+reported as conformant to nothing by the verifiers Brazilian institutions use.
+Name one in the configuration and every signature carries the
+`signature-policy-identifier` attribute
+([0121](../decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md)):
+
+```php
+use LSNepomuceno\Signet\IcpBrasil\Enums\SignaturePolicy;
+
+$config = new SignetConfig(new SigningConfig(
+    profile: SignatureProfile::PadesBT,
+    policy: SignaturePolicy::forProfile(SignatureProfile::PadesBT)?->identifier(),
+));
+```
+
+`IcpBrasil\Enums\SignaturePolicy` carries every policy ITI has published for
+PDF, superseded versions included, each with its URI, the digest of its document
+and the profile that satisfies it. The values are read from
+`http://politicas.icpbrasil.gov.br/LPA_PAdES.der`, and the copy read on
+2026-08-29 is committed at `tests/Resources/icp-brasil/LPA_PAdES.der` with a
+test that fails when the two disagree.
+
+`IcpBrasil\PolicyConformance::check()` reads a declaration back and reports what
+is wrong with it: an unknown identifier, a digest that disagrees with the list, a
+policy not in force at the signing time, and a signature that carries less than
+the policy demands. **`isValid()` consults none of it**, deliberately: keeping to
+a policy and verifying are different questions.
 
 **Those three take a `string|Contracts\PdfSource`**, the same way signing does.
 A path keeps meaning what it always meant, including the extension check and the

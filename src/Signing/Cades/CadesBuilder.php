@@ -33,6 +33,8 @@ use Throwable;
 final readonly class CadesBuilder implements SignatureProducer
 {
     /**
+     * @param  PolicyAttribute  $policy  Encodes the signature policy the
+     *          configuration declares, when it declares one.
      * @param  SigningKey|null  $key  Where the private key is, when it is not
      *          in the certificate. Given one, the signed attributes are handed
      *          out and a raw signature is taken back, and nothing here ever
@@ -43,6 +45,7 @@ final readonly class CadesBuilder implements SignatureProducer
         private SignatureTransport $transport,
         private Signer $signer = new Signer(),
         private ?SigningKey $key = null,
+        private PolicyAttribute $policy = new PolicyAttribute(),
     ) {}
 
     /**
@@ -74,6 +77,7 @@ final readonly class CadesBuilder implements SignatureProducer
 
         $configuration = $profile->toCadesConfig($this->digestAlgorithm());
         $signingTime = time();
+        $attributes = $this->extraSignedAttributes();
 
         try {
             if ($privateKey === null) {
@@ -85,6 +89,7 @@ final readonly class CadesBuilder implements SignatureProducer
                     $signingTime,
                     $timestampClient,
                     $timestampTransport,
+                    $attributes,
                 );
             }
 
@@ -97,6 +102,7 @@ final readonly class CadesBuilder implements SignatureProducer
                 $signingTime,
                 $timestampClient,
                 $timestampTransport,
+                $attributes,
             );
         } catch (SignatureTransportException $exception) {
             // Straight through, deliberately. A timestamp authority that did
@@ -121,6 +127,8 @@ final readonly class CadesBuilder implements SignatureProducer
      *
      * @param  list<string>  $chainDer
      * @param  (callable(string): string)|null  $timestampTransport
+     * @param  array<string, string>  $attributes  Extra signed attributes, as
+     *          OID to encoded value.
      *
      * @throws ProcessRunTimeException
      * @throws SignatureTransportException
@@ -133,6 +141,7 @@ final readonly class CadesBuilder implements SignatureProducer
         int $signingTime,
         ?TimestampClient $timestampClient,
         ?callable $timestampTransport,
+        array $attributes = [],
     ): string {
         $key = $this->key;
 
@@ -147,6 +156,7 @@ final readonly class CadesBuilder implements SignatureProducer
             $certDer,
             $configuration,
             $signingTime,
+            $attributes,
         );
 
         return $this->signer->buildFromSignature(
@@ -158,6 +168,30 @@ final readonly class CadesBuilder implements SignatureProducer
             $timestampTransport,
             CadesSignatureEncoding::from($key->encoding()->value),
         );
+    }
+
+    /**
+     * The signed attributes this package adds beyond the three every CAdES
+     * signature carries.
+     *
+     * One today: the signature policy, when the configuration names one. It
+     * goes in the **signed** attributes deliberately, since a declaration that
+     * could be added afterwards would say nothing about what the signer
+     * committed to (RFC 5126 section 5.8.1).
+     *
+     * @return array<string, string>
+     *
+     * @throws ProcessRunTimeException When the policy cannot be encoded.
+     */
+    private function extraSignedAttributes(): array
+    {
+        $policy = $this->config->policy;
+
+        if ($policy === null) {
+            return [];
+        }
+
+        return [PolicyAttribute::OID => $this->policy->encode($policy)];
     }
 
     /**

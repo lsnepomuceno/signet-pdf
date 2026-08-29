@@ -97,3 +97,4 @@ guarantee two records with the same number within a release or two.
 | [0118](0118-a-timestamp-token-is-verified.md) | A timestamp token is verified, and its legacy binding is accepted |
 | [0119](0119-revocation-material-is-verified-before-it-is-embedded.md) | Revocation material is verified before it is embedded |
 | [0120](0120-a-key-can-live-outside-the-process.md) | A key can live outside the process |
+| [0121](0121-a-signature-can-declare-an-icp-brasil-policy.md) | A signature can declare an ICP-Brasil policy |

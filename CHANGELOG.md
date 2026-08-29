@@ -42,6 +42,39 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   reliably distinguishable by inspection. Declared rather than guessed, because
   the wrong guess produces a signature that verifies against nothing.
 
+- **A signature can declare an ICP-Brasil policy.** The package produced PAdES
+  signatures conformant to ETSI EN 319 142-1 that declared no **policy**, and a
+  Brazilian verifier looks for that declaration before calling a signature
+  ICP-Brasil conformant. So a document signed with an e-CPF was
+  cryptographically fine and reported as conformant to nothing by ITI's own
+  Verificador ([0121](docs/decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md)).
+
+  Name one in `Config\SigningConfig` and every signature carries the
+  `signature-policy-identifier` signed attribute:
+
+  ```php
+  new SigningConfig(policy: SignaturePolicy::forProfile(SignatureProfile::PadesBT)?->identifier())
+  ```
+
+  `IcpBrasil\Enums\SignaturePolicy` carries every policy ITI has published for
+  PDF, superseded versions included, so a document declaring an older one can
+  still be named when it is read back. **Every value was read from
+  `http://politicas.icpbrasil.gov.br/LPA_PAdES.der` on 2026-08-29**, that file
+  is committed, and a test fails when the two disagree: a wrong policy hash
+  produces a signature that declares conformance and fails it.
+
+- **`IcpBrasil\PolicyConformance`**, which says whether a signature kept to the
+  policy it declared: an unknown identifier, a digest that disagrees with the
+  published list, a policy that was not in force when the document was signed,
+  and a signature carrying less than the policy demands. **`isValid()` consults
+  none of it**, because a signature that declares a policy it does not satisfy
+  is still cryptographically valid.
+
+- **`Config\SigningConfig::$policy`** and `Signing\Cades\PolicyAttribute`, the
+  two pieces underneath. The configuration takes a plain
+  `Data\SignaturePolicy` rather than the regional enum, so the core still knows
+  nothing about which policies exist.
+
 - **`Testing\LocalRevocationAuthority::crlFor()`**, which signs a real CRL with
   the authority that issued the certificate under test.
   `Testing\DebugCertificate::makeRevocable()` now issues from a throwaway

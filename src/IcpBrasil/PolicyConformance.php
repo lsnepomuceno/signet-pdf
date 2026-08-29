@@ -1,0 +1,100 @@
+<?php
+
+declare(strict_types=1);
+
+namespace LSNepomuceno\Signet\IcpBrasil;
+
+use LSNepomuceno\Signet\Data\SignatureDetails;
+use LSNepomuceno\Signet\Data\SignatureReport;
+use LSNepomuceno\Signet\Enums\SignatureProfile;
+use LSNepomuceno\Signet\IcpBrasil\Enums\PolicyFinding;
+use LSNepomuceno\Signet\IcpBrasil\Enums\SignaturePolicy;
+
+/**
+ * Reads what a signature declared it was made under, and says whether it kept
+ * to it.
+ *
+ * `Validation\PdfSignatureValidator` reports the declaration and judges none of
+ * it, deliberately: which policies exist is Brazilian, and the core knows
+ * nothing regional
+ * (docs/decisions/0104-the-regional-layer-is-its-own-namespace.md). This is the
+ * half that knows, and like everything else in this layer it is **structural
+ * and offline**: it compares the declaration against the published list that
+ * ships with the package and against what the document actually carries.
+ *
+ * **`isValid()` consults none of it.** A signature that declares a policy it
+ * does not satisfy is still cryptographically valid, and saying otherwise would
+ * be this layer deciding what "valid" means for everybody
+ * (docs/decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md).
+ */
+final readonly class PolicyConformance
+{
+    /**
+     * What is wrong with the policy this signature declares, if anything.
+     *
+     * @return list<PolicyFinding> Empty when the declaration is on the list,
+     *          was in force when the document was signed, carries the digest
+     *          the list carries, and is matched by what the signature holds.
+     */
+    public function check(SignatureReport $report, SignatureDetails $signature): array
+    {
+        $declared = $signature->signaturePolicy;
+
+        if ($declared === null) {
+            return [PolicyFinding::NoPolicyDeclared];
+        }
+
+        $policy = SignaturePolicy::tryFrom($declared->oid);
+
+        if ($policy === null) {
+            return [PolicyFinding::UnknownPolicy];
+        }
+
+        $findings = [];
+
+        // Case-insensitively, because the hex is written by whoever signed and
+        // the comparison is of bytes rather than of spelling.
+        if (strcasecmp($declared->digest, $policy->digest()) !== 0) {
+            $findings[] = PolicyFinding::PolicyDigestDisagrees;
+        }
+
+        // Against the signing time when the document states one. A signature
+        // with none is not held to a window it cannot be placed in.
+        $signedAt = $signature->signedAt;
+
+        if ($signedAt !== null && ($signedAt < $policy->validFrom() || $signedAt > $policy->validUntil())) {
+            $findings[] = PolicyFinding::PolicyNotInForce;
+        }
+
+        if (! $this->satisfies($report, $signature, $policy->profile())) {
+            $findings[] = PolicyFinding::SignatureBelowPolicy;
+        }
+
+        return $findings;
+    }
+
+    /**
+     * Whether the signature carries what the policy's profile requires.
+     *
+     * Each level adds to the one below it, so the checks accumulate: a time
+     * reference needs a signature timestamp, complete references need the
+     * validation material as well, and the archival level needs a document
+     * timestamp over the lot.
+     */
+    private function satisfies(
+        SignatureReport $report,
+        SignatureDetails $signature,
+        SignatureProfile $required,
+    ): bool {
+        $timestamped = $signature->stampedAt !== null;
+        $material = $report->hasLongTermMaterial();
+        $archived = $report->timestamps() !== [];
+
+        return match ($required) {
+            SignatureProfile::PadesBB, SignatureProfile::Legacy => true,
+            SignatureProfile::PadesBT => $timestamped,
+            SignatureProfile::PadesBLT => $timestamped && $material,
+            SignatureProfile::PadesBLTA => $timestamped && $material && $archived,
+        };
+    }
+}
