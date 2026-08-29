@@ -345,7 +345,8 @@ final class DebugCertificate
     }
 
     /**
-     * A certificate that names where its revocation material lives.
+     * A certificate that names where its revocation material lives, and the
+     * authority that can answer for it.
      *
      * `Signer::collectValidationMaterial()` reads the endpoints out of the
      * certificate, so a certificate carrying none is never asked about, whatever
@@ -353,11 +354,22 @@ final class DebugCertificate
      * Security Store could only be exercised against a real authority
      * (docs/decisions/0022-the-archive-timestamp-is-a-chain.md).
      *
+     * **It is issued by a throwaway authority rather than being self-signed**,
+     * and the authority travels with it. A CRL is evidence signed by the
+     * issuer, so material is now gathered only for a certificate whose issuer
+     * is in the chain and discarded unless it verifies against that issuer
+     * (docs/decisions/0119-revocation-material-is-verified-before-it-is-embedded.md).
+     * A self-signed certificate can point at a distribution point and can never
+     * be answered for, which is what this fixture used to be.
+     *
      * The URLs are unroutable on purpose. A substituted transport answers them,
      * and anything that reached the network would be a test lying about what it
      * checks.
      *
-     * @return array{0: string, 1: string} The PFX bytes and its password.
+     * @return array{0: string, 1: string, 2: string, 3: string} The PFX bytes,
+     *          its password, the issuing certificate in PEM, and that
+     *          authority's private key in PEM, which is what
+     *          `LocalRevocationAuthority::crlFor()` signs a CRL with.
      *
      * @throws CertificateOutputNotFoundException
      */
@@ -366,6 +378,21 @@ final class DebugCertificate
         string $ocspUrl = 'http://ocsp.invalid',
         int $daysValid = 600,
     ): array {
+        $issuerKey = self::key();
+        $issuerCsr = self::request(['commonName' => 'Revocable Test Authority'], $issuerKey);
+
+        // cRLSign as well as keyCertSign: the authority signs the list that
+        // answers for what it issued, and openssl refuses to generate a CRL
+        // with a key whose certificate does not claim that usage.
+        $issuer = openssl_csr_sign($issuerCsr, null, $issuerKey, $daysValid + 365, [
+            'digest_alg' => 'sha256',
+            'x509_extensions' => 'v3_ca',
+        ], serial: 1);
+
+        if ($issuer === false) {
+            throw new RuntimeException('Unable to build the test authority: ' . openssl_error_string());
+        }
+
         $key = self::key();
 
         $configuration = implode("\n", [
@@ -377,6 +404,8 @@ final class DebugCertificate
             'keyUsage = critical, digitalSignature, nonRepudiation, keyEncipherment',
             "crlDistributionPoints = URI:{$crlUrl}",
             "authorityInfoAccess = OCSP;URI:{$ocspUrl}",
+            'subjectKeyIdentifier = hash',
+            'authorityKeyIdentifier = keyid,issuer',
             '',
         ]);
 
@@ -386,16 +415,36 @@ final class DebugCertificate
             ['commonName' => 'Revocable Test Certificate'],
             $key,
             $daysValid,
+            $issuer,
+            $issuerKey,
+            2,
         );
 
         $pfx = '';
 
-        if (! openssl_pkcs12_export($x509, $pfx, $key, self::PASSWORD)) {
+        // The issuer travels in the bundle, because the collector pairs each
+        // certificate with the next one in the chain as its issuer and skips
+        // one whose issuer is not there.
+        if (! openssl_pkcs12_export($x509, $pfx, $key, self::PASSWORD, ['extracerts' => [$issuer]])) {
             throw new CertificateOutputNotFoundException();
         }
 
+        $issuerPem = '';
+
+        if (! openssl_x509_export($issuer, $issuerPem)) {
+            throw new RuntimeException('Unable to export the test authority: ' . openssl_error_string());
+        }
+
+        $issuerKeyPem = '';
+
+        if (! openssl_pkey_export($issuerKey, $issuerKeyPem)) {
+            throw new RuntimeException('Unable to export the test authority key: ' . openssl_error_string());
+        }
+
         /** @var string $pfx */
-        return [$pfx, self::PASSWORD];
+        /** @var string $issuerPem */
+        /** @var string $issuerKeyPem */
+        return [$pfx, self::PASSWORD, $issuerPem, $issuerKeyPem];
     }
 
     /**

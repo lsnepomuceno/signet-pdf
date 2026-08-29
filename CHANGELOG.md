@@ -20,6 +20,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`Testing\LocalRevocationAuthority::crlFor()`**, which signs a real CRL with
+  the authority that issued the certificate under test.
+  `Testing\DebugCertificate::makeRevocable()` now issues from a throwaway
+  authority instead of self-signing, and returns that authority's certificate
+  and key alongside the bundle. Both exist because of the change below.
+
 - **`PendingSignature::certificatePublic($certificatePem)`**, a way in for a
   certificate that arrived without its private key. The four existing entry
   points all require the key, correctly, since signing needs it; the two-phase
@@ -52,6 +58,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `Certificates\PemCertificateReader::readPublic()` and
   `Certificates\CertificateParser::parsePublic()`, the two steps underneath it.
+
+### Changed
+
+- **`tecnickcom/tc-lib-pdf-sign` moves to `^2.0`,** and two behaviours change
+  with it. Both are checks that were not being made.
+
+  **A timestamp token is verified before it is embedded**: its signature, the
+  certificate it names, its imprint and nonce against the request that was sent,
+  and its genTime against the clock. Until now a token was parsed and trusted,
+  which is a gap under everything `pades-b-t` and above promises. The legacy ESS
+  certificate binding is accepted, because refusing it rejects authorities in
+  production use today, freetsa.org among them
+  ([0118](docs/decisions/0118-a-timestamp-token-is-verified.md)).
+
+  **Revocation material is verified before it is embedded**: a CRL is checked
+  against the issuer that signed it and the certificate it covers, and material
+  is gathered only for a certificate whose issuer is in the chain. A Document
+  Security Store therefore holds only evidence that verified when it was
+  written. **A document signed with a self-signed certificate now carries no
+  revocation material at `pades-b-lt`**, where before it carried material
+  nothing could check. The store still carries the chain
+  ([0119](docs/decisions/0119-revocation-material-is-verified-before-it-is-embedded.md)).
 
 ### Fixed
 

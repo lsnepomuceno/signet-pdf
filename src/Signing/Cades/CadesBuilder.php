@@ -6,7 +6,6 @@ namespace LSNepomuceno\Signet\Signing\Cades;
 
 use Com\Tecnick\Pdf\Sign\Signer;
 use Com\Tecnick\Pdf\Sign\Timestamp\Client as TimestampClient;
-use Com\Tecnick\Pdf\Sign\Timestamp\Config as TimestampConfig;
 use LSNepomuceno\Signet\Config\SigningConfig;
 use LSNepomuceno\Signet\Contracts\SignatureProducer;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
@@ -171,12 +170,9 @@ final readonly class CadesBuilder implements SignatureProducer
         }
 
         // Auth and the actual HTTP live in our transport; the upstream config
-        // only needs what shapes the TimeStampReq itself.
-        $client = new TimestampClient(new TimestampConfig(
-            host: $url,
-            hashAlgorithm: $this->digestAlgorithm(),
-            timeout: max(1, $timestamp->timeout),
-        ));
+        // only needs what shapes the TimeStampReq itself, and the codec decides
+        // how the token that comes back is checked.
+        $client = TimestampCodec::client($url, $this->digestAlgorithm(), $timestamp->timeout);
 
         return [
             $client,

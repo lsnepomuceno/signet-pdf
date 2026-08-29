@@ -9,8 +9,7 @@ use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Signing\ArchiveExtender;
 use LSNepomuceno\Signet\Support\Files;
-use LSNepomuceno\Signet\Testing\DebugCertificate;
-use LSNepomuceno\Signet\Testing\LocalRevocationAuthority;
+use LSNepomuceno\Signet\Testing\LocalTimestampAuthority;
 use LSNepomuceno\Signet\Validation\RevocationReader;
 use LSNepomuceno\Signet\Validation\SecurityStoreReader;
 
@@ -36,10 +35,10 @@ use LSNepomuceno\Signet\Validation\SecurityStoreReader;
  * without it they are present and undecidable rather than absent.
  */
 beforeEach(function () {
-    harness()->bind(SignatureTransport::class, fn(): LocalRevocationAuthority => new LocalRevocationAuthority(
-        resolve(ProcessRunner::class),
-        crl: Files::read(resource('revocation/crl-good.der')),
-    ));
+    // The default for this file: real tokens, no network. A test that needs
+    // revocation material as well takes `revocableIdentity()`, which rebinds
+    // this to an authority that can answer for the certificate it hands out.
+    harness()->bind(SignatureTransport::class, LocalTimestampAuthority::class);
 
     setConfig('signature.timestamp.url', 'https://timestamp.invalid/tsr');
 });
@@ -52,10 +51,7 @@ beforeEach(function () {
  */
 function encryptedArchive(SignatureProfile $profile, string $fixture = 'encrypted-aes256.pdf'): string
 {
-    [$pfx, $password] = DebugCertificate::makeRevocable();
-
-    $certificate = tempFile('.pfx');
-    file_put_contents($certificate, $pfx);
+    [$certificate, $password] = revocableIdentity();
 
     $path = signet()->newSignature()
         ->certificate($certificate, $password)
@@ -86,9 +82,16 @@ it('signs an encrypted document at pades-b-lt and qpdf still decodes it', functi
 })->with(['encrypted-aes128.pdf', 'encrypted-aes256.pdf', 'encrypted-objstm-aes256.pdf']);
 
 it('encrypts the store rather than embedding the evidence in the clear', function () {
-    $path = encryptedArchive(SignatureProfile::PadesBLT);
+    [$certificate, $certificatePassword, $crl] = revocableIdentity();
+
+    $path = signet()->newSignature()
+        ->certificate($certificate, $certificatePassword)
+        ->pdf(resource('encrypted-aes256.pdf'), 'secret')
+        ->profile(SignatureProfile::PadesBLT)
+        ->sign()
+        ->save(tempFile('.pdf'));
+
     $signed = Files::read($path);
-    $crl = Files::read(resource('revocation/crl-good.der'));
 
     // The evidence is in the document and none of its bytes are, which is the
     // difference between an encrypted store and a store that merely sits inside
@@ -104,16 +107,13 @@ it('costs the report nothing that the document is encrypted', function () {
     // same certificate over the same page, encrypted and not, has to leave the
     // report saying the same thing once the password is given.
     //
-    // What neither says is "revoked" or "good". The committed CRL is issued by
-    // the fixture authority in tests/Resources/revocation and the debug
-    // certificate is not, so the checker has nothing that covers this signer.
-    // That is `Validation\RevocationChecker`'s question, with its own fixtures
+    // What neither says is "revoked" or "good". The list the local authority
+    // serves revokes nothing and the checker has no responder to ask, so the
+    // verdict stays unknown either way. That is `Validation\RevocationChecker`'s
+    // question, with its own fixtures
     // (docs/decisions/0024-revocation-is-evaluated-not-counted.md), and the
     // unencrypted samples/pades-b-lt.pdf reports the same.
-    [$pfx, $certificatePassword] = DebugCertificate::makeRevocable();
-
-    $certificate = tempFile('.pfx');
-    file_put_contents($certificate, $pfx);
+    [$certificate, $certificatePassword] = revocableIdentity();
 
     $plain = signet()->newSignature()
         ->certificate($certificate, $certificatePassword)

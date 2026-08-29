@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace LSNepomuceno\Signet\Signing\Incremental;
 
 use Com\Tecnick\Pdf\Sign\Output\DocTimeStamp;
-use Com\Tecnick\Pdf\Sign\Timestamp\Client as TimestampClient;
-use Com\Tecnick\Pdf\Sign\Timestamp\Config as TimestampConfig;
 use LSNepomuceno\Signet\Config\SigningConfig;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
 use LSNepomuceno\Signet\Exceptions\SignatureTransportException;
+use LSNepomuceno\Signet\Signing\Cades\TimestampCodec;
 use LSNepomuceno\Signet\Signing\Encryption\ObjectCipher;
 use LSNepomuceno\Signet\Support\Bytes;
 use Throwable;
@@ -153,11 +152,7 @@ final readonly class DocTimeStampWriter
     {
         $timestamp = $this->config->timestamp;
 
-        $client = new TimestampClient(new TimestampConfig(
-            host: $url,
-            hashAlgorithm: $this->digestAlgorithm(),
-            timeout: max(1, $timestamp->timeout),
-        ));
+        $client = TimestampCodec::client($url, $this->digestAlgorithm(), $timestamp->timeout);
 
         try {
             // requestToken() hashes whatever it is given, so the imprint covers
