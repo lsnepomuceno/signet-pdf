@@ -58,4 +58,22 @@ enum DigestOid: string
     {
         return $oid === null ? 'unknown' : (self::tryFrom($oid)?->algorithm() ?? 'unknown');
     }
+
+    /**
+     * The other direction: the OID for a name, or null.
+     *
+     * Writing DER needs it. `Signing\Cades\PolicyAttribute` is handed a policy
+     * that names its digest the way a caller reads it, and the attribute has to
+     * carry the OID the way a verifier reads it.
+     */
+    public static function tryFromAlgorithm(string $algorithm): ?self
+    {
+        foreach (self::cases() as $case) {
+            if ($case->algorithm() === $algorithm) {
+                return $case;
+            }
+        }
+
+        return null;
+    }
 }

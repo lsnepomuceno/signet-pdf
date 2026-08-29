@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LSNepomuceno\Signet\Config;
 
+use LSNepomuceno\Signet\Data\SignaturePolicy;
 use LSNepomuceno\Signet\Enums\DigestAlgorithm;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
 
@@ -18,10 +19,24 @@ use LSNepomuceno\Signet\Enums\SignatureProfile;
  */
 final readonly class SigningConfig
 {
+    /**
+     * @param  SignaturePolicy|null  $policy  The policy a signature declares it
+     *          was made under, or null to declare none, which is the default
+     *          and what every signature this package produced before
+     *          (docs/decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md).
+     *
+     *          It is a plain identifier rather than a regional enum on purpose:
+     *          the core knows what a policy declaration is and nothing about
+     *          which policies exist, which is what keeps `src/IcpBrasil/` a
+     *          layer nothing else depends on
+     *          (docs/decisions/0104-the-regional-layer-is-its-own-namespace.md).
+     *          `IcpBrasil\Enums\SignaturePolicy::identifier()` produces one.
+     */
     public function __construct(
         public SignatureProfile $profile = SignatureProfile::PadesBB,
         public DigestAlgorithm $digest = DigestAlgorithm::Sha256,
         public TimestampConfig $timestamp = new TimestampConfig(),
         public LtvConfig $ltv = new LtvConfig(),
+        public ?SignaturePolicy $policy = null,
     ) {}
 }
