@@ -38,13 +38,13 @@ use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
 final readonly class PolicyAttribute
 {
     /**
-     * `id-aa-ets-sigPolicyId`, RFC 5126 §5.8.1. One attribute carries one
-     * declaration, so there is no second value this could be.
-     */
-    public const string OID = '1.2.840.113549.1.9.16.2.15';
-
-    /**
      * `id-spq-ets-uri`, the qualifier that says where the document is.
+     *
+     * A constant rather than an enum because it is the only qualifier this
+     * package writes: RFC 5126 §5.8.1 defines a user notice beside it, and
+     * nothing here has a use for one. The attribute's own OID is
+     * `Enums\CmsAttribute::SignaturePolicy`, where validation already reads it
+     * from, since one fact belongs in one place (docs/spec/conventions.md).
      */
     private const string URI_QUALIFIER_OID = '1.2.840.113549.1.9.16.5.1';
 
