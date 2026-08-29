@@ -63,12 +63,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   is committed, and a test fails when the two disagree: a wrong policy hash
   produces a signature that declares conformance and fails it.
 
-- **`IcpBrasil\PolicyConformance`**, which says whether a signature kept to the
-  policy it declared: an unknown identifier, a digest that disagrees with the
-  published list, a policy that was not in force when the document was signed,
-  and a signature carrying less than the policy demands. **`isValid()` consults
-  none of it**, because a signature that declares a policy it does not satisfy
-  is still cryptographically valid.
+- **`IcpBrasil\PolicyConformance`** and **`IcpBrasil\Data\PolicyReport`**, which
+  say whether a signature kept to the policy it declared: an unknown identifier,
+  a digest that disagrees with the published list, a policy that was not in
+  force when the document was signed, and a signature carrying less than the
+  policy demands. The report is the shape `IcpBrasil\Data\Report` already has,
+  `conforms()`, `has()` and `messages()` included. **`isValid()` consults none of
+  it**, because a signature that declares a policy it does not satisfy is still
+  cryptographically valid.
 
 - **`Config\SigningConfig::$policy`** and `Signing\Cades\PolicyAttribute`, the
   two pieces underneath. The configuration takes a plain
