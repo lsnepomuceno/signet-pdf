@@ -7,6 +7,7 @@ namespace LSNepomuceno\Signet\Console;
 use LSNepomuceno\Signet\Data\SignatureDetails;
 use LSNepomuceno\Signet\Enums\ValidationFinding;
 use LSNepomuceno\Signet\Signet;
+use LSNepomuceno\Signet\Support\Files;
 use LSNepomuceno\Signet\Validation\TrustStore;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -127,7 +128,7 @@ final class VerifyCommand extends Command
             return null;
         }
 
-        return is_dir($trust) ? TrustStore::fromDirectory($trust) : TrustStore::fromFile($trust);
+        return Files::isDirectory($trust) ? TrustStore::fromDirectory($trust) : TrustStore::fromFile($trust);
     }
 
     /**

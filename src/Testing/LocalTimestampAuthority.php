@@ -7,7 +7,9 @@ namespace LSNepomuceno\Signet\Testing;
 use LSNepomuceno\Signet\Contracts\ProcessRunner;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
+use LSNepomuceno\Signet\Support\Files;
 use LSNepomuceno\Signet\Support\TemporaryFile;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * A timestamp authority that answers without a network, for tests.
@@ -56,7 +58,7 @@ final class LocalTimestampAuthority implements SignatureTransport
                         escapeshellarg($reply->path),
                     ));
 
-                    $token = (string) file_get_contents($reply->path);
+                    $token = $reply->contents();
 
                     if ($token === '') {
                         throw new ProcessRunTimeException('the local timestamp authority produced nothing');
@@ -106,12 +108,13 @@ final class LocalTimestampAuthority implements SignatureTransport
             return $this->directory;
         }
 
+        // Time ordered, so a directory of leaked authorities sorts
+        // chronologically, and past collision between two concurrent runs
+        // (docs/spec/conventions.md).
         $directory = rtrim($this->workingPath === '' ? sys_get_temp_dir() : $this->workingPath, DIRECTORY_SEPARATOR)
-            . DIRECTORY_SEPARATOR . 'a1-pdf-sign-tsa-' . bin2hex(random_bytes(6)) . DIRECTORY_SEPARATOR;
+            . DIRECTORY_SEPARATOR . 'signet-tsa-' . Uuid::v7()->toRfc4122() . DIRECTORY_SEPARATOR;
 
-        if (! is_dir($directory) && ! mkdir($directory, 0o700, true) && ! is_dir($directory)) {
-            throw new ProcessRunTimeException("could not create {$directory}");
-        }
+        Files::makeDirectory($directory);
 
         $this->processes->run(sprintf(
             'openssl req -x509 -newkey rsa:2048 -keyout %s -out %s -days 3650 -nodes '
@@ -123,8 +126,8 @@ final class LocalTimestampAuthority implements SignatureTransport
             escapeshellarg($directory . 'tsa.pem'),
         ));
 
-        file_put_contents($directory . 'tsa-serial', "01\n");
-        file_put_contents($directory . 'tsa.cnf', $this->configuration($directory));
+        Files::write($directory . 'tsa-serial', "01\n");
+        Files::write($directory . 'tsa.cnf', $this->configuration($directory));
 
         $this->directory = $directory;
 

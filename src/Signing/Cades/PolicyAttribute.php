@@ -7,6 +7,7 @@ namespace LSNepomuceno\Signet\Signing\Cades;
 use Com\Tecnick\Pdf\Sign\Cms\Asn1;
 use LSNepomuceno\Signet\Data\SignaturePolicy;
 use LSNepomuceno\Signet\Enums\DigestOid;
+use LSNepomuceno\Signet\Enums\PolicyQualifier;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
 
 /**
@@ -37,17 +38,6 @@ use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
  */
 final readonly class PolicyAttribute
 {
-    /**
-     * `id-spq-ets-uri`, the qualifier that says where the document is.
-     *
-     * A constant rather than an enum because it is the only qualifier this
-     * package writes: RFC 5126 §5.8.1 defines a user notice beside it, and
-     * nothing here has a use for one. The attribute's own OID is
-     * `Enums\CmsAttribute::SignaturePolicy`, where validation already reads it
-     * from, since one fact belongs in one place (docs/spec/conventions.md).
-     */
-    private const string URI_QUALIFIER_OID = '1.2.840.113549.1.9.16.5.1';
-
     public function __construct(private Asn1 $asn1 = new Asn1()) {}
 
     /**
@@ -97,7 +87,7 @@ final readonly class PolicyAttribute
         if ($policy->uri !== null && $policy->uri !== '') {
             $identifier .= $this->asn1->encodeSequence(
                 $this->asn1->encodeSequence(
-                    $this->asn1->encodeObjectIdentifier(self::URI_QUALIFIER_OID)
+                    $this->asn1->encodeObjectIdentifier(PolicyQualifier::Uri->value)
                     . $this->ia5String($policy->uri),
                 ),
             );

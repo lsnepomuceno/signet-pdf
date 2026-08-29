@@ -281,7 +281,39 @@ The two that decide whether a piece of code should exist at all are in
   written.** **Except on bytes:** the multibyte helpers return the wrong offsets
   over PDF or DER and corrupt a signature while passing the whole suite.
 - **Enums, not class constants.** A closed set of values is an enum. The test is
-  "could a second value of this kind ever be right?".
+  "could a second value of this kind ever be right?". A constant is for the lone
+  fact: one cipher, one reserved width, one marker fixed by an RFC.
+
+### Reach for what is already here
+
+Reproduced from `docs/spec/conventions.md` rather than linked, because the rules
+broken most often are the ones a reader has to go and look up. **Before writing
+anything into `src/`, this table is the first check.**
+
+| Instead of | Use | Why |
+|---|---|---|
+| `file_get_contents`, `file_put_contents` | `Support\Files` | both return `false` on failure, and that `false` reaching a `string` parameter was this package's most common typing defect. `Files::read()` names the file instead |
+| `is_dir`, `mkdir`, `unlink` | `Support\Files` | one place, so the failure modes are written down once |
+| `uniqid`, a counter, or `random_bytes` for a **name** | `Symfony\Component\Uid\Uuid::v7()` | time-ordered, so a directory of leaked temporary files sorts chronologically, and beyond collision between two concurrent signings |
+| `exec`, `shell_exec`, `proc_open` | `Contracts\ProcessRunner` | invariant 8, and `Testing\FakeProcessRunner` in a consuming application |
+| `curl_*`, a stream context | `Contracts\SignatureTransport` | invariant 9. Timeouts, retries and substitution instead of a hand-rolled context |
+| a hand-rolled AES envelope | `Support\OpensslEncrypter` | it already writes the format the Laravel package reads |
+| reading a value out of an array with a cast and a default | a value object in `Config\` | the core does not read configuration at all (invariant 11) |
+| a second constant holding an OID, a marker or a width | an existing case in `Enums\` | **grep the value before introducing one.** `id-messageDigest` reached three files this way |
+
+And the exceptions, each load-bearing:
+
+| Keep the native call | Why |
+|---|---|
+| **`substr`, `strlen`, `strpos`, `str_replace` on PDF or DER bytes** | `mb_*` reinterprets binary as UTF-8 and returns the wrong offsets, which here means a corrupted signature that passes the suite on ASCII fixtures |
+| `preg_match`, `preg_match_all` | offsets are what the incremental writer is built on |
+| `openssl_*`, `pack`, `unpack`, `bin2hex`, `hex2bin`, `gzuncompress`, `hash(..., binary: true)` | no component equivalent, and all byte-exact |
+| `random_bytes` for a **key, an IV or a nonce** | that is what it is for. Only a *name* goes to `Uuid::v7()` |
+| **never `@`** | it suppresses the display and not the handler, so PHPUnit reports it anyway. Use `Support\Probe::run()` |
+
+`tests/Project/ArchTest.php` gates the first two rows, the OID row, the process
+row, the multibyte row and `@`. The rest is review, which is why the table is
+here.
 
 ### Writing
 

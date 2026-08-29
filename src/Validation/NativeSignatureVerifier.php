@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LSNepomuceno\Signet\Validation;
 
 use LSNepomuceno\Signet\Contracts\SignatureVerifier;
+use LSNepomuceno\Signet\Enums\CmsAttribute;
 use LSNepomuceno\Signet\Enums\DigestOid;
 use LSNepomuceno\Signet\Exceptions\VerificationUnsupportedException;
 use LSNepomuceno\Signet\Support\Probe;
@@ -45,9 +46,6 @@ final readonly class NativeSignatureVerifier implements SignatureVerifier
 {
     /** RFC 5652 §11.1. */
     private const string CONTENT_TYPE = '1.2.840.113549.1.9.3';
-
-    /** RFC 5652 §11.2. */
-    private const string MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
 
     /** RFC 2634 §5.4, the SHA-1 one, and RFC 5035 §3, the one PAdES requires. */
     private const string SIGNING_CERTIFICATE = '1.2.840.113549.1.9.16.2.12';
@@ -237,7 +235,7 @@ final readonly class NativeSignatureVerifier implements SignatureVerifier
      */
     private function digestMatches(string $der, Asn1Node $signedAttrs, string $algorithm, string $content): bool
     {
-        $claimed = $this->attribute($der, $signedAttrs, self::MESSAGE_DIGEST);
+        $claimed = $this->attribute($der, $signedAttrs, CmsAttribute::MessageDigest->value);
 
         return $claimed !== null && hash_equals(hash($algorithm, $content, true), $claimed->content($der));
     }
