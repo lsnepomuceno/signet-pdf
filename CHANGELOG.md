@@ -20,6 +20,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`Contracts\SigningKey`, so the private key can live outside this process.**
+  `Contracts\SignatureProducer` hands out the covered bytes and takes back a
+  complete CMS, which unblocks a signer that assembles CAdES itself. A
+  certificate in the cloud, an A3 token through PKCS#11 and a cloud KMS do not:
+  each takes bytes and returns a raw signature. This is the seam one level
+  deeper, and what it hands out is the DER encoding of the **signed
+  attributes**, since that is what a CAdES signature is computed over
+  ([0120](docs/decisions/0120-a-key-can-live-outside-the-process.md)).
+
+  Bind one through `new Signet(signingKey: $key)` and sign through the ordinary
+  entry point, with `certificatePublic()` carrying the certificate. **The two
+  paths produce the same bytes**: a PAdES baseline signature carries no
+  signing-time attribute and RSA PKCS#1 v1.5 is deterministic, so for the same
+  content and certificate the CMS is byte for byte identical to the one the
+  bundled key produces.
+
+- **`Enums\SignatureEncoding`**, which is how a `Contracts\SigningKey` says
+  what it returns. ECDSA has two encodings in the field, the DER SEQUENCE of
+  RFC 3279 and the fixed-width concatenation of IEEE P1363, and they are not
+  reliably distinguishable by inspection. Declared rather than guessed, because
+  the wrong guess produces a signature that verifies against nothing.
+
 - **`Testing\LocalRevocationAuthority::crlFor()`**, which signs a real CRL with
   the authority that issued the certificate under test.
   `Testing\DebugCertificate::makeRevocable()` now issues from a throwaway

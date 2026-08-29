@@ -17,6 +17,7 @@ use LSNepomuceno\Signet\Contracts\SealRenderer;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Contracts\SignatureValidator;
 use LSNepomuceno\Signet\Contracts\SignatureVerifier;
+use LSNepomuceno\Signet\Contracts\SigningKey;
 use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Data\EncryptedCertificate;
 use LSNepomuceno\Signet\Data\PreparedSignature;
@@ -127,6 +128,11 @@ final class Signet
      *          conservative choice for a security decision and unavailable on a
      *          host with `proc_open` disabled
      *          (docs/decisions/0114-verification-has-two-implementations.md).
+     * @param  SigningKey|null  $signingKey  Where the private key is, when it
+     *          is not in the certificate: a token, an HSM, a cloud signing
+     *          service. Given one, the certificate needs no key of its own and
+     *          `PendingSignature::certificatePublic()` is how it arrives
+     *          (docs/decisions/0120-a-key-can-live-outside-the-process.md).
      */
     public function __construct(
         public readonly SignetConfig $config = new SignetConfig(),
@@ -135,6 +141,7 @@ final class Signet
         ?PdfSigner $signer = null,
         ?CertificateReader $certificateReader = null,
         ?SignatureVerifier $verifier = null,
+        private readonly ?SigningKey $signingKey = null,
     ) {
         $this->processRunner = $processes;
         $this->signatureTransport = $transport;
@@ -476,7 +483,7 @@ final class Signet
             $this->documentReader(),
             $this->revisionWriter(),
             new ByteRangeCalculator(),
-            new CadesBuilder($this->config->signing, $this->transport()),
+            new CadesBuilder($this->config->signing, $this->transport(), key: $this->signingKey),
             $this->dssWriter(),
             $this->docTimeStampWriter(),
         );
