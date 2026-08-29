@@ -255,6 +255,24 @@ can be pointed at them
 `tests/Project/ArchTest.php` enforces structural rules, so read it before adding a class.
 The one that matters most is `imports no framework`.
 
+## Skills
+
+Four procedures live in `.claude/skills/`, and they are there rather than here
+because each is long, and each is needed only when its own kind of work starts.
+They hold what a gate cannot check: the order to reach for things in, and the
+questions to ask before writing rather than after.
+
+| Skill | Read it when |
+|---|---|
+| `signature-forensics` | a signing, validation or conformance test fails, or a signed document is refused by another reader |
+| `new-class-in-src` | anything is about to be added under `src/` |
+| `decision-record` | a change picks one design over another a reader would question |
+| `ship-it` | a change is finished: branch, changelog, commit, pull request, merge |
+
+They are committed to the repository rather than kept per machine, so
+`tests/Project/SpecTest.php` walks them like any other documentation: a
+`docs/...` path one of them cites has to resolve.
+
 ## Commits
 
 Conventional Commits, in English (`feat:`, `fix:`, `chore(deps):`, `test:`,
