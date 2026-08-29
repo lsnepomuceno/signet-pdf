@@ -199,7 +199,8 @@ it('reports a signature that declares more than it carries', function () {
     // question from whether the signature verifies.
     expect($report->isValid())->toBeTrue()
         ->and(new PolicyConformance()->check($report, $signature))
-        ->toBe([PolicyFinding::SignatureBelowPolicy]);
+        ->conforms()->toBeFalse()
+        ->has(PolicyFinding::SignatureBelowPolicy)->toBeTrue();
 
     unlink($path);
 });
@@ -233,7 +234,11 @@ it('reports a signature that keeps to the policy it declares', function () {
 
     assert($signature !== null);
 
-    expect(new PolicyConformance()->check($report, $signature))->toBe([]);
+    $conformance = new PolicyConformance()->check($report, $signature);
+
+    expect($conformance->conforms())->toBeTrue()
+        ->and($conformance->findings)->toBe([])
+        ->and($conformance->policy)->toBe($policy);
 
     unlink($path);
 });
@@ -252,7 +257,13 @@ it('says a signature declaring nothing declares nothing', function () {
 
     assert($signature !== null);
 
-    expect(new PolicyConformance()->check($report, $signature))->toBe([PolicyFinding::NoPolicyDeclared]);
+    $conformance = new PolicyConformance()->check($report, $signature);
+
+    // It does not conform, for the same reason a certificate that is not
+    // ICP-Brasil at all does not: there was nothing to conform to.
+    expect($conformance->conforms())->toBeFalse()
+        ->and($conformance->policy)->toBeNull()
+        ->and($conformance->has(PolicyFinding::NoPolicyDeclared))->toBeTrue();
 
     unlink($path);
 });
@@ -289,8 +300,15 @@ it('reports a policy identifier nobody published', function () {
     ));
 
     // Nothing else is knowable about a policy that is not on the list, so the
-    // finding stands alone rather than beside guesses.
-    expect(new PolicyConformance()->check($report, $signature))->toBe([PolicyFinding::UnknownPolicy]);
+    // finding stands alone rather than beside guesses, and it carries the
+    // identifier that was not recognised.
+    $conformance = new PolicyConformance()->check($report, $signature);
+
+    expect($conformance->findings)->toHaveCount(1)
+        ->and($conformance->has(PolicyFinding::UnknownPolicy))->toBeTrue()
+        ->and($conformance->messages())->toBe([
+            'the policy identifier is not on the published list (1.2.3.4.5)',
+        ]);
 });
 
 it('reports a digest that disagrees with the published list', function () {
@@ -303,7 +321,9 @@ it('reports a digest that disagrees with the published list', function () {
         uri: $policy->uri(),
     ));
 
-    expect(new PolicyConformance()->check($report, $signature))->toBe([PolicyFinding::PolicyDigestDisagrees]);
+    expect(new PolicyConformance()->check($report, $signature))
+        ->has(PolicyFinding::PolicyDigestDisagrees)->toBeTrue()
+        ->policy->toBe($policy);
 });
 
 it('reads the digest case-insensitively, because it is bytes rather than spelling', function () {
@@ -316,7 +336,7 @@ it('reads the digest case-insensitively, because it is bytes rather than spellin
         uri: $policy->uri(),
     ));
 
-    expect(new PolicyConformance()->check($report, $signature))->toBe([]);
+    expect(new PolicyConformance()->check($report, $signature))->conforms()->toBeTrue();
 });
 
 it('reports a policy that was not in force when the document was signed', function () {
@@ -334,5 +354,7 @@ it('reports a policy that was not in force when the document was signed', functi
         signedAt: $policy->validFrom() - 86400,
     );
 
-    expect(new PolicyConformance()->check($report, $signature))->toBe([PolicyFinding::PolicyNotInForce]);
+    expect(new PolicyConformance()->check($report, $signature))
+        ->has(PolicyFinding::PolicyNotInForce)->toBeTrue()
+        ->conforms()->toBeFalse();
 });

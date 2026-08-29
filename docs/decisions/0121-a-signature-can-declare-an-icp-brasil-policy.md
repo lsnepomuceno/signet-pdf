@@ -44,7 +44,10 @@ Four pieces, and the layering between them is the point:
   declaration that could be added afterwards says nothing about what the signer
   committed to.
 - **`IcpBrasil\PolicyConformance`** reads a declaration back and says whether
-  the signature kept to it.
+  the signature kept to it, returning an **`IcpBrasil\Data\PolicyReport`**. It
+  is the shape `Data\Report` already has, down to `conforms()`, `has()` and
+  `messages()`: a caller that reads one report from this layer should not have
+  to learn a second way of reading the next.
 
 **The values were read from the artefact, never transcribed.** The source is
 ITI's published list for PAdES, `http://politicas.icpbrasil.gov.br/LPA_PAdES.der`,
@@ -87,6 +90,9 @@ decision this did not need to make.
   was not in force at the signing time, and a signature that carries less than
   the policy demands. A `pades-b-b` signature declaring the time-reference
   policy is the last case, and the suite signs one to prove it.
+- **A signature that declares no policy does not conform**, which is the same
+  answer `Data\Report` gives a certificate that is not ICP-Brasil at all: there
+  was nothing to conform to.
 - The published list ages. When ITI publishes a new version, the artefact is
   refetched and the test that compares them is what says so.
 - Conformance against ITI's Verificador is an online service and cannot be a

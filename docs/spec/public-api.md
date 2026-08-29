@@ -44,7 +44,7 @@ src/
 │   ├── NationalRegistry.php              # CPF and CNPJ check digits
 │   ├── PolicyConformance.php             # whether a signature kept to the
 │   │                                     # policy it declared
-│   ├── Data/                             # Identity, Report
+│   ├── Data/                             # Identity, Report, PolicyReport
 │   └── Enums/                            # CertificateType, Finding, OtherName,
 │                                         # PolicyFinding, SignaturePolicy
 ├── Signing/
@@ -259,11 +259,13 @@ and the profile that satisfies it. The values are read from
 2026-08-29 is committed at `tests/Resources/icp-brasil/LPA_PAdES.der` with a
 test that fails when the two disagree.
 
-`IcpBrasil\PolicyConformance::check()` reads a declaration back and reports what
-is wrong with it: an unknown identifier, a digest that disagrees with the list, a
-policy not in force at the signing time, and a signature that carries less than
-the policy demands. **`isValid()` consults none of it**, deliberately: keeping to
-a policy and verifying are different questions.
+`IcpBrasil\PolicyConformance::check()` reads a declaration back and returns an
+`IcpBrasil\Data\PolicyReport`, the shape `Data\Report` has: what was examined,
+the findings, `conforms()`, `has()` and `messages()`. It reports an unknown
+identifier, a digest that disagrees with the list, a policy not in force at the
+signing time, and a signature that carries less than the policy demands.
+**`isValid()` consults none of it**, deliberately: keeping to a policy and
+verifying are different questions.
 
 **Those three take a `string|Contracts\PdfSource`**, the same way signing does.
 A path keeps meaning what it always meant, including the extension check and the

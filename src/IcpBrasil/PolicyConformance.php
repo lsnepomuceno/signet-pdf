@@ -7,6 +7,7 @@ namespace LSNepomuceno\Signet\IcpBrasil;
 use LSNepomuceno\Signet\Data\SignatureDetails;
 use LSNepomuceno\Signet\Data\SignatureReport;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
+use LSNepomuceno\Signet\IcpBrasil\Data\PolicyReport;
 use LSNepomuceno\Signet\IcpBrasil\Enums\PolicyFinding;
 use LSNepomuceno\Signet\IcpBrasil\Enums\SignaturePolicy;
 
@@ -30,24 +31,30 @@ use LSNepomuceno\Signet\IcpBrasil\Enums\SignaturePolicy;
 final readonly class PolicyConformance
 {
     /**
-     * What is wrong with the policy this signature declares, if anything.
+     * What the signature declared, and what is wrong with it.
      *
-     * @return list<PolicyFinding> Empty when the declaration is on the list,
-     *          was in force when the document was signed, carries the digest
-     *          the list carries, and is matched by what the signature holds.
+     * The report conforms when the declaration is on the published list, was in
+     * force when the document was signed, carries the digest the list carries,
+     * and is matched by what the signature holds.
      */
-    public function check(SignatureReport $report, SignatureDetails $signature): array
+    public function check(SignatureReport $report, SignatureDetails $signature): PolicyReport
     {
         $declared = $signature->signaturePolicy;
 
         if ($declared === null) {
-            return [PolicyFinding::NoPolicyDeclared];
+            return new PolicyReport(findings: [
+                ['finding' => PolicyFinding::NoPolicyDeclared, 'detail' => null],
+            ]);
         }
 
         $policy = SignaturePolicy::tryFrom($declared->oid);
 
+        // Nothing else is knowable about a policy that is not on the list, so
+        // the finding stands alone rather than beside guesses.
         if ($policy === null) {
-            return [PolicyFinding::UnknownPolicy];
+            return new PolicyReport(findings: [
+                ['finding' => PolicyFinding::UnknownPolicy, 'detail' => $declared->oid],
+            ]);
         }
 
         $findings = [];
@@ -55,7 +62,7 @@ final readonly class PolicyConformance
         // Case-insensitively, because the hex is written by whoever signed and
         // the comparison is of bytes rather than of spelling.
         if (strcasecmp($declared->digest, $policy->digest()) !== 0) {
-            $findings[] = PolicyFinding::PolicyDigestDisagrees;
+            $findings[] = ['finding' => PolicyFinding::PolicyDigestDisagrees, 'detail' => $declared->digest];
         }
 
         // Against the signing time when the document states one. A signature
@@ -63,14 +70,20 @@ final readonly class PolicyConformance
         $signedAt = $signature->signedAt;
 
         if ($signedAt !== null && ($signedAt < $policy->validFrom() || $signedAt > $policy->validUntil())) {
-            $findings[] = PolicyFinding::PolicyNotInForce;
+            $findings[] = [
+                'finding' => PolicyFinding::PolicyNotInForce,
+                'detail' => 'signed at ' . gmdate('Y-m-d', $signedAt),
+            ];
         }
 
         if (! $this->satisfies($report, $signature, $policy->profile())) {
-            $findings[] = PolicyFinding::SignatureBelowPolicy;
+            $findings[] = [
+                'finding' => PolicyFinding::SignatureBelowPolicy,
+                'detail' => 'the policy is satisfied by ' . $policy->profile()->value,
+            ];
         }
 
-        return $findings;
+        return new PolicyReport($policy, $findings);
     }
 
     /**

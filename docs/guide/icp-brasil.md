@@ -134,13 +134,22 @@ $signature = $report->latest();
 
 $signature?->signaturePolicy?->oid;   // what the document says it kept to
 
-new PolicyConformance()->check($report, $signature);   // whether it did
+$conformance = new PolicyConformance()->check($report, $signature);
+
+$conformance->conforms();   // whether it kept to what it declared
+$conformance->policy;       // the policy, when it is one ITI published
+$conformance->messages();   // one line per finding, fit to show somebody
 ```
 
 `IcpBrasil\PolicyConformance` reports an unknown identifier, a digest that
 disagrees with the published list, a policy that was not in force when the
 document was signed, and a signature carrying less than the policy demands: a
 `pades-b-b` signature declaring AD-RT is the last case.
+
+`Data\PolicyReport` is the same shape `Data\Report` has for a certificate, so
+both checks in this layer are read the same way. A signature declaring no policy
+does not conform, for the reason a certificate that is not ICP-Brasil at all
+does not: there was nothing to conform to.
 
 ::: warning `isValid()` consults none of this
 A signature that declares a policy it does not satisfy is still
