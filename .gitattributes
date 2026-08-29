@@ -1,5 +1,6 @@
 # Keep development-only paths out of the distributed package.
 # See docs/spec/quality-policy.md.
+/.claude            export-ignore
 /.docker            export-ignore
 /.husky             export-ignore
 /.github            export-ignore

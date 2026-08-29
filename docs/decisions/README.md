@@ -93,7 +93,6 @@ guarantee two records with the same number within a release or two.
 | [0115](0115-laravel-a1-pdf-sign-is-rebuilt-on-this.md) | `laravel-a1-pdf-sign` is rebuilt on this package |
 | [0116](0116-signing-has-two-phases.md) | Signing has two phases, and the key does not have to be here |
 | [0117](0117-a-contract-addition-is-a-major-release.md) | A contract addition is a major release |
-
 | [0118](0118-a-timestamp-token-is-verified.md) | A timestamp token is verified, and its legacy binding is accepted |
 | [0119](0119-revocation-material-is-verified-before-it-is-embedded.md) | Revocation material is verified before it is embedded |
 | [0120](0120-a-key-can-live-outside-the-process.md) | A key can live outside the process |
