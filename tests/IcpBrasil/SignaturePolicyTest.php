@@ -256,3 +256,83 @@ it('says a signature declaring nothing declares nothing', function () {
 
     unlink($path);
 });
+
+/**
+ * A report carrying one signature, built by hand so a declaration can be put
+ * where no signing path would put it.
+ *
+ * @return array{0: LSNepomuceno\Signet\Data\SignatureReport, 1: LSNepomuceno\Signet\Data\SignatureDetails}
+ */
+function reportDeclaring(
+    ?LSNepomuceno\Signet\Data\SignaturePolicy $policy,
+    ?int $signedAt = null,
+    ?int $stampedAt = null,
+): array {
+    $signature = new LSNepomuceno\Signet\Data\SignatureDetails(
+        verified: true,
+        signers: [],
+        coverageEnd: 0,
+        coversWholeDocument: true,
+        signedAt: $signedAt,
+        stampedAt: $stampedAt,
+        signaturePolicy: $policy,
+    );
+
+    return [new LSNepomuceno\Signet\Data\SignatureReport([$signature]), $signature];
+}
+
+it('reports a policy identifier nobody published', function () {
+    [$report, $signature] = reportDeclaring(new LSNepomuceno\Signet\Data\SignaturePolicy(
+        oid: '1.2.3.4.5',
+        digestAlgorithm: 'sha256',
+        digest: str_repeat('ab', 32),
+    ));
+
+    // Nothing else is knowable about a policy that is not on the list, so the
+    // finding stands alone rather than beside guesses.
+    expect(new PolicyConformance()->check($report, $signature))->toBe([PolicyFinding::UnknownPolicy]);
+});
+
+it('reports a digest that disagrees with the published list', function () {
+    $policy = SignaturePolicy::AdRbV1_3;
+
+    [$report, $signature] = reportDeclaring(new LSNepomuceno\Signet\Data\SignaturePolicy(
+        oid: $policy->value,
+        digestAlgorithm: 'sha256',
+        digest: str_repeat('00', 32),
+        uri: $policy->uri(),
+    ));
+
+    expect(new PolicyConformance()->check($report, $signature))->toBe([PolicyFinding::PolicyDigestDisagrees]);
+});
+
+it('reads the digest case-insensitively, because it is bytes rather than spelling', function () {
+    $policy = SignaturePolicy::AdRbV1_3;
+
+    [$report, $signature] = reportDeclaring(new LSNepomuceno\Signet\Data\SignaturePolicy(
+        oid: $policy->value,
+        digestAlgorithm: 'sha256',
+        digest: strtoupper($policy->digest()),
+        uri: $policy->uri(),
+    ));
+
+    expect(new PolicyConformance()->check($report, $signature))->toBe([]);
+});
+
+it('reports a policy that was not in force when the document was signed', function () {
+    $policy = SignaturePolicy::AdRbV1_3;
+
+    // The day before it came into force, which is the one case a signature can
+    // reach honestly: a document signed under the previous version.
+    [$report, $signature] = reportDeclaring(
+        new LSNepomuceno\Signet\Data\SignaturePolicy(
+            oid: $policy->value,
+            digestAlgorithm: 'sha256',
+            digest: $policy->digest(),
+            uri: $policy->uri(),
+        ),
+        signedAt: $policy->validFrom() - 86400,
+    );
+
+    expect(new PolicyConformance()->check($report, $signature))->toBe([PolicyFinding::PolicyNotInForce]);
+});
