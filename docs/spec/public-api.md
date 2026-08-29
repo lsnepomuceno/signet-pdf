@@ -97,10 +97,14 @@ Two more are constructor arguments of the classes that hold them:
 | `Contracts\SealRenderer` | draw a different seal: a logo, a QR code, any layout |
 | `Contracts\Encrypter` | own the key management and the cipher the vault seals with |
 
-And three are implemented rather than replaced:
+And the rest are implemented rather than replaced:
 `Contracts\PdfSource` and `Contracts\PdfDestination`, for documents that are
-not local files, and `Contracts\SignatureValidator`, which is what
-`Signet::validate()` returns a report from.
+not local files; `Contracts\SignatureValidator`, which is what
+`Signet::validate()` returns a report from; and the two producers,
+`Contracts\SignatureProducer`, which builds the CMS from the covered bytes, and
+`Contracts\DigestSignatureProducer`, which builds it from their digest and is
+what signing prefers when a producer offers both
+([0122](../decisions/0122-signing-a-document-larger-than-memory.md)).
 
 **Writing that down makes their signatures public API**, which is the cost and
 is worth paying: they were already published contracts, and a consumer who

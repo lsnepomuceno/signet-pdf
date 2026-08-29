@@ -14,6 +14,7 @@ use LSNepomuceno\Signet\Contracts\SignatureProducer;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Contracts\SigningKey;
 use LSNepomuceno\Signet\Data\Certificate;
+use LSNepomuceno\Signet\Enums\CmsAttribute;
 use LSNepomuceno\Signet\Enums\DigestAlgorithm;
 use LSNepomuceno\Signet\Enums\SignatureEncoding;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
@@ -276,7 +277,7 @@ final readonly class CadesBuilder implements DigestSignatureProducer, SignatureP
             return [];
         }
 
-        return [PolicyAttribute::OID => $this->policy->encode($policy)];
+        return [CmsAttribute::SignaturePolicy->value => $this->policy->encode($policy)];
     }
 
     /**

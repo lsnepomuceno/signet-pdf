@@ -6,9 +6,12 @@ namespace LSNepomuceno\Signet\Testing;
 
 use LSNepomuceno\Signet\Contracts\ProcessRunner;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
+use LSNepomuceno\Signet\Exceptions\FileNotFoundException;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
+use LSNepomuceno\Signet\Support\Files;
 use LSNepomuceno\Signet\Support\TemporaryFile;
 use SensitiveParameter;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * The local timestamp authority, with revocation material to hand out.
@@ -98,6 +101,8 @@ final class LocalRevocationAuthority implements SignatureTransport
      *          decimal, or null for a list that revokes nothing.
      * @return string The CRL in DER, which is what a distribution point serves.
      *
+     * @throws FileNotFoundException When the list openssl was asked for is not
+     *          where it said it would put it.
      * @throws ProcessRunTimeException
      */
     public static function crlFor(
@@ -107,21 +112,22 @@ final class LocalRevocationAuthority implements SignatureTransport
         string $issuerKeyPem,
         ?string $revokedSerial = null,
     ): string {
+        // Named the way every other throwaway path in the package is: time
+        // ordered, so a directory of leaked ones sorts chronologically, and
+        // beyond collision between two concurrent runs (docs/spec/conventions.md).
         $directory = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
-            . DIRECTORY_SEPARATOR . 'signet-crl-' . bin2hex(random_bytes(6)) . DIRECTORY_SEPARATOR;
+            . DIRECTORY_SEPARATOR . 'signet-crl-' . Uuid::v7()->toRfc4122() . DIRECTORY_SEPARATOR;
 
-        if (! is_dir($directory) && ! mkdir($directory, 0o700, true) && ! is_dir($directory)) {
-            throw new ProcessRunTimeException("could not create {$directory}");
-        }
+        Files::makeDirectory($directory);
 
-        file_put_contents($directory . 'ca.pem', $issuerPem);
-        file_put_contents($directory . 'ca.key', $issuerKeyPem);
-        file_put_contents($directory . 'crlnumber', "1000\n");
+        Files::write($directory . 'ca.pem', $issuerPem);
+        Files::write($directory . 'ca.key', $issuerKeyPem);
+        Files::write($directory . 'crlnumber', "1000\n");
 
         // The database is what `openssl ca` reads to decide what the list
         // holds: one tab-separated line per certificate, and R in the first
         // column is the only thing that puts one on it.
-        file_put_contents(
+        Files::write(
             $directory . 'index.txt',
             $revokedSerial === null
                 ? ''
@@ -133,7 +139,7 @@ final class LocalRevocationAuthority implements SignatureTransport
                 ),
         );
 
-        file_put_contents($directory . 'ca.cnf', <<<CONFIG
+        Files::write($directory . 'ca.cnf', <<<CONFIG
             [ca]
             default_ca = local
 
@@ -168,7 +174,7 @@ final class LocalRevocationAuthority implements SignatureTransport
                     escapeshellarg($der->path),
                 ));
 
-                $bytes = (string) file_get_contents($der->path);
+                $bytes = Files::read($der->path);
 
                 if ($bytes === '') {
                     throw new ProcessRunTimeException('the local authority produced no revocation list');
