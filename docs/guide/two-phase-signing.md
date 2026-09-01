@@ -42,7 +42,7 @@ other side needs:
 
 | | |
 |---|---|
-| `document` | the bytes as they stand, placeholder and all |
+| `document` | the document as it stands, placeholder and all, as a `Support\DocumentBuffer`. Its bytes are `$prepared->document->bytes` |
 | `byteRange` | the four numbers written into `/ByteRange` |
 | `reservedBytes` | what the placeholder can hold |
 | `digest` | the `Enums\DigestAlgorithm` the CMS will be computed under |
@@ -57,6 +57,15 @@ $prepared->digestHex();       // the same, as the CMS carries it
 $prepared->signableBytes();   // the covered span, for a producer that hashes itself
 $prepared->fits($cms);        // before committing to a signature from elsewhere
 ```
+
+**`document` is a buffer rather than a string, and the reason is measurable.**
+Phase two writes the signature into it and appends a revision for each of the
+levels above `pades-b-b`, and PHP extends a string in place only while nothing
+else points at it. A plain property would be copied by the first thing that read
+it, and the copy is the size of the document: 64.1 MB against 0.1 MB on a 64 MB
+file. Read the bytes with `$prepared->document->bytes`, knowing that assigning
+them to a variable is what takes the copy
+([0122](../decisions/0122-signing-a-document-larger-than-memory.md)).
 
 `digestValue` is exactly the `message-digest` attribute the finished CMS
 commits to. That is asserted rather than assumed: `tests/Signing/TwoPhaseSigningTest.php`

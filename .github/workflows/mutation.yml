@@ -217,7 +217,7 @@ jobs:
           # mutants each run veraPDF. What the file produces is measured by
           # veraPDF directly instead (docs/spec/quality-policy.md).
           - name: Support (bytes)
-            target: Support/Bytes.php,Support/CryptographicStrength.php,Support/PdfDictionary.php,Support/PdfFilters.php,Support/PdfStream.php,Support/Pem.php,Support/PngReader.php
+            target: Support/Bytes.php,Support/CryptographicStrength.php,Support/DocumentBuffer.php,Support/PdfDictionary.php,Support/PdfFilters.php,Support/PdfStream.php,Support/Pem.php,Support/PngReader.php
             min: 68                   # provisional, still unmeasured
           # **Corrected from a guess.** This leg was given 68, the namespace's
           # own floor less six, before anything had measured it. It scored

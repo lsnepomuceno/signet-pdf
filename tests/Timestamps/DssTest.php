@@ -21,7 +21,7 @@ it('appends a revision without disturbing what came before', function () {
     $writer = resolve(RevisionWriter::class);
 
     $document = $reader->read($signed);
-    $withDss = $writer->appendObjects($signed, $document, [
+    $withDss = $signed . $writer->objectRevision($signed, $document, [
         $document->size => "{$document->size} 0 obj\n<</Type/Probe>>\nendobj\n",
     ]);
 
@@ -64,7 +64,7 @@ it('replaces an existing /DSS rather than adding a second one', function () {
     $writer = resolve(RevisionWriter::class);
 
     $document = $reader->read($signed);
-    $first = $writer->appendObjects($signed, $document, [
+    $first = $signed . $writer->objectRevision($signed, $document, [
         $document->root => $writer->catalogWithDss($signed, $document, 90),
     ]);
 

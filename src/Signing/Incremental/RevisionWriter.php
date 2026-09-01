@@ -38,11 +38,21 @@ final class RevisionWriter
     ) {}
 
     /**
-     * Appends the signature revision, leaving the /Contents placeholder empty.
+     * The signature revision, with the /Contents placeholder left empty.
+     *
+     * **Returned rather than appended, and that is the whole memory story.**
+     * This used to end in `$pdf . $body`, which allocates the document a second
+     * time to add a few kilobytes: measured at 64.1 MB on a 64 MB document
+     * against 0.1 MB for extending the original in place. The caller owns the
+     * document and can extend it; this only knows what to add
+     * (docs/decisions/0122-signing-a-document-larger-than-memory.md).
+     *
+     * The offsets it writes are absolute, so it still needs the document it
+     * will be appended to, and reads objects out of it.
      *
      * @throws InvalidPdfFileException|SealPlacementException
      */
-    public function append(
+    public function revision(
         string           $pdf,
         DocumentInfo     $document,
         SignatureInfo    $info,
@@ -251,24 +261,26 @@ final class RevisionWriter
             $document,
         );
 
-        return $pdf . $body;
+        return $body;
     }
 
     /**
-     * Appends a revision carrying arbitrary object bodies.
+     * A revision carrying arbitrary object bodies.
      *
      * The signature revision above is one caller; the DSS and document
      * timestamp revisions of PAdES B-LT and B-LTA are the others. Object
      * numbering is the caller's, so it stays authoritative.
      *
+     * Returned rather than appended, for the reason `revision()` above is.
+     *
      * @param array<int, string> $objects Full "N 0 obj … endobj" fragments, keyed by number.
      *
      * @throws InvalidPdfFileException
      */
-    public function appendObjects(string $pdf, DocumentInfo $document, array $objects): string
+    public function objectRevision(string $pdf, DocumentInfo $document, array $objects): string
     {
         if ($objects === []) {
-            return $pdf;
+            return '';
         }
 
         ksort($objects);
@@ -289,7 +301,7 @@ final class RevisionWriter
             $document,
         );
 
-        return $pdf . $body;
+        return $body;
     }
 
     /**

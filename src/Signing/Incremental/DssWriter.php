@@ -10,6 +10,7 @@ use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Signing\Encryption\ObjectCipher;
+use LSNepomuceno\Signet\Support\DocumentBuffer;
 use LSNepomuceno\Signet\Support\Pem;
 use Throwable;
 
@@ -44,12 +45,12 @@ final readonly class DssWriter
      * @throws InvalidPdfFileException
      */
     public function append(
-        string $pdf,
+        DocumentBuffer $pdf,
         Certificate $certificate,
         #[\SensitiveParameter]
         string $documentPassword = '',
-    ): string {
-        return $this->write($pdf, $this->collect(Pem::certificates($certificate->original)), $documentPassword);
+    ): void {
+        $this->write($pdf, $this->collect(Pem::certificates($certificate->original)), $documentPassword);
     }
 
     /**
@@ -72,11 +73,11 @@ final readonly class DssWriter
      * @throws InvalidPdfFileException
      */
     public function refresh(
-        string $pdf,
+        DocumentBuffer $pdf,
         array $chains,
         #[\SensitiveParameter]
         string $documentPassword = '',
-    ): string {
+    ): void {
         $material = ['certs' => [], 'ocsp' => [], 'crls' => []];
 
         foreach ($chains as $chain) {
@@ -95,7 +96,7 @@ final readonly class DssWriter
             $material[$kind] = array_values(array_unique($items));
         }
 
-        return $this->write(
+        $this->write(
             $pdf,
             $material['certs'] === [] && $material['ocsp'] === [] && $material['crls'] === [] ? null : $material,
             $documentPassword,
@@ -108,23 +109,23 @@ final readonly class DssWriter
      * @throws InvalidPdfFileException
      */
     private function write(
-        string $pdf,
+        DocumentBuffer $pdf,
         ?array $material,
         #[\SensitiveParameter]
         string $documentPassword,
-    ): string {
+    ): void {
         if ($material === null) {
-            return $pdf;
+            return;
         }
 
-        $document = $this->reader->read($pdf, $documentPassword);
+        $document = $this->reader->read($pdf->bytes, $documentPassword);
 
         // The store is keyed by the signature it vouches for, so the emitter
         // needs the /Contents bytes of the signature just written.
         $objectNumber = $document->size;
         $emitted = $this->dss->emit(
             $material,
-            $this->signatureContents($pdf),
+            $this->signatureContents($pdf->bytes),
             $objectNumber,
             // Every certificate, OCSP response and CRL goes in as a stream, and
             // a stream in an encrypted document is encrypted under its own
@@ -133,9 +134,14 @@ final readonly class DssWriter
         );
 
         $objects = $emitted['objects'];
-        $objects[$document->root] = $this->writer->catalogWithDss($pdf, $document, $emitted['object_id']);
+        $objects[$document->root] = $this->writer->catalogWithDss($pdf->bytes, $document, $emitted['object_id']);
 
-        return $this->writer->appendObjects($pdf, $document, $objects);
+        // Built first and appended second, so the document is extended in place
+        // rather than rebuilt around a few kilobytes of store
+        // (docs/decisions/0122-signing-a-document-larger-than-memory.md).
+        $revision = $this->writer->objectRevision($pdf->bytes, $document, $objects);
+
+        $pdf->append($revision);
     }
 
     /**
