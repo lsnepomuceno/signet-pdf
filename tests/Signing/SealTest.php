@@ -47,7 +47,7 @@ it('renders an opaque JPEG when transparency is turned off', function () {
         ->and($seal->alpha)->toBeNull();
 
     // The bytes must be a real image, not just non-empty.
-    $decoded = new ImageManager(driver: new GdDriver())->read($seal->contents);
+    $decoded = new ImageManager(driver: new GdDriver())->decode($seal->contents);
 
     expect($decoded->width())->toBe(590);
 });

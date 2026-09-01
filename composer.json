@@ -46,7 +46,7 @@
         "ext-sodium": "*",
         "ext-zlib": "*",
         "composer-runtime-api": "^2.2",
-        "intervention/image": "^3.11",
+        "intervention/image": "^4.3",
         "psr/log": "^3.0",
         "symfony/console": "^8",
         "symfony/http-client": "^8",
