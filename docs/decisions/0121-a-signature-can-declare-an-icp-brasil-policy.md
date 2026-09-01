@@ -1,6 +1,7 @@
 # 0121: A signature can declare an ICP-Brasil policy
 
-**Status:** accepted, and implemented.
+**Status:** accepted, and implemented. The attribute's encoding was wrong
+until 2026-09-01: see the outcome below.
 
 ## Context
 
@@ -99,3 +100,53 @@ decision this did not need to make.
   gate ([0026](0026-verification-tools-are-instruments.md)). What the suite does
   gate is that `pdfsig` and pyHanko still read a signature carrying the new
   attribute, which is what proves the CMS structure survived it.
+
+## Outcome, 2026-09-01
+
+**The attribute was rejected by ITI's Verificador, and the digest was never the
+problem.** The manual run this record said could not be a gate is what found it
+([#137](https://github.com/lsnepomuceno/signet-pdf/issues/137)). A document
+signed with an RFB e-CPF A1 at AD-RB v1.3 came back `Assinatura reprovada`, with
+one attribute invalid out of five:
+
+```
+Nome do atributo: IdAaEtsSigPolicyId
+Corretude: Invalid
+Mensagem de erro: Falha ao construir o atributo.
+                  O valor do resumo criptográfico não é equivalente ao esperado.
+```
+
+Everything else passed, the certification path included, and the verifier named
+the right policy document. The digest was correct: the SHA-256 of
+`PA_PAdES_AD_RB_v1_3.der`, fetched on the day, is byte for byte what the enum
+carries and what `LPA_PAdES.der` records.
+
+**What was wrong was the `AlgorithmIdentifier` around it.**
+
+| | Bytes |
+|---|---|
+| `LPA_PAdES.der`, for every policy it lists | `300b 0609 608648016503040201` |
+| `PA_PAdES_AD_RB_v1_3.der`, its own `signPolicyHashAlg` | `300b 0609 608648016503040201` |
+| What `Signing\Cades\PolicyAttribute` wrote | `300d 0609 608648016503040201 0500` |
+
+Two bytes, an explicit `NULL` in the OPTIONAL `parameters` field. The verifier
+rebuilds the structure from what the policy declares and compares, so the
+comparison failed and was reported as a digest that does not match.
+
+RFC 5754 section 2 is explicit, and the code carried a comment citing RFC 4055
+for the opposite: "Implementations MUST generate SHA2 AlgorithmIdentifiers with
+absent parameters", and omitting them is "the correct encoding". ICP-Brasil
+follows that in both artefacts. This package followed its own comment.
+
+**The test this record relied on could not have caught it.** It compares the
+enum's digest with the digest parsed out of the published list, and both were
+right. Nothing looked at the bytes around the value.
+`tests/Signing/PolicyAttributeTest.php` now asserts the encoding, and asserts it
+against the bytes inside `LPA_PAdES.der` rather than against a constant written
+here, since a constant would only restate the choice the test exists to check.
+
+**And the lesson about the gate stands the other way round from how this record
+put it.** The Verificador being an online service is why it cannot gate a build.
+It is not a reason to treat one manual run as optional: it was the only thing
+that read this attribute the way a Brazilian verifier reads it, and it found in
+one submission what the suite, `pdfsig` and pyHanko had all passed.

@@ -72,12 +72,22 @@ final readonly class PolicyAttribute
             throw new ProcessRunTimeException('the signature policy digest could not be read');
         }
 
-        // AlgorithmIdentifier carries the explicit NULL parameters the digest
-        // algorithms use (RFC 4055 section 2.1), which is what a verifier
-        // comparing DER expects to find.
+        // **The parameters field is absent, not NULL.** RFC 5754 section 2 is
+        // explicit that both encodings must be accepted and that
+        // implementations "MUST generate SHA2 AlgorithmIdentifiers with absent
+        // parameters", and it names omitting them "the correct encoding".
+        //
+        // ICP-Brasil follows that in both artefacts this attribute is checked
+        // against: `LPA_PAdES.der` records the algorithm as `300b`, the OID
+        // alone, and every `PA_PAdES_*.der` opens with the same encoding of its
+        // own `signPolicyHashAlg`. This package wrote `300d`, two bytes longer,
+        // and ITI's Verificador rejected the attribute as a digest that does
+        // not match, because it rebuilds the structure from what the policy
+        // declares and compares
+        // (docs/decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md).
         $hash = $this->asn1->encodeSequence(
             $this->asn1->encodeSequence(
-                $this->asn1->encodeObjectIdentifier($algorithm->value) . $this->asn1->encodeNull(),
+                $this->asn1->encodeObjectIdentifier($algorithm->value),
             )
             . $this->asn1->encodeOctetString($digest),
         );

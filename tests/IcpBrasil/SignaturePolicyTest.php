@@ -11,6 +11,7 @@ use LSNepomuceno\Signet\IcpBrasil\Enums\PolicyFinding;
 use LSNepomuceno\Signet\IcpBrasil\Enums\SignaturePolicy;
 use LSNepomuceno\Signet\IcpBrasil\PolicyConformance;
 use LSNepomuceno\Signet\Signet;
+use LSNepomuceno\Signet\Signing\Cades\PolicyAttribute;
 use LSNepomuceno\Signet\Testing\LocalTimestampAuthority;
 
 /**
@@ -35,7 +36,7 @@ use LSNepomuceno\Signet\Testing\LocalTimestampAuthority;
  * of the document, and a digest of that document. Read with the reader the
  * package already has rather than with a parser written for a test.
  *
- * @return array<string, array{uri: string, digest: string, from: int, until: int, superseded: int|null}>
+ * @return array<string, array{uri: string, digest: string, hashStructure: string, from: int, until: int, superseded: int|null}>
  */
 function publishedPolicies(): array
 {
@@ -69,6 +70,10 @@ function publishedPolicies(): array
         $policies[$oid] = [
             'uri' => $fields[$at + 1]->content($der),
             'digest' => bin2hex($digestFields[1]->content($der)),
+            // The whole OtherHashAlgAndValue, header included, as ITI encodes
+            // it. The digest above is the value inside this; what broke in the
+            // field was the bytes around the value, so the structure is kept.
+            'hashStructure' => $fields[$at + 2]->raw($der),
             'from' => (int) $reader->generalizedTime($der, $window[0]),
             'until' => (int) $reader->generalizedTime($der, $window[1]),
             'superseded' => $superseded,
@@ -357,4 +362,48 @@ it('reports a policy that was not in force when the document was signed', functi
     expect(new PolicyConformance()->check($report, $signature))
         ->has(PolicyFinding::PolicyNotInForce)->toBeTrue()
         ->conforms()->toBeFalse();
+});
+
+it('encodes the hash structure exactly as the published list encodes it', function () {
+    // **This is the assertion the field defect needed, and none of the others
+    // could have made.** `carries exactly what the published list carries`
+    // compares the digest value, and the value was never wrong: the SHA-256 of
+    // `PA_PAdES_AD_RB_v1_3.der` is what the enum holds. What ITI's Verificador
+    // rejected was the AlgorithmIdentifier wrapped around it, `300d` with an
+    // explicit NULL where the list and the policy documents both write `300b`
+    // (0121's outcome section).
+    //
+    // Comparing the whole `OtherHashAlgAndValue` against the authority's own
+    // bytes covers the algorithm OID, its parameters, the octet string's header
+    // and the value in one assertion, for every policy rather than the one that
+    // happened to be submitted.
+    $published = publishedPolicies();
+
+    $disagreeing = [];
+
+    foreach (SignaturePolicy::cases() as $policy) {
+        $der = new PolicyAttribute()->encode($policy->identifier());
+
+        if (! str_contains($der, $published[$policy->value]['hashStructure'])) {
+            $disagreeing[] = $policy->name;
+        }
+    }
+
+    // Collected rather than asserted one at a time, so a failure names every
+    // policy that disagrees instead of stopping at the first of eighteen.
+    expect($disagreeing)->toBe([]);
+});
+
+it('writes an algorithm identifier with no parameters at all', function () {
+    // The general assertion above would also pass if this package and the list
+    // agreed on a wrong encoding, since it only asks that the two match. This
+    // one names the rule they are both keeping to: RFC 5754 section 2,
+    // "implementations MUST generate SHA2 AlgorithmIdentifiers with absent
+    // parameters", which is what makes omitting them correct rather than merely
+    // conventional.
+    $der = new PolicyAttribute()->encode(SignaturePolicy::AdRbV1_3->identifier());
+
+    // sha256, and then the octet string, with nothing between them.
+    expect(bin2hex($der))->toContain('300b0609608648016503040201' . '0420')
+        ->and(bin2hex($der))->not->toContain('0500');
 });
