@@ -130,6 +130,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Certificates\PemCertificateReader::readPublic()` and
   `Certificates\CertificateParser::parsePublic()`, the two steps underneath it.
 
+- **`signet sign --legacy`, for a PKCS#12 bundle OpenSSL 3.x refuses natively.**
+  The library could read one through
+  `new CertificateConfig(legacy: true)` and the command line could not, under
+  any option, while `signet check` reported the `openssl` binary as present and
+  needed for exactly this. Every bundle a Brazilian authority issues is that
+  shape, so the command could not sign with an e-CPF at all
+  ([0123](docs/decisions/0123-a-legacy-bundle-is-named-not-guessed-at.md)).
+
+- **`Exceptions\InvalidCertificateContentException::legacyAlgorithms()`**, which
+  is what such a bundle now fails with. It says what the bundle is, why
+  ext-openssl cannot read it, and the two ways to reach the reader that can,
+  keeping the OpenSSL string for a reader who already knows the code. What a
+  caller used to get was `error:0308010C:digital envelope routines::unsupported`
+  and nothing else.
+
 ### Changed
 
 - **`tecnickcom/tc-lib-pdf-sign` moves to `^2.0`,** and two behaviours change
@@ -153,6 +168,44 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   ([0119](docs/decisions/0119-revocation-material-is-verified-before-it-is-embedded.md)).
 
 ### Fixed
+
+- **A temporary file holding key material was world-readable while it existed.**
+  `Certificates\OpenSslCliCertificateReader` writes the decrypted private key to
+  disk, because `-nodes` is how the `openssl` binary emits one, and
+  `Support\Files::write()` writes at the process umask. Measured at the default
+  0022: the file was **0644** inside a **0755** directory, so any user on the
+  host could read the key for the length of the call. The file was always
+  deleted in a `finally`, which is what
+  [SECURITY.md](SECURITY.md) promised and was never the part at issue.
+
+  `Support\Files::writePrivate()` and `Support\Files::makePrivateDirectory()` are
+  the fix, and `Support\TemporaryFile` uses them for every caller: the CMS, the
+  bytes a signature covers, the timestamp query and the bundle itself were all
+  written the same way. Files are 0600 and are restricted before any content
+  lands, since a `chmod()` after the write leaves a window with the secret
+  already in it. Directories are 0700 **only when this package creates them**:
+  the default is the system temporary directory, and narrowing `/tmp` would
+  break every other process on the host.
+
+  This is local exposure, on a host where an unprivileged account already
+  exists, for the duration of one `openssl` call. It ships as an ordinary fix
+  rather than an advisory.
+
+- **The certificate password no longer reaches the command line.** It went in
+  `-password pass:`, which `ps` discloses to any user on the host while the
+  process runs. It now goes through `-passin file:` at a 0600 file deleted by
+  the same `finally` as the rest. `#[\SensitiveParameter]` keeps a password out
+  of a stack trace and says nothing about a command line, which is the gap this
+  closes.
+
+  **An empty password stays on the command line**, because `file:` reads the
+  first line of a file and an empty file has none, which openssl reports as a
+  failure to read the password at all. A bundle with no password is one this
+  reader opened before, and an empty `pass:` discloses nothing.
+
+  The clean answer is a descriptor the parent writes to, which needs an argument
+  on `Contracts\ProcessRunner::run()` and is therefore a major release
+  ([0117](docs/decisions/0117-a-contract-addition-is-a-major-release.md)).
 
 - **A compressed stream in a document now decodes under a ceiling.** Nothing in
   the PDF format bounds a compression ratio, and `Support\PdfFilters` reads

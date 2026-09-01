@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LSNepomuceno\Signet\Console;
 
+use LSNepomuceno\Signet\Config\CertificateConfig;
 use LSNepomuceno\Signet\Config\SignetConfig;
 use LSNepomuceno\Signet\Config\SigningConfig;
 use LSNepomuceno\Signet\Config\TimestampConfig;
@@ -77,6 +78,12 @@ final class SignCommand extends Command
                 null,
                 InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
                 'A PEM or DER certificate to fold into the chain. Repeatable, for a bundle that carries only the leaf',
+            )
+            ->addOption(
+                'legacy',
+                null,
+                InputOption::VALUE_NONE,
+                'Read the certificate through the openssl binary, for a PKCS#12 bundle OpenSSL 3.x refuses natively',
             )
             ->addOption('name', null, InputOption::VALUE_REQUIRED, 'The signer, for /Name')
             ->addOption('reason', null, InputOption::VALUE_REQUIRED, 'Why it was signed, for /Reason')
@@ -395,6 +402,7 @@ final class SignCommand extends Command
             signing: new SigningConfig(
                 timestamp: new TimestampConfig(is_string($tsa) && $tsa !== '' ? $tsa : null),
             ),
+            certificate: new CertificateConfig(legacy: $input->getOption('legacy') === true),
         );
     }
 

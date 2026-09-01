@@ -585,3 +585,110 @@ it('builds the legacy reader with the flag set, not merely of the right class', 
 
     expect($processes->commands()[0] ?? '')->toContain('-legacy');
 });
+
+it('names the remedy when the bundle uses algorithms OpenSSL 3.x disables', function () {
+    [$legacy, $password] = legacyEncryptedBundle();
+
+    $message = '';
+
+    try {
+        resolve(NativeCertificateReader::class)->read($legacy, $password);
+    } catch (InvalidCertificateContentException $exception) {
+        $message = $exception->getMessage();
+    }
+
+    // What a caller used to get here was `error:0308010C:digital envelope
+    // routines::unsupported` and nothing else, on the ordinary certificate of
+    // the audience `src/IcpBrasil/` exists for. The package knows what that
+    // string means and ships the fix, so the message says which, and it keeps
+    // the OpenSSL string for a reader who already knows the code.
+    expect($message)->toContain('legacy: true')
+        ->and($message)->toContain('--legacy')
+        ->and($message)->toContain('error:0308010C');
+});
+
+it('reads the bundle the native reader refused, through the flag the message names', function () {
+    [$legacy, $password] = legacyEncryptedBundle();
+
+    $certificate = resolve(ReaderFactory::class)->make(legacy: true)->read($legacy, $password);
+
+    // The remedy the message names has to be the remedy that works, otherwise
+    // the message is a better-worded dead end.
+    expect($certificate)->toBeInstanceOf(Certificate::class)
+        ->and($certificate->commonName())->toBe('Test Certificate');
+});
+
+it('keeps the certificate password out of the command line', function () {
+    [$pfx, $password] = DebugCertificate::make();
+
+    $processes = new FakeProcessRunner();
+
+    $reader = new OpenSslCliCertificateReader(
+        resolve(CertificateParser::class),
+        $processes,
+        new TempDirectory(sys_get_temp_dir() . '/signet-passin-' . bin2hex(random_bytes(4)) . '/'),
+    );
+
+    try {
+        $reader->read($pfx, $password);
+    } catch (SignetException) {
+        // The fake writes nothing back, so the read cannot complete. The
+        // command it was asked to run is what this test is about.
+    }
+
+    // `-password pass:` put it where any user on the host reads it out of `ps`
+    // for the length of the call. `#[\SensitiveParameter]` keeps a password out
+    // of a stack trace and says nothing about a command line.
+    expect($processes->commands()[0] ?? '')->not->toContain($password)
+        ->and($processes->commands()[0] ?? '')->toContain('-passin')
+        ->and($processes->commands()[0] ?? '')->toContain('file:');
+});
+
+it('leaves an empty password on the command line, where there is nothing to hide', function () {
+    $processes = new FakeProcessRunner();
+
+    $reader = new OpenSslCliCertificateReader(
+        resolve(CertificateParser::class),
+        $processes,
+        new TempDirectory(sys_get_temp_dir() . '/signet-passin-' . bin2hex(random_bytes(4)) . '/'),
+    );
+
+    try {
+        $reader->read('not a bundle', '');
+    } catch (SignetException) {
+        // The command carries the answer.
+    }
+
+    // `file:` reads the first line of a file and an empty file has none, which
+    // openssl reports as a failure to read the password at all. A bundle with
+    // no password is one this reader opened before this change.
+    expect($processes->commands()[0] ?? '')->toContain('pass:')
+        ->and($processes->commands()[0] ?? '')->not->toContain('file:');
+});
+
+it('writes every temporary file where only its owner can read it', function () {
+    $directory = sys_get_temp_dir() . '/signet-modes-' . bin2hex(random_bytes(6)) . '/';
+
+    $file = TemporaryFile::create($directory, '.crt', 'a private key, in the clear');
+
+    // The CLI reader writes the decrypted key here, because `-nodes` is how the
+    // binary emits one. At the default umask that file was 0644, so the key was
+    // readable by every user on the host for the length of the call: worse than
+    // the password being visible, since `ps` gives up the password and this
+    // gives up the key.
+    expect(fileperms($file->path) & 0777)->toBe(0600)
+        ->and(fileperms(rtrim($directory, '/')) & 0777)->toBe(0700);
+
+    $file->delete();
+    rmdir($directory);
+});
+
+it('leaves a temporary directory it did not create alone', function () {
+    // The default is the system temporary directory, and narrowing that to 0700
+    // would break every other process on the host.
+    $before = fileperms(rtrim(sys_get_temp_dir(), '/')) & 0777;
+
+    new TempDirectory()->path();
+
+    expect(fileperms(rtrim(sys_get_temp_dir(), '/')) & 0777)->toBe($before);
+});

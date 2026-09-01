@@ -45,7 +45,10 @@ final readonly class TempDirectory
 
         self::anchor($path);
 
-        Files::makeDirectory($path);
+        // Private only when this call creates it. The default path is the
+        // system temporary directory, which already exists and is not ours to
+        // narrow.
+        Files::makePrivateDirectory($path);
 
         return $path;
     }

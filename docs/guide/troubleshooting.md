@@ -48,14 +48,24 @@ general catch still works.
 
 ## The certificate will not open at all
 
-A **legacy** PFX, common for certificates issued years ago, uses algorithms
-OpenSSL 3.x disables by default. Switch to the CLI reader:
+A **legacy** PFX uses algorithms OpenSSL 3.x disables by default, and it is not
+only an old file: **every bundle a Brazilian authority issues is this shape**,
+an e-CPF A1 issued this year included. The failure names the remedy, and there
+are two ways to reach it.
 
 ```php
 new SignetConfig(certificate: new CertificateConfig(legacy: true));
 ```
 
-That path needs the `openssl` binary. See
+```bash
+vendor/bin/signet sign contract.pdf -c certificate.pfx --legacy
+```
+
+That path needs the `openssl` binary, and it is not taken automatically:
+it puts the password on a command line and the private key on disk for the
+length of the call, which is what the native reader exists to avoid, so it is
+opted into rather than applied behind you
+([0123](../decisions/0123-a-legacy-bundle-is-named-not-guessed-at.md)). See
 [Working with certificates](./certificates.md).
 
 ## `InvalidPFXException` on a file that is a certificate
