@@ -1,7 +1,10 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
+import { ARCHIVES, archiveBase, archiveRoutesOrNone } from './archives.mjs'
 import { release } from './release'
 import { index, pages, sections } from './sidebar'
+
+const repository = new URL('../..', import.meta.url).pathname
 
 /**
  * The documentation site. A pilot: the guide holds one page, and the rest of
@@ -116,30 +119,16 @@ export default withMermaid(defineConfig({
       { text: 'Decisions', link: '/decisions/README', activeMatch: '^/decisions/' },
       { text: 'History', link: '/history/decision-log', activeMatch: '^/history/' },
       {
-        // The version in the navigation, read from the changelog rather than
-        // typed here, so it cannot drift from the release it names. The
-        // archives beneath it are what makes this a switcher rather than a
-        // label (docs/decisions/0112-the-site-documents-one-release-line.md).
-        text: `v${release().version}`,
+        // Release notes only. This used to be the version menu as well, and one
+        // control answering two questions answered neither: which release the
+        // site documents, and where the notes for it are. The version lives in
+        // `theme/VersionSwitcher.vue` now
+        // (docs/decisions/0112-the-site-documents-one-release-line.md).
+        text: 'Releases',
+        activeMatch: '^/releases/',
         items: [
           { text: 'Changelog', link: '/releases/changelog' },
           { text: 'Upgrading', link: '/releases/upgrade' },
-          {
-            // Two things this entry has to get right, and both were wrong once.
-            //
-            // **Without the base**, because VitePress prepends it to an
-            // internal link: written as `/signet-pdf/v1/` it rendered
-            // `/signet-pdf/signet-pdf/v1/` and 404'd.
-            //
-            // **With a target**, because the archive is a separate VitePress
-            // application rather than a route of this one. The client router
-            // skips any link carrying a `target` attribute, and without that it
-            // intercepted the click, looked for `/v1/` among this build's
-            // routes, and rendered this site's own 404 at the right URL.
-            text: '1.x (archived)',
-            link: '/v1/',
-            target: '_self',
-          },
           {
             text: 'All releases',
             link: 'https://github.com/lsnepomuceno/signet-pdf/releases',
@@ -151,6 +140,23 @@ export default withMermaid(defineConfig({
         link: 'https://packagist.org/packages/lsnepomuceno/signet-pdf',
       },
     ],
+
+    // Read by `theme/VersionSwitcher.vue`, which is a component rather than a
+    // nav item because a nav item is the same on every page and could only ever
+    // link to an archive's front door. Each line carries the routes its tag
+    // holds, so switching keeps the page where the other line has it.
+    //
+    // The version is read from the changelog rather than typed here, for the
+    // same reason it always was: a version written in two places is a version
+    // that will disagree with itself.
+    versions: {
+      active: `v${release().version}`,
+      lines: ARCHIVES.map(archive => ({
+        label: `${archive.line} (archived)`,
+        base: archiveBase(archive),
+        routes: archiveRoutesOrNone(archive, repository),
+      })),
+    },
 
     sidebar: {
       // Grouped and ordered by hand, because the reading order of a guide is

@@ -167,3 +167,71 @@ off-screen.
 
 An archive links back with an absolute URL for the first reason, since it cannot
 express a path outside its own base, and carries `target` for the second.
+
+---
+
+## Outcome, 2026-09-01: the control keeps the page, and stops being a string
+
+Two things this record left rough, and both were reported together
+([#124](https://github.com/lsnepomuceno/signet-pdf/issues/124)). The layout is
+unchanged: the current line at the root, one archive per superseded line under
+its own prefix, rebuilt from its tag on every deploy.
+
+**The version menu answered two questions and neither well.** One nav item
+labelled `v2.0.1` carried the changelog, the upgrade guide, the archive and a
+link out to GitHub releases. Release notes and version switching are different
+questions, and nothing on the control said which entry did what. They are two
+things now: a `Releases` nav item, and a version control that carries versions
+and nothing else.
+
+**Switching version always landed on the archive's front door.** A reader on
+`/spec/public-api` who wanted the `1.x` version of *that page* navigated again
+from the top. That is a property of a nav item rather than an oversight: a nav
+item is the same on every page, so it cannot know which page it is on.
+
+So the control is a component, `docs/.vitepress/theme/VersionSwitcher.vue`. It
+reads the page it is rendered on and links to the same route in the other line
+when that line has it, saying `home page` on the entry when it does not, so a
+reader is told before the click rather than after it. **It works in both
+directions**: each configuration publishes the routes of the line it can reach,
+so an archive links back to the same page on the current line too. Filled into
+`nav-bar-content-after` and `nav-screen-content-after`, because the default
+theme has two navigations and the second one is the whole of mobile.
+
+**A third of the generator was code inside strings.** `versions.mjs` built a
+whole VitePress config as a template literal, comments included, plus the
+archive's home page as another. 86 lines of 257. No highlighting, no type
+checking, no diff that reads as a diff, and a second copy of the sidebar wiring
+that had to be kept in step with `config.mts` by hand.
+
+Those are files now: `docs/.vitepress/archive.mts`, which is a real config
+module importing the same `sidebar.ts` the current site does, and
+`docs/.vitepress/archive/<prefix>/index.md`, one page per archived line. The
+script copies them and writes a `descriptor.json` beside them. **It writes data
+and copies files, and generates no code.**
+
+Committing that home page copies nothing twice, which is the rule this record
+set: the tag never had an index, since `docs/` at `1.0.1` was read on GitHub
+where a directory listing is the index. The page is ours rather than the tag's.
+
+`archive.mts` is copied in as `config.mts`, because VitePress loads
+`.vitepress/config.*` and offers no way to point it elsewhere. That rename is
+the one piece of indirection left, and it is a file copy rather than a
+generated string.
+
+### `@viteplus/versions` was assessed and not adopted
+
+2.0.8 does natively what the three changes above do by hand: versioned routes in
+one build, a `VersionSwitcher` component, nav and sidebar per version.
+
+| Why not | Detail |
+|---|---|
+| Its documented layout moves every documentation file | `docs/src/` for the current line, `docs/archive/` for the frozen ones. `srcDir` is `docs/` here on purpose, and `tests/Project/SpecTest.php` fails on every path that stops resolving: `CLAUDE.md`, the invariants, the decision records, workflow comments and docblocks in `src/` |
+| The escape from that is off its tested path | `sources: '.'` does resolve to the documentation root, and it also puts the archive directory inside `srcDir`, where VitePress routes those pages as current content. Hiding it with a leading dot collides with the glob that skips dot directories |
+| The dependency shape is wrong for this tree | It declares `vitepress: ^2.0.0-alpha.19` as a dependency rather than only as an optional peer, and `docs/.vitepress/package.json` pins `1.6.4` exactly. Its component would resolve VitePress from a nested 2.x alpha while the build runs 1.6.4 |
+| The benefit scales with the number of lines, and there is one | Single build, cross-version search and per-version nav are worth real money at three or four archives. Today there is `v1`, frozen |
+
+**Revisit when either happens:** a second archive is cut, or the site moves to
+VitePress 2. At that point the problem stops being two links and becomes routing
+across several lines, and the plugin is the obvious answer rather than a large
+change for a small gain.
