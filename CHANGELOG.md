@@ -203,6 +203,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   ([0121](docs/decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md)
   carries both outcomes, including a first diagnosis that was wrong).
 
+  **The gate that would have caught it now exists, and it is not ours.** EU DSS
+  is installed as an instrument and the digest is checked against it offline, on
+  a correct document and on one carrying the file hash, which is the exact
+  substitution that shipped. Nothing else in the toolchain could see this:
+  `pdfsig`, pyHanko and Demoiselle all reported the defective document as valid,
+  correctly, because none of them resolves the policy document and so none of
+  them ever compares
+  ([0124](docs/decisions/0124-the-policy-digest-has-an-offline-witness.md)).
+
   **Every signature this package produced declaring an ICP-Brasil policy is
   affected**, and re-signing is the only fix for a document already issued: the
   attribute is signed, so it cannot be corrected in place.

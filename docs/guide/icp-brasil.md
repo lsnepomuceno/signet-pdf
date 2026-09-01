@@ -143,6 +143,14 @@ Both artefacts are committed, under `tests/Resources/icp-brasil/`, and the suite
 reads each value from the one that defines it, checking every policy document
 against the list's file hash first.
 
+**And a second implementation checks the result.** EU DSS resolves the policy a
+signature names, recomputes the hash and compares, which is the one thing the
+suite cannot do for itself: the check above is this package's arithmetic against
+this package's reading of the standard, and that reading was wrong for eighteen
+policies. `pdfsig`, pyHanko and Demoiselle all passed the defective document,
+because none of them resolves the policy at all
+([0124](../decisions/0124-the-policy-digest-has-an-offline-witness.md)).
+
 ### Reading a declaration back
 
 ```php

@@ -144,6 +144,59 @@ RUN set -eux; \
 # bugs this suite passed straight through (docs/spec/invariants.md, rule 3).
 RUN apk add --no-cache poppler-utils && pdfsig -v 2>&1 | head -1
 
+# EU DSS, the reference implementation of the European signature standards, and
+# here the witness for one property nothing else in the image can see: whether
+# the digest a signature declares for its policy is the digest that policy
+# document actually carries.
+#
+# It earned its place by catching a defect the suite passed. Every ICP-Brasil
+# policy digest this package shipped was SHA-256 of the policy *file*, taken
+# from ITI's published list, where what a signature declares is the
+# `signPolicyHash` the policy carries in its own third field. Both are real
+# hashes of real artefacts published by the same authority, which is why the
+# wrong one survived review and a test. pdfsig, pyHanko and Demoiselle all
+# reported the defective document as valid, because none of them resolves the
+# policy document and so none of them ever compares
+# (docs/decisions/0124-the-policy-digest-has-an-offline-witness.md).
+#
+# It is Java, and it costs no new runtime: the JRE is already here for veraPDF.
+# What it costs is the jars, which are resolved at build time and copied in, so
+# no build tool and no network is present when the suite runs.
+#
+# Pinned rather than tracking latest, for the reason every instrument here is
+# pinned: a verifier that changes its verdicts between builds cannot be what a
+# gate is measured against.
+#
+# The logging configuration is a guard rather than a fix. No SLF4J provider is
+# on this classpath, so the three warnings it prints about that go to stderr and
+# stdout stays parseable JSON. The configuration is here so that remains true
+# the day a DSS release pulls one in.
+ARG DSS_VERSION=6.5
+
+COPY .docker/dss /tmp/dss
+
+RUN set -eux; \
+        apk add --no-cache --virtual .dss-build maven openjdk17-jdk; \
+        cd /tmp/dss; \
+        mvn -q -B -Ddss.version="${DSS_VERSION}" \
+            dependency:copy-dependencies -DoutputDirectory=/opt/dss/lib; \
+        mvn -q -B -Ddss.version="${DSS_VERSION}" compile; \
+        cp -r target/classes /opt/dss/classes; \
+        printf '%s\n' \
+            '<configuration><root level="OFF"/></configuration>' \
+            > /opt/dss/logback.xml; \
+        printf '%s\n' \
+            '#!/bin/sh' \
+            '# The policy witness. Prints one JSON object on stdout.' \
+            'exec java -Dlogback.configurationFile=/opt/dss/logback.xml \' \
+            '     -cp "/opt/dss/classes:/opt/dss/lib/*" DssPolicyCheck "$@"' \
+            > /usr/local/bin/dss-policy-check; \
+        chmod +x /usr/local/bin/dss-policy-check; \
+        apk del .dss-build; \
+        rm -rf /tmp/dss /root/.m2; \
+        cd /; \
+        dss-policy-check 2>&1 | grep -q 'usage: dss-policy-check'
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 ENV COMPOSER_ALLOW_SUPERUSER=1 \

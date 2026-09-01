@@ -468,6 +468,80 @@ function pyHankoReportsPolicyViolation(string $path, string $trust): bool
 }
 
 /**
+ * The committed copy of a policy document, which is what a verifier hashes.
+ *
+ * Fetched from the authority once and asserted against the published list by
+ * `tests/IcpBrasil/SignaturePolicyTest.php`, so nothing here reaches the
+ * network to answer a question about a digest.
+ */
+function policyDocument(LSNepomuceno\Signet\IcpBrasil\Enums\SignaturePolicy $policy): string
+{
+    return resource('icp-brasil/policies/' . basename($policy->uri()));
+}
+
+/**
+ * What EU DSS makes of the policy a signature declares, for the first
+ * signature in the document.
+ *
+ * The one property this suite cannot check for itself. Everything else here
+ * compares the package against its own reading of the standard; DSS is a second
+ * implementation resolving the policy document and recomputing the hash
+ * (docs/decisions/0124-the-policy-digest-has-an-offline-witness.md).
+ *
+ * **A development and validation instrument only.** Nothing in `src/` may
+ * invoke it, and `tests/Project/ArchTest.php` fails if it does.
+ *
+ * **Reading no signature raises rather than returning nothing.** A document
+ * this suite signed and DSS cannot see is a broken instrument, not a verdict,
+ * and a caller that treated the two alike would report the first as the second.
+ *
+ * @return array{format: string, policyId: string, identified: bool, asn1Processable: bool, digestValid: bool, algorithmsEqual: bool, error: string|null}
+ *
+ * @throws RuntimeException When DSS reported no signature at all.
+ */
+function dssPolicyVerdict(string $path, LSNepomuceno\Signet\IcpBrasil\Enums\SignaturePolicy ...$policies): array
+{
+    $arguments = [escapeshellarg($path)];
+
+    foreach ($policies as $policy) {
+        // Both keys, because a signature may name the policy by identifier or
+        // by URI and implementations differ on which they look up.
+        $document = escapeshellarg(policyDocument($policy));
+
+        $arguments[] = escapeshellarg($policy->value) . '=' . $document;
+        $arguments[] = escapeshellarg($policy->uri()) . '=' . $document;
+    }
+
+    // stderr is dropped rather than merged: SLF4J finds no provider on this
+    // classpath and says so three times, and stdout has to stay parseable.
+    $output = resolve(LSNepomuceno\Signet\Contracts\ProcessRunner::class)->run(
+        'dss-policy-check ' . implode(' ', $arguments) . ' 2>/dev/null',
+    );
+
+    $report = json_decode($output, true);
+    $signatures = is_array($report) ? ($report['signatures'] ?? null) : null;
+    $signature = is_array($signatures) ? ($signatures[0] ?? null) : null;
+
+    if (! is_array($signature)) {
+        throw new RuntimeException("EU DSS reported no signature for {$path}: {$output}");
+    }
+
+    $format = $signature['format'] ?? null;
+    $policyId = $signature['policyId'] ?? null;
+    $error = $signature['error'] ?? null;
+
+    return [
+        'format' => is_string($format) ? $format : '',
+        'policyId' => is_string($policyId) ? $policyId : '',
+        'identified' => ($signature['identified'] ?? null) === true,
+        'asn1Processable' => ($signature['asn1Processable'] ?? null) === true,
+        'digestValid' => ($signature['digestValid'] ?? null) === true,
+        'algorithmsEqual' => ($signature['algorithmsEqual'] ?? null) === true,
+        'error' => is_string($error) ? $error : null,
+    ];
+}
+
+/**
  * Writes the certificate out of a PKCS#12 bundle, so pyHanko has a trust
  * anchor for a signature made with it.
  */

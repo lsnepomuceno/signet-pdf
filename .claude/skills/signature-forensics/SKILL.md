@@ -93,6 +93,24 @@ test is under `tests/Conformance/`.
 **5. `testgrammar` (Arlington PDF Model).** Structural grammar conformance. Rare;
 `tests/Conformance/ArlingtonTest.php` is where it is used.
 
+**6. `dss-policy-check` (EU DSS). The only one that resolves a signature
+policy.** Ask it whenever the fault is in the `signature-policy-identifier`
+attribute, or whenever a Brazilian verifier refuses a document the rest of this
+list calls valid. Nothing above it fetches the policy document, so nothing above
+it can tell a correct digest from a plausible one, and that is exactly how
+eighteen wrong digests shipped
+(docs/decisions/0124-the-policy-digest-has-an-offline-witness.md).
+
+```bash
+dss-policy-check path/to/signed.pdf \
+  2.16.76.1.7.1.11.1.3=tests/Resources/icp-brasil/policies/PA_PAdES_AD_RB_v1_3.der
+```
+
+It prints one JSON object. Read `identified` before `digestValid`: a false there
+means it never resolved the policy, which makes the digest verdict vacuous
+rather than negative. `tests/Conformance/PolicyDigestTest.php` is where it is
+used.
+
 A test whose tool is missing calls `markTestSkipped()`, and `composer test`
 carries `--fail-on-skipped`, so "skipped" in a local run usually means you ran
 outside the container rather than that the check does not apply.
