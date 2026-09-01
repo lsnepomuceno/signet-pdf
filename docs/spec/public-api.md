@@ -704,7 +704,7 @@ forcing every call site to repeat an infrastructure decision.
 `bin/signet`, on `symfony/console`, with six commands:
 
 ```
-sign      {pdf} --certificate= --password-env= [--out=] [--profile=] [--tsa=]
+sign      {pdf} --certificate= --password-env= [--out=] [--profile=] [--tsa=] [--legacy]
 verify    {pdf} [--json] [--trust=] [--document-password-env=]
 fields    {pdf} [--json]
 field:add {pdf} {name} (--out=|--in-place) [--page=] [--x= --y= --width= --height=]

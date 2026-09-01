@@ -530,3 +530,42 @@ function pdfWith(array $objects): string
 
     return $pdf . "trailer\n<</Size {$size}/Root 1 0 R>>\nstartxref\n{$start}\n%%EOF\n";
 }
+
+/**
+ * A bundle encrypted the way a Brazilian authority encrypts one.
+ *
+ * RC2 / 40-bit, which OpenSSL 3.x moved to the legacy provider, so ext-openssl
+ * can neither read nor write it and the fixture has to come from the binary.
+ * Built rather than committed: `*.pfx` is gitignored on purpose, and a bundle
+ * checked in would stop matching what the authorities actually issue
+ * (docs/decisions/0123-a-legacy-bundle-is-named-not-guessed-at.md).
+ *
+ * @return array{string, string} The bundle and its password.
+ */
+function legacyEncryptedBundle(): array
+{
+    [$pfx, $password] = LSNepomuceno\Signet\Testing\DebugCertificate::make();
+
+    $pem = resolve(LSNepomuceno\Signet\Certificates\NativeCertificateReader::class)->read($pfx, $password)->original;
+
+    $directory = sys_get_temp_dir() . '/signet-legacy-' . bin2hex(random_bytes(6)) . '/';
+
+    $combined = LSNepomuceno\Signet\Support\TemporaryFile::create($directory, '.pem', $pem);
+    $bundle = LSNepomuceno\Signet\Support\TemporaryFile::create($directory, '.pfx');
+
+    try {
+        resolve(LSNepomuceno\Signet\Contracts\ProcessRunner::class)->run(sprintf(
+            'openssl pkcs12 -export -legacy -keypbe PBE-SHA1-RC2-40 -certpbe PBE-SHA1-RC2-40'
+            . ' -macalg sha1 -in %s -out %s -passout %s',
+            escapeshellarg($combined->path),
+            escapeshellarg($bundle->path),
+            escapeshellarg('pass:' . $password),
+        ));
+
+        return [$bundle->contents(), $password];
+    } finally {
+        $combined->delete();
+        $bundle->delete();
+        rmdir($directory);
+    }
+}

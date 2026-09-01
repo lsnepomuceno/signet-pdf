@@ -19,8 +19,14 @@ use SensitiveParameter;
  * binary on PATH.
  *
  * It cannot read legacy bundles (RC2/40-bit) under OpenSSL 3.x, because PHP
- * exposes no equivalent of the CLI's -legacy flag. Those fall back to
- * {@see OpenSslCliCertificateReader}.
+ * exposes no equivalent of the CLI's -legacy flag. Those are read by
+ * {@see OpenSslCliCertificateReader}, which is reached through configuration
+ * rather than automatically: it puts the password on a command line and the
+ * private key on disk, which is what this reader exists to avoid, so it is not
+ * substituted in behind a caller who did not ask for it
+ * (docs/decisions/0123-a-legacy-bundle-is-named-not-guessed-at.md). What this
+ * reader owes such a caller is a failure that names the remedy, which is
+ * {@see InvalidCertificateContentException::legacyAlgorithms()}.
  */
 final readonly class NativeCertificateReader implements CertificateReader
 {
@@ -47,6 +53,15 @@ final readonly class NativeCertificateReader implements CertificateReader
             // password is wrong. Any other error is about the bundle itself.
             if ($error !== false && str_contains($error, 'mac verify failure')) {
                 throw new InvalidCertificatePasswordException();
+            }
+
+            // OpenSSL 3.x moved RC2 and 40-bit RC4 to the legacy provider and
+            // reports their absence as an unsupported digital envelope. Every
+            // bundle a Brazilian authority issues is that shape, so this is the
+            // common path for the audience `src/IcpBrasil/` exists to serve
+            // rather than an old file, and the remedy is one setting away.
+            if ($error !== false && str_contains($error, 'digital envelope routines::unsupported')) {
+                throw InvalidCertificateContentException::legacyAlgorithms($error);
             }
 
             throw new InvalidCertificateContentException(

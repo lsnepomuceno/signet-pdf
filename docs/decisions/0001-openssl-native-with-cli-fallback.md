@@ -1,6 +1,7 @@
 # 0001: Read certificates through `ext-openssl`, keep the CLI as a fallback
 
-**Status:** accepted, implemented.
+**Status:** accepted, implemented. The premise that the legacy path is rare was
+corrected on 2026-09-01: see the second outcome below.
 **Supersedes** the v1 behaviour of shelling out for every certificate read.
 
 ## Context
@@ -52,3 +53,21 @@ against a class instantiated inline.
 
 The arch rule confining shell-out was widened to cover `Illuminate\Process` too,
 so the audit boundary did not move.
+
+## Outcome, 2026-09-01
+
+**The decision stands and one of its premises does not.** This record called the
+legacy case "old PFX files", which is what made "reachable through
+configuration" look like the right amount of reach.
+
+An RFB e-CPF A1 issued on 2026-08-17 fails on the native path. Every bundle a
+Brazilian authority issues is RC2 / 40-bit, so for the audience `src/IcpBrasil/`
+exists to serve, the legacy path is not the rare case: it is the case. What
+those callers got was `error:0308010C` and no indication that the package ships
+the fix.
+
+The default did not change, and [0123](0123-a-legacy-bundle-is-named-not-guessed-at.md)
+says why in full: the CLI reader still puts the password on a command line and
+the key on disk, so falling back on detection would undo this record's entire
+purpose without the caller choosing it. What changed is that the failure now
+names the remedy, and `signet sign` gained the `--legacy` option it never had.

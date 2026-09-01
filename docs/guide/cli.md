@@ -28,6 +28,7 @@ a PHP application describe the same signature in the same words.
 | `--out`, `-o` | | where to write the signed document | `save()` |
 | `--profile`, `-p` | default `pades-b-b` | `legacy`, `pades-b-b`, `pades-b-t`, `pades-b-lt`, `pades-b-lta` | `profile()` |
 | `--tsa` | | timestamp authority URL, required from `pades-b-t` up | |
+| `--legacy` | | read the certificate through the `openssl` binary, for a PKCS#12 bundle OpenSSL 3.x refuses natively | `CertificateConfig::$legacy` |
 | `--chain` | repeatable | a PEM or DER certificate to fold into the chain, for a bundle that carries only the leaf | `chain()` |
 | `--name`, `--reason`, `--location`, `--contact` | | what the signature says about itself | `info()` |
 | `--seal` | | draw a visible seal, rendered from the certificate | `seal()` |

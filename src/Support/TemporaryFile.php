@@ -36,11 +36,16 @@ final class TemporaryFile
     {
         $directory = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 
-        Files::makeDirectory($directory);
+        Files::makePrivateDirectory($directory);
 
         $file = new self($directory . Uuid::v7()->toRfc4122() . $extension);
 
-        Files::write($file->path, $contents);
+        // Every caller of this class writes something a shell-out needs and
+        // nobody else should read: a PKCS#12 bundle, a private key the binary
+        // emitted in the clear, a CMS, the bytes a signature covers. The
+        // default umask made all of them 0644
+        // (docs/decisions/0123-a-legacy-bundle-is-named-not-guessed-at.md).
+        Files::writePrivate($file->path, $contents);
 
         return $file;
     }

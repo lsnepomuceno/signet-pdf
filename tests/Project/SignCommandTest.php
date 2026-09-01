@@ -391,3 +391,57 @@ it('produces the same document the builder does from the same options', function
 
     deleteFiles($certificate, $out);
 });
+
+it('signs a bundle OpenSSL 3.x refuses natively, which it could not do at all', function () {
+    // The library could read a legacy PKCS#12 through `CertificateConfig` and
+    // the command line could not, under any option, while `signet check`
+    // reported the openssl binary as present and needed for exactly this. Every
+    // bundle a Brazilian authority issues is that shape
+    // (docs/decisions/0123-a-legacy-bundle-is-named-not-guessed-at.md).
+    [$status, $signed] = runSignLegacy(['--legacy' => true]);
+
+    expect($status)->toBe(Command::SUCCESS)
+        ->and($signed)->toContain('/ByteRange');
+});
+
+it('names the remedy rather than the OpenSSL error when the flag is missing', function () {
+    [$status, $signed, $tester] = runSignLegacy();
+
+    expect($status)->not->toBe(Command::SUCCESS)
+        ->and($signed)->toBe('')
+        ->and($tester->getDisplay())->toContain('--legacy');
+});
+
+/**
+ * `runSign()` with a bundle encrypted the way a Brazilian authority encrypts
+ * one, which is what makes the flag necessary rather than decorative.
+ *
+ * @param  array<string, string|bool>  $options
+ * @return array{0: int, 1: string, 2: CommandTester}
+ */
+function runSignLegacy(array $options = []): array
+{
+    [$legacy, $password] = legacyEncryptedBundle();
+
+    $certificate = tempFile('.pfx');
+    $out = tempFile('.pdf');
+
+    file_put_contents($certificate, $legacy);
+    putenv("SIGNET_TEST_PASSWORD={$password}");
+
+    $tester = new CommandTester(new SignCommand());
+
+    $status = $tester->execute([
+        'pdf' => resource('test.pdf'),
+        '--certificate' => $certificate,
+        '--password-env' => 'SIGNET_TEST_PASSWORD',
+        '--out' => $out,
+        ...$options,
+    ]);
+
+    $signed = $status === Command::SUCCESS ? Files::read($out) : '';
+
+    deleteFiles($certificate, $out);
+
+    return [$status, $signed, $tester];
+}

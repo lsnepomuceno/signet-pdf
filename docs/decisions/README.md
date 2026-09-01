@@ -98,3 +98,4 @@ guarantee two records with the same number within a release or two.
 | [0120](0120-a-key-can-live-outside-the-process.md) | A key can live outside the process |
 | [0121](0121-a-signature-can-declare-an-icp-brasil-policy.md) | A signature can declare an ICP-Brasil policy |
 | [0122](0122-signing-a-document-larger-than-memory.md) | Signing a document larger than memory |
+| [0123](0123-a-legacy-bundle-is-named-not-guessed-at.md) | A legacy bundle is named, not guessed at |
