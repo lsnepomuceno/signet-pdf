@@ -120,11 +120,28 @@ profiles:
 
 Every version ITI has published is a case, superseded ones included, so a
 document declaring an older policy can still be named when it is read back.
-**The values are read from the artefact rather than transcribed**:
-`http://politicas.icpbrasil.gov.br/LPA_PAdES.der`, read on 2026-08-29, committed
-at `tests/Resources/icp-brasil/LPA_PAdES.der`, and compared against the enum by
-a test. A wrong policy hash produces a signature that declares conformance and
-fails it.
+**The values are read from the artefacts rather than transcribed, and there are
+two artefacts because there are two different hashes.**
+
+The identifier, the URI and the validity window come from ITI's list,
+`http://politicas.icpbrasil.gov.br/LPA_PAdES.der`, read on 2026-08-29. The
+digest comes from each policy document itself, read on 2026-09-01, because the
+hash a signature declares is not the hash of the policy file:
+
+| | |
+|---|---|
+| The list records | the SHA-256 of the policy **file**, so you can check you downloaded the right one |
+| The policy carries, in its own `signPolicyHash` | a hash over its contents excluding that field, and **this is what a signature declares** |
+
+A verifier rebuilds the attribute from the policy document and compares, so
+declaring the file hash produces a signature that claims conformance and fails
+it. This package declared the file hash until 2026-09-01
+([0121](../decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md)
+carries what that cost and how it was found).
+
+Both artefacts are committed, under `tests/Resources/icp-brasil/`, and the suite
+reads each value from the one that defines it, checking every policy document
+against the list's file hash first.
 
 ### Reading a declaration back
 
@@ -142,7 +159,7 @@ $conformance->messages();   // one line per finding, fit to show somebody
 ```
 
 `IcpBrasil\PolicyConformance` reports an unknown identifier, a digest that
-disagrees with the published list, a policy that was not in force when the
+disagrees with the policy document, a policy that was not in force when the
 document was signed, and a signature carrying less than the policy demands: a
 `pades-b-b` signature declaring AD-RT is the last case.
 

@@ -34,7 +34,8 @@ use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
  *
  * The policy itself is data, and where it comes from is the caller's:
  * `IcpBrasil\Enums\SignaturePolicy` carries the Brazilian ones, read from ITI's
- * published list, and nothing here knows that.
+ * published list and from the policy documents it points at, and nothing here
+ * knows that.
  */
 final readonly class PolicyAttribute
 {

@@ -20,8 +20,9 @@ use LSNepomuceno\Signet\IcpBrasil\Enums\SignaturePolicy;
  * nothing regional
  * (docs/decisions/0104-the-regional-layer-is-its-own-namespace.md). This is the
  * half that knows, and like everything else in this layer it is **structural
- * and offline**: it compares the declaration against the published list that
- * ships with the package and against what the document actually carries.
+ * and offline**: it compares the declaration against the policies that ship
+ * with the package, identifier and window from ITI's published list and digest
+ * from the policy document itself, and against what the signature carries.
  *
  * **`isValid()` consults none of it.** A signature that declares a policy it
  * does not satisfy is still cryptographically valid, and saying otherwise would
@@ -34,8 +35,13 @@ final readonly class PolicyConformance
      * What the signature declared, and what is wrong with it.
      *
      * The report conforms when the declaration is on the published list, was in
-     * force when the document was signed, carries the digest the list carries,
-     * and is matched by what the signature holds.
+     * force when the document was signed, carries the digest **the policy
+     * document** carries, and is matched by what the signature holds.
+     *
+     * The list records a different hash for the same policy, over the file
+     * rather than over the policy's contents, and declaring that one is what
+     * ITI's Verificador rejects
+     * (docs/decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md).
      */
     public function check(SignatureReport $report, SignatureDetails $signature): PolicyReport
     {

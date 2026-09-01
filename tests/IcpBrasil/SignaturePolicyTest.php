@@ -23,9 +23,13 @@ use LSNepomuceno\Signet\Testing\LocalTimestampAuthority;
  * than declaring nothing at all
  * (docs/decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md).
  *
- * The first test is the one that matters: every value the enum carries is
- * compared against ITI's published list, byte for byte, from the copy committed
- * beside these tests.
+ * **Every value the enum carries is compared against the artefact that defines
+ * it**, byte for byte, from copies committed beside these tests. That is two
+ * artefacts and not one: the identifier, URI and window come from ITI's
+ * published list, and the digest from each policy document, because the hash
+ * the list records is over the file while the hash a signature declares is the
+ * one the policy carries. Comparing the digest against the list is what let a
+ * wrong attribute look verified.
  */
 
 /**
@@ -93,8 +97,11 @@ it('carries exactly what the published list carries', function () {
 
         $entry = $published[$policy->value];
 
+        // Not the digest. The list records the hash of the policy *file*, and
+        // what a signature declares is the hash the policy carries inside
+        // itself. Asserting them equal here is what made a wrong attribute look
+        // verified for the whole of #137.
         expect($policy->uri())->toBe($entry['uri'])
-            ->and($policy->digest())->toBe($entry['digest'])
             ->and($policy->validFrom())->toBe($entry['from'])
             ->and($policy->validUntil())->toBe($entry['until'])
             ->and($policy->supersededAt())->toBe($entry['superseded']);
@@ -316,7 +323,7 @@ it('reports a policy identifier nobody published', function () {
         ]);
 });
 
-it('reports a digest that disagrees with the published list', function () {
+it('reports a digest that disagrees with the policy document', function () {
     $policy = SignaturePolicy::AdRbV1_3;
 
     [$report, $signature] = reportDeclaring(new LSNepomuceno\Signet\Data\SignaturePolicy(
@@ -364,33 +371,95 @@ it('reports a policy that was not in force when the document was signed', functi
         ->conforms()->toBeFalse();
 });
 
-it('encodes the hash structure exactly as the published list encodes it', function () {
-    // **This is the assertion the field defect needed, and none of the others
-    // could have made.** `carries exactly what the published list carries`
-    // compares the digest value, and the value was never wrong: the SHA-256 of
-    // `PA_PAdES_AD_RB_v1_3.der` is what the enum holds. What ITI's Verificador
-    // rejected was the AlgorithmIdentifier wrapped around it, `300d` with an
-    // explicit NULL where the list and the policy documents both write `300b`
-    // (0121's outcome section).
-    //
-    // Comparing the whole `OtherHashAlgAndValue` against the authority's own
-    // bytes covers the algorithm OID, its parameters, the octet string's header
-    // and the value in one assertion, for every policy rather than the one that
-    // happened to be submitted.
+/**
+ * The `signPolicyHash` each committed policy document carries, by file name.
+ *
+ * A policy is `SEQUENCE { signPolicyHashAlg, signPolicyInfo, signPolicyHash }`
+ * and the third field is the value a signature declares. It covers the first
+ * two fields only: a hash over the whole document would have to cover itself.
+ *
+ * @return array<string, array{hash: string, algorithm: string, file: string}>
+ */
+function policyDocuments(): array
+{
+    $reader = new LSNepomuceno\Signet\Validation\Asn1Reader();
+    $documents = [];
+
+    $paths = glob(packageRoot() . '/tests/Resources/icp-brasil/policies/*.der');
+
+    foreach ($paths === false ? [] : $paths as $path) {
+        $der = LSNepomuceno\Signet\Support\Files::read($path);
+
+        $children = $reader->children($der);
+
+        $algorithm = $children[0];
+        $hash = $children[count($children) - 1];
+
+        $documents[basename($path)] = [
+            'hash' => bin2hex($hash->content($der)),
+            'algorithm' => bin2hex($algorithm->raw($der)),
+            'file' => $der,
+        ];
+    }
+
+    return $documents;
+}
+
+it('keeps the policy document the list points at, unaltered', function () {
+    // The fixture is 18 files fetched from an authority over plain HTTP, so
+    // the suite says they are the right ones rather than assuming it. This is
+    // what the list's digest is actually for: it covers the file.
     $published = publishedPolicies();
+    $documents = policyDocuments();
+
+    expect($documents)->toHaveCount(count(SignaturePolicy::cases()));
+
+    foreach (SignaturePolicy::cases() as $policy) {
+        $name = basename($policy->uri());
+
+        expect($documents)->toHaveKey($name)
+            ->and(hash('sha256', $documents[$name]['file']))
+            ->toBe($published[$policy->value]['digest']);
+    }
+});
+
+it('declares the hash the policy carries, not the hash of the policy file', function () {
+    // **The defect #137 found, in one assertion.** Every digest in the enum was
+    // read from `LPA_PAdES.der`, which records the hash of the file. What goes
+    // in `sigPolicyHash` is the hash the policy carries in its own third field,
+    // over `signPolicyHashAlg` and `signPolicyInfo` only. Both are real hashes
+    // of real artefacts, which is why the wrong one looked verified.
+    $documents = policyDocuments();
+
+    foreach (SignaturePolicy::cases() as $policy) {
+        $document = $documents[basename($policy->uri())];
+
+        expect($policy->digest())->toBe($document['hash'])
+            ->and($policy->digest())->not->toBe(hash('sha256', $document['file']));
+    }
+});
+
+it('encodes the hash structure the way the policy document encodes it', function () {
+    // The algorithm identifier the attribute carries has to be the one the
+    // policy declares for itself, since a verifier rebuilds the structure from
+    // the policy and compares. Taken from the document rather than written
+    // here, so a constant cannot restate the choice under test.
+    $documents = policyDocuments();
 
     $disagreeing = [];
 
     foreach (SignaturePolicy::cases() as $policy) {
+        $document = $documents[basename($policy->uri())];
+
         $der = new PolicyAttribute()->encode($policy->identifier());
 
-        if (! str_contains($der, $published[$policy->value]['hashStructure'])) {
+        $expected = hex2bin($document['algorithm']) . hex2bin('0420') . hex2bin($policy->digest());
+
+        if (! str_contains($der, $expected)) {
             $disagreeing[] = $policy->name;
         }
     }
 
-    // Collected rather than asserted one at a time, so a failure names every
-    // policy that disagrees instead of stopping at the first of eighteen.
     expect($disagreeing)->toBe([]);
 });
 
