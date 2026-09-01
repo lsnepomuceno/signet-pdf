@@ -188,6 +188,31 @@ came from and the date they were read. If one of these fires on a document you
 believe is fine, that file is the right thing to attach to an issue: a threshold
 set too aggressively is a defect in this package, not in your document.
 
+## `Allowed memory size of N bytes exhausted` while signing
+
+The document is bigger than the limit the process runs under. **Signing needs a
+little more than the size of the document**, measured rather than estimated:
+1.25x at 32 MB and 1.03x at 300 MB, the ratio falling because what is held
+beside the document does not grow with it.
+
+```ini
+; A 300 MB document signs in about 310 MB.
+memory_limit = 512M
+```
+
+Two things worth knowing before raising it further:
+
+- **`pades-b-lta` needs twice the document.** The archive timestamp assembles
+  the span it covers, because an RFC 3161 request carries the digest of the
+  timestamped content and the client hashes that content itself rather than
+  taking an imprint.
+- **Where the document comes from does not help.** A `Contracts\PdfSource`
+  resolves to bytes, so a stream or an object store costs the same as a path.
+
+`docs/guide/signing.md` carries the table, and
+[0122](../decisions/0122-signing-a-document-larger-than-memory.md) carries why
+the floor is the size of the document and what removing it would take.
+
 ## The signature verifies here and not in Adobe Reader
 
 Two usual causes, and they are different problems:

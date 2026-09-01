@@ -128,10 +128,14 @@ single most important invariant in the package.
 The pipeline, all under `Signing/Incremental/`:
 
 1. `DocumentReader` → `DocumentInfo` (xref offset, `/Root`, `/Size`, page objects).
-2. `RevisionWriter::append()` writes the new objects: signature dictionary with a
-   fixed-width `/Contents` placeholder, widget annotation, `/AcroForm` with
-   `/SigFlags`, updated catalog and page, a 20-byte-entry xref table, and a
-   trailer chained by `/Prev`.
+2. `RevisionWriter::revision()` **builds** the new objects: signature dictionary
+   with a fixed-width `/Contents` placeholder, widget annotation, `/AcroForm`
+   with `/SigFlags`, updated catalog and page, a 20-byte-entry xref table, and a
+   trailer chained by `/Prev`. It returns the revision rather than the document
+   with the revision on the end, and the caller extends a
+   `Support\DocumentBuffer` in place: a concatenation allocates the whole file a
+   second time to add a few kilobytes, which is what decided the largest
+   signable document (docs/decisions/0122-signing-a-document-larger-than-memory.md).
 3. `ByteRangeCalculator::apply()` fills `/ByteRange` with the real offsets.
 4. `Cades\CadesBuilder` builds the detached CMS with
    `Com\Tecnick\Pdf\Sign\Signer`, **not** `openssl_pkcs7_sign()`, which cannot

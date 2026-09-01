@@ -157,10 +157,11 @@ because none of them resolves the policy at all
 at `pades-b-b`, each declaring a policy, were submitted to
 [validar.iti.gov.br](https://validar.iti.gov.br) on 2026-09-01:
 
-| Policy declared | Verdict |
-|---|---|
-| AD-RB v1.3, `2.16.76.1.7.1.11.1.3` | signature approved, reported as a qualified electronic signature under MP 2.200-2/01 and Lei 14.063/20 |
-| AD-RB v1.2, `2.16.76.1.7.1.11.1.2` | the same |
+| Policy declared | Document | Verdict |
+|---|---|---|
+| AD-RB v1.3, `2.16.76.1.7.1.11.1.3` | 42 KB | signature approved, reported as a qualified electronic signature under MP 2.200-2/01 and Lei 14.063/20 |
+| AD-RB v1.2, `2.16.76.1.7.1.11.1.2` | 42 KB | the same |
+| AD-RB v1.3 | **60 MB** | the same |
 
 **The offline check and the authority agree**, which is the strongest statement
 available about either: EU DSS approved both documents before they were
@@ -176,6 +177,12 @@ Two limits on what that establishes, and neither is hidden anywhere else:
   ([0026](../decisions/0026-verification-tools-are-instruments.md)); what runs on
   every change is the offline pair above. This is the manual acceptance that
   says the two are looking for the same thing.
+
+The 60 MB row is there for a second reason. It was signed through the pipeline
+that stopped holding the document twice
+([0122](../decisions/0122-signing-a-document-larger-than-memory.md)), which is
+the change most able to damage a file quietly, and the authority read it as
+conformant.
 
 Getting there took a rejection first: the first submission came back with one
 attribute invalid out of five, `IdAaEtsSigPolicyId`, and everything else passing

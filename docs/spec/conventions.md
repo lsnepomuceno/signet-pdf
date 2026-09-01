@@ -131,6 +131,27 @@ The test is not "is it private" or "is it an array". It is **"could a second
 value of this kind ever be right?"** If yes, it is an enum today, because the
 sibling arrives later and arrives as a constant beside the first one.
 
+## One class is mutable, and it is the exception that proves the rule
+
+`final readonly` is the default and `Data\` is gated on it. **`Support\DocumentBuffer`
+is not readonly, and that is the whole reason it exists.**
+
+PHP extends a string in place while nothing else points at it and copies the
+whole thing when something does. On a 64 MB document, appending 64 KB costs
+0.1 MB through the sole owner and 64.1 MB through a concatenation. A readonly
+value object has to return a new instance for every write, and a new instance is
+the concatenation, so the immutable shape is exactly the shape that cannot do
+the job (docs/decisions/0122-signing-a-document-larger-than-memory.md).
+
+Its bytes are a public property rather than a return value for the same reason:
+a caller that copies them out has taken a copy the size of the document, and the
+property makes that visible at the call site instead of hiding it behind an
+accessor that looks free.
+
+**This is not a precedent.** The test for another one is the same measurement:
+an immutable version that costs the size of the data on every write, in a path
+where that size is the constraint. Anything else is `final readonly`.
+
 ## Enums that are not configuration may be int-backed
 
 `tests/Project/ArchTest.php` requires enums in `Enums\` to be string-backed, so a

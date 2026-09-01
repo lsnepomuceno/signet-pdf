@@ -143,6 +143,14 @@ limit for the fixture and not for the signing, because building a 300 MB
 document costs twice that and what is being measured is what signing costs once
 it exists.
 
+**And it does not damage the file, which is the risk a change of this shape
+carries.** A 60 MB document signed through the new pipeline with a real RFB
+e-CPF A1, declaring AD-RB v1.3, was submitted to ITI's Verificador on 2026-09-01
+and came back approved as a qualified electronic signature. Peak while signing:
+68.1 MB, 1.13x, with a real ICP-Brasil chain rather than the suite's throwaway
+one ([#137](https://github.com/lsnepomuceno/signet-pdf/issues/137) carries the
+smaller documents the same run produced).
+
 **The falling ratio is not the result; the constant is.** The peak is one
 document plus about 8 MB at every size, where it was two documents plus a little.
 The 8 MB is the chunk `ByteRangeCalculator` hashes the covered span in, and it
