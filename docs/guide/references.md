@@ -109,7 +109,7 @@ those fields as `othername:<unsupported>`, which is why they are parsed here.
 ## The instruments
 
 Signed output is checked against tools written by other people, because a
-validator sharing its assumptions with the signer proves very little. Five are
+validator sharing its assumptions with the signer proves very little. Six are
 actually exercised.
 
 | Tool | Version | Decides | Exercised by |
@@ -119,14 +119,23 @@ actually exercised.
 | [qpdf](https://qpdf.readthedocs.io/) | not pinned, see below | structural soundness, and reading back what was encrypted | `tests/Conformance/StructureTest.php`, `tests/Signing/EncryptedDocumentTest.php` |
 | [pyHanko](https://pyhanko.readthedocs.io/) | 0.36.2, CLI 0.4.2, pinned | `/DocMDP` enforcement, and signing the foreign document this package's validator is read against | `tests/Validation/ForeignSignatureTest.php`, `tests/Certification/CertificationEnforcementTest.php` |
 | [Arlington PDF Model](https://github.com/pdf-association/arlington-pdf-model) `testgrammar` | pinned by commit | whether the emitted objects match the specification's own grammar | `tests/Conformance/ArlingtonTest.php` |
+| [EU DSS](https://github.com/esig/dss) | 6.5, pinned | whether the digest a signature declares for its policy is the digest that policy carries | `tests/Conformance/PolicyDigestTest.php` |
 
-### Why three are pinned and two are not
+**The last one is there because the other five could not see a defect that
+shipped.** Every ICP-Brasil policy digest this package carried was the hash of
+the policy *file* rather than the hash the policy declares for itself, and
+`pdfsig`, pyHanko and Demoiselle all reported the resulting document as valid,
+correctly: none of them resolves the policy document, so none of them ever
+compares. DSS does
+([0124](https://github.com/lsnepomuceno/signet-pdf/blob/main/docs/decisions/0124-the-policy-digest-has-an-offline-witness.md)).
+
+### Why four are pinned and two are not
 
 A validator that changes its verdicts between builds cannot be the thing a gate
-is measured against. veraPDF and pyHanko are pinned to a version, and the
+is measured against. veraPDF, pyHanko and DSS are pinned to a version, and the
 Arlington model by commit, because the tool and the TSV grammar live in the same
-tree and one SHA pins both together. All three are fetched from upstream, where
-a version stays available.
+tree and one SHA pins both together. All four are fetched from upstream, where a
+version stays available.
 
 qpdf and poppler come from the distribution, and a distribution pin is worse
 than none: the exact version disappears from the archive when the runner image

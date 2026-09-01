@@ -160,12 +160,21 @@ trap sweep EXIT INT TERM
 # Written as an `if` rather than as two statements: `set -e` reaches inside the
 # group, and a failing pest would end it before the status was ever recorded.
 # A condition is the one place the option does not apply.
+#
+# Two groups are excluded, for different reasons. `network` reaches a live
+# timestamp authority, so it would report somebody else's outage as a surviving
+# mutant. `dss` starts a JVM per invocation, and mutation runs the covering
+# tests once per mutant: six invocations against `src/IcpBrasil` is twenty
+# seconds, and a leg is killed at six hours. What it witnesses is covered
+# offline by `tests/IcpBrasil/SignaturePolicyTest.php`, which is what the
+# mutants there are actually scored against
+# (docs/decisions/0124-the-policy-digest-has-an-offline-witness.md).
 {
     if vendor/bin/pest \
         --mutate \
         --path="$paths" \
         ${ignore:+--ignore="$ignore"} \
-        --exclude-group=network \
+        --exclude-group=network,dss \
         --min="$min"
     then
         echo 0 > "$status"

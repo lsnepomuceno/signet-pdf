@@ -369,9 +369,11 @@ here.
 - Do not define `K_PATH_FONTS` globally: tc-lib-pdf and TCPDF 6 read it with
   different formats, and defining it kills TCPDF silently.
 - **Every verification tool is development and CI only, and none may reach
-  production.** Five are actually exercised: veraPDF (PDF/A and PDF/UA), qpdf
+  production.** Six are actually exercised: veraPDF (PDF/A and PDF/UA), qpdf
   (structure), pyHanko (`/DocMDP` and a foreign signature), `pdfsig` (an
-  independent reader) and the Arlington PDF Model's `testgrammar`. Ghostscript
+  independent reader), the Arlington PDF Model's `testgrammar`, and EU DSS (the
+  digest a signature declares for its ICP-Brasil policy, which is the one
+  property the other five cannot see). Ghostscript
   and `pdftoppm` are named only in the ban list in `tests/Project/ArchTest.php`,
   which is deliberate: the rule forbids reaching for an instrument from `src/`,
   and it costs nothing to forbid one nobody has reached for yet.

@@ -255,6 +255,39 @@ jobs:
           sudo ln -s /opt/pyhanko/bin/pyhanko /usr/local/bin/pyhanko
           pyhanko --version
 
+      # EU DSS, the witness for one property nothing else here can see:
+      # whether the digest a signature declares for its policy is the digest
+      # that policy document actually carries. It found a defect this suite
+      # passed, and pdfsig, pyHanko and Demoiselle all reported the same
+      # document valid, because none of them resolves the policy.
+      #
+      # No new runtime: Java is already on the runner for veraPDF. The jars are
+      # resolved here rather than committed, and pinned for the reason every
+      # instrument is pinned.
+      # See docs/decisions/0124-the-policy-digest-has-an-offline-witness.md.
+      - name: Install EU DSS
+        env:
+          DSS_VERSION: '6.5'
+        run: |
+          set -eux
+          command -v mvn >/dev/null 2>&1 || sudo apt-get install -y --no-install-recommends maven
+          sudo mkdir -p /opt/dss
+          sudo chown "$(id -u):$(id -g)" /opt/dss
+          cd .docker/dss
+          mvn -q -B -Ddss.version="${DSS_VERSION}" \
+            dependency:copy-dependencies -DoutputDirectory=/opt/dss/lib
+          mvn -q -B -Ddss.version="${DSS_VERSION}" compile
+          cp -r target/classes /opt/dss/classes
+          printf '<configuration><root level="OFF"/></configuration>\n' > /opt/dss/logback.xml
+          printf '%s\n' \
+            '#!/bin/sh' \
+            'exec java -Dlogback.configurationFile=/opt/dss/logback.xml \' \
+            '     -cp "/opt/dss/classes:/opt/dss/lib/*" DssPolicyCheck "$@"' \
+            | sudo tee /usr/local/bin/dss-policy-check > /dev/null
+          sudo chmod +x /usr/local/bin/dss-policy-check
+          cd -
+          dss-policy-check 2>&1 | grep -q 'usage: dss-policy-check'
+
       # composer test carries --fail-on-skipped: every check has to run
       # somewhere, and a skip is how one quietly stops. The PDF/A group used to
       # skip itself when veraPDF was absent, and a job could go green having

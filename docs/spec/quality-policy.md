@@ -423,7 +423,8 @@ reason a cell could fail at `composer update` before a test ran
 
 **The verification tools are installed on the runner, and the packages are
 cached.** qpdf and poppler come from apt, veraPDF and pyHanko from their own
-releases. The apt step timed out at six minutes on most pull requests until the
+releases, and EU DSS is resolved from its Maven coordinates against the
+descriptor in `.docker/dss`. The apt step timed out at six minutes on most pull requests until the
 attempts were bounded with `timeout` and the `.deb` files cached: `Acquire`
 timeouts bound one request, so a mirror answering slowly rather than failing
 consumed the whole budget without tripping a retry. Every path there degrades to
@@ -461,6 +462,14 @@ workers reaching freetsa.org at once is a plausible way to be rate limited. The
 instruments are the second reason to measure before switching: veraPDF is a JVM
 per invocation and pyHanko a Python process, and sixteen at a time is a
 different memory profile from one.
+
+**Composer's process timeout is off**, `"process-timeout": 0` in
+`composer.json`. The suite is around four minutes in the container and the
+default is five, so `composer check` was one instrument away from failing on the
+clock rather than on a verdict, and `composer test:mutate` runs for hours. A
+hung process is bounded by the CI job's own limit, which is the right place for
+that guard: a timeout that fires at the same order of magnitude as the real
+runtime reports load as a defect.
 
 **A test must own what it asserts over.** The one test that could not run in
 parallel watched the *system* temporary directory for a file that must not
@@ -531,6 +540,45 @@ PDF/A conformant, for reasons that are the colour space rather than the
 signature, and asserting the failure is what will tell someone the day that
 changes ([0025](../decisions/0025-what-signing-does-to-pdf-a.md)).
 
+**The policy digest is witnessed by EU DSS**, in the `dss` group, and that
+group exists because the suite passed a document that was wrong. All eighteen
+ICP-Brasil policy digests this package shipped were SHA-256 of the policy
+*file*, where what a signature declares is the `signPolicyHash` the policy
+carries inside itself. Both values are published by ITI, so the wrong one
+survived review and a test that parsed the published list and agreed with it.
+
+`pdfsig`, pyHanko and Demoiselle all reported that document as valid, correctly:
+none of them resolves the policy document, so none of them ever compares. **An
+instrument that cannot see a defect is not evidence about it**, and DSS was the
+only one of the three tried that could
+([0124](../decisions/0124-the-policy-digest-has-an-offline-witness.md)).
+
+Three things about how it is gated are load-bearing:
+
+- **The negative is asserted.** One case signs with the hash of the policy file,
+  the exact substitution that shipped, and requires DSS to refuse it by name.
+  Without that, the group only proves the tool was invoked.
+- **`identified` is asserted beside `digestValid`.** A verifier that never
+  resolved the policy reports nothing rather than a refusal, which is how two
+  instruments passed the defective document. Asserting only the digest would let
+  this gate decay into the same silence.
+- **The policy documents are supplied, never fetched.** The eighteen are
+  committed under `tests/Resources/icp-brasil/policies/`, and are themselves
+  checked against the published list's file hash, which is what that hash is
+  for. A run that reached the authority would be measuring its uptime.
+
+It costs a JVM per invocation and no new runtime, since Java is already
+installed for veraPDF. **The group is excluded from mutation runs**
+(`.docker/mutate.sh`), because those run the covering tests once per mutant and
+a leg is killed at six hours; the same property is scored there through
+`tests/IcpBrasil/SignaturePolicyTest.php`, which shells out to nothing.
+
+ITI's own Verificador asks the same question and is an online service, so it
+stays a manual acceptance run rather than a gate
+([0026](../decisions/0026-verification-tools-are-instruments.md)). During the
+session that found this defect it stopped returning verdicts part-way through,
+which is the second half of the argument for an offline witness.
+
 **Structure is checked by qpdf**, which reads the same cross-reference tables
 and streams this package writes by hand, and is strict where poppler forgives:
 a table whose offsets are slightly wrong still opens in a reader that recovers
@@ -573,8 +621,9 @@ yesterday's.
 
 ## The instruments are never dependencies
 
-**veraPDF, qpdf, pyHanko, Arlington's `testgrammar`, `pdfsig`, `pdftoppm` and Ghostscript are development and
-validation tooling, and none of them may reach production.**
+**veraPDF, qpdf, pyHanko, EU DSS, Arlington's `testgrammar`, `pdfsig`,
+`pdftoppm` and Ghostscript are development and validation tooling, and none of
+them may reach production.**
 
 Nothing in `src/` may invoke one. A package that shells out to a JVM, or to
 anything else, to answer a runtime question would be a different package, and

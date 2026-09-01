@@ -40,3 +40,9 @@ composer.lock
 /docs/node_modules
 /docs/.vitepress/dist/
 /docs/.vitepress/cache/
+
+# Maven's output for the policy witness. The image builds it from a copy under
+# /tmp, so this only appears when the jars are resolved in place, which is what
+# the CI runner does.
+# See docs/decisions/0124-the-policy-digest-has-an-offline-witness.md.
+/.docker/dss/target/
