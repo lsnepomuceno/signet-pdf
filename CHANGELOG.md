@@ -147,6 +147,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`intervention/image` moves to `^4.3`, and a consumer pinned to 3.x cannot
+  take this release.** Intervention Image 4 removed `ImageManager::read()`, and
+  the seal renderer was built on it. Measured against 3.11.8 and 4.3.2, that
+  rename is the whole difference: `ImageInterface::text()`, `encode()`,
+  `width()`, `height()`, the JPEG and PNG encoders, `FontFactory` and both
+  drivers are unchanged, so the port is two call sites.
+
+  **Both majors were considered and rejected on evidence rather than taste.**
+  There is no method present in both, so supporting them means a branch, and CI
+  has no `--prefer-lowest` leg: Composer resolves the highest allowed version in
+  every cell of the matrix, so the 3.x branch would never once execute. PHPStan
+  at level max with no baseline cannot see it either, since whichever major is
+  installed the other branch calls a method that does not exist. **The seal
+  output is unchanged**, and the suite asserts the rendered bytes, the
+  dimensions and PDF/A conformance of sealed documents against 4.3.2 without a
+  fixture being touched
+  ([0125](docs/decisions/0125-the-seal-renders-on-intervention-image-4.md)).
+
+  `intervention/gif` moves from 4.2.4 to 5.0.1 with it, pulled by the same
+  requirement.
+
 - **`tecnickcom/tc-lib-pdf-sign` moves to `^2.0`,** and two behaviours change
   with it. Both are checks that were not being made.
 

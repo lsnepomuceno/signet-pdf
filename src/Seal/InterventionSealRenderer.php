@@ -54,8 +54,7 @@ final readonly class InterventionSealRenderer implements SealRenderer
         // one shape rather than branching on null at every property.
         $layout ??= new SealLayout();
 
-        $image = new ImageManager(driver: $this->driver()->create())
-            ->read($layout->background ?? $this->background());
+        $image = $this->manager()->decode($layout->background ?? $this->background());
 
         $lines = $layout->hasLines()
             ? $layout->lines
@@ -86,7 +85,7 @@ final readonly class InterventionSealRenderer implements SealRenderer
 
         $layout ??= new SealLayout();
 
-        $image = new ImageManager(driver: $this->driver()->create())->read($imagePath);
+        $image = $this->manager()->decode($imagePath);
 
         $x = $layout->x ?? $this->config->textX;
         $rows = $layout->rows !== [] ? $layout->rows : $this->configuredRows();
@@ -239,6 +238,20 @@ final readonly class InterventionSealRenderer implements SealRenderer
     private function driver(): ImageDriver
     {
         return $this->config->driver;
+    }
+
+    /**
+     * The manager, built on the configured driver.
+     *
+     * One place rather than two because the vendor's entry point is the one
+     * thing that moved between its major versions: `read()` became `decode()`
+     * in Intervention Image 4, and the rest of what this renderer touches is
+     * unchanged
+     * (docs/decisions/0125-the-seal-renders-on-intervention-image-4.md).
+     */
+    private function manager(): ImageManager
+    {
+        return new ImageManager(driver: $this->driver()->create());
     }
 
 }
