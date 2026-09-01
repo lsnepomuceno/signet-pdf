@@ -147,6 +147,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Switching version on the documentation site keeps the page.** The control
+  used to link to an archive's front door from everywhere, so a reader on
+  `/spec/public-api` who wanted the `1.x` version of that page navigated again
+  from the top. It now links to the same route when the archived line has it,
+  and says `home page` on the entry when it does not, so the reader is told
+  before the click. It works leaving an archive too.
+
+  The version menu also carried the changelog and the upgrade guide, which are a
+  different question. Those are a `Releases` nav item now, and the version
+  control carries versions and nothing else
+  ([0112](docs/decisions/0112-the-site-documents-one-release-line.md)).
+
 - **`intervention/image` moves to `^4.3`, and a consumer pinned to 3.x cannot
   take this release.** Intervention Image 4 removed `ImageManager::read()`, and
   the seal renderer was built on it. Measured against 3.11.8 and 4.3.2, that

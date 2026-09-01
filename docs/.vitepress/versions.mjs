@@ -1,14 +1,15 @@
 import { execFileSync } from 'node:child_process'
-import { cpSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { cpSync, mkdirSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { ARCHIVES, CURRENT_URL, archiveBase, archiveRoutes } from './archives.mjs'
 
 /**
- * Builds the site, and the archive of the previous line beside it.
+ * Builds the site, and the archive of each superseded line beside it.
  *
  * The site documents one line at a time and says which, which was the whole of
  * [0112](../decisions/0112-the-site-documents-one-release-line.md). That is no
- * longer enough on its own: `2.0.0` is a major release, so a reader who
+ * longer enough on its own: `2.0.0` was a major release, so a reader who
  * installed `^1` needs pages that describe `^1` rather than a banner telling
  * them the ones they are reading do not.
  *
@@ -26,39 +27,52 @@ import { fileURLToPath } from 'node:url'
  * The current line lives at the root rather than under `/v2/`, so a link into
  * the documentation does not have to be rewritten every major release, and an
  * archive is added under its own prefix when a line stops being current.
+ *
+ * **This script writes data and copies files, and generates no code.** A third
+ * of it used to be JavaScript and Markdown inside template literals: a whole
+ * VitePress config assembled as a string, comments included, with no
+ * highlighting, no type checking, and a second copy of the sidebar wiring to
+ * keep in step with `config.mts` by hand. Those are `archive.mts` and
+ * `archive/<prefix>/index.md` now, which are files somebody can read.
  */
 
 const vitepress = dirname(fileURLToPath(import.meta.url))
 const docs = dirname(vitepress)
+const repository = dirname(docs)
 const dist = join(vitepress, 'dist')
 const binary = join(vitepress, 'node_modules', 'vitepress', 'bin', 'vitepress.js')
 
-/**
- * Every archived line, newest first. One entry per major release that stopped
- * being current, pinned to the last tag published on it.
- */
-const ARCHIVES = [
-  {
-    prefix: 'v1',
-    line: '1.x',
-    tag: '1.0.1',
-    title: 'Signet PDF 1.x',
-  },
-]
-
-/**
- * Where the current line lives, as an absolute URL.
- *
- * An archive cannot link to it as an internal path: VitePress prepends the
- * site's own base to those, and the archive's base is `/signet-pdf/v1/`, so
- * `/signet-pdf/` renders as `/signet-pdf/v1/signet-pdf/`. An absolute URL is
- * the one form that leaves an archive's link alone, and an archive is published
- * at exactly one address for the life of the project.
- */
-const CURRENT = 'https://lsnepomuceno.github.io/signet-pdf/'
-
 function run(command, args, options = {}) {
   execFileSync(command, args, { stdio: 'inherit', ...options })
+}
+
+/**
+ * Every page the current line publishes, as a route without its extension.
+ *
+ * Read from the working tree rather than from a tag, because the current line
+ * is whatever is checked out. An archive carries this list so that leaving one
+ * lands on the same page rather than on the current site's front door.
+ */
+function currentRoutes(directory = docs) {
+  const routes = []
+
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    // `.vitepress/` is the site's machinery and is not routed, which is also
+    // why the archive's home pages can live inside it.
+    if (entry.name.startsWith('.') || entry.name === 'node_modules') {
+      continue
+    }
+
+    const path = join(directory, entry.name)
+
+    if (entry.isDirectory()) {
+      routes.push(...currentRoutes(path))
+    } else if (entry.name.endsWith('.md')) {
+      routes.push(relative(docs, path).replace(/\.md$/, ''))
+    }
+  }
+
+  return routes
 }
 
 /**
@@ -68,31 +82,22 @@ function run(command, args, options = {}) {
  * neither the working copy nor the index: this runs from the repository
  * somebody is working in, so a checkout or a worktree would be a side effect
  * they did not ask for.
- *
- * **`git archive` cannot do it**, which is worth writing down because it is the
- * obvious first attempt: `.gitattributes` marks `/docs export-ignore` so the
- * documentation stays out of the package a consumer installs, and `git archive`
- * honours that. The command succeeds and produces a tar with nothing in it.
  */
 function materialise(archive) {
-  const repository = dirname(docs)
   const root = join(dist, '.archives', archive.prefix)
 
   rmSync(root, { recursive: true, force: true })
   mkdirSync(root, { recursive: true })
 
-  const listed = execFileSync('git', ['ls-tree', '-r', '--name-only', archive.tag, '--', 'docs'], {
-    cwd: repository,
-    encoding: 'utf-8',
-  })
+  const routes = archiveRoutes(archive, repository)
 
-  const files = listed.split('\n').filter(name => name.endsWith('.md'))
-
-  if (files.length === 0) {
+  if (routes.length === 0) {
     throw new Error(`versions: ${archive.tag} carries no documentation to archive`)
   }
 
-  for (const file of files) {
+  for (const route of routes) {
+    const file = `docs/${route}.md`
+
     const contents = execFileSync('git', ['show', `${archive.tag}:${file}`], {
       cwd: repository,
       encoding: 'utf-8',
@@ -104,19 +109,20 @@ function materialise(archive) {
     writeFileSync(target, contents)
   }
 
-  console.log(`versions: extracted ${files.length} pages from ${archive.tag}`)
+  console.log(`versions: extracted ${routes.length} pages from ${archive.tag}`)
 
   return join(root, 'docs')
 }
 
 /**
- * The machinery the archive is built with, which is this one.
+ * The machinery the archive is built with, which is this site's.
  *
- * The tag's own `.vitepress/` is not used even where it exists: an archive
- * built with its own tooling is a second build to keep working, and the point
- * of the archive is the prose rather than the generator.
+ * Copied rather than referenced: VitePress resolves `.vitepress/` relative to
+ * the build root and offers no way to point it elsewhere. What is copied is
+ * files that exist in the repository, so the archive is built by code somebody
+ * has reviewed rather than by code assembled here.
  */
-function install(source) {
+function install(source, archive) {
   const machinery = join(source, '.vitepress')
 
   rmSync(machinery, { recursive: true, force: true })
@@ -125,107 +131,43 @@ function install(source) {
   cpSync(join(vitepress, 'theme'), join(machinery, 'theme'), { recursive: true })
   cpSync(join(vitepress, 'sidebar.ts'), join(machinery, 'sidebar.ts'))
 
+  // Renamed on the way in, because VitePress loads `.vitepress/config.*` and
+  // nothing else. Its relative imports are written for this destination.
+  cpSync(join(vitepress, 'archive.mts'), join(machinery, 'config.mts'))
+
+  // The archive's home page, because the tag never had one: `docs/` at 1.0.1
+  // held three directories and no index, since it was read on GitHub where a
+  // directory listing is the index. It is ours rather than the tag's, so
+  // committing it copies nothing twice.
+  cpSync(join(vitepress, 'archive', archive.prefix, 'index.md'), join(source, 'index.md'))
+
+  writeFileSync(
+    join(machinery, 'descriptor.json'),
+    `${JSON.stringify(
+      {
+        ...archive,
+        base: archiveBase(archive),
+        // Named rather than numbered. `release.ts` reads the version from the
+        // changelog and is TypeScript, which this file cannot import without
+        // depending on Node's type stripping; and a label baked into an archive
+        // at build time would name whichever release last triggered a deploy,
+        // which is not a fact about the archive.
+        current: {
+          label: 'Current documentation',
+          base: CURRENT_URL,
+          routes: currentRoutes(),
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  )
+
   // Vite resolves a bare import by climbing from the file that made it, and
   // `.vitepress/` is a sibling of the content rather than an ancestor of it.
   // The same link `postinstall.mjs` makes for the main site, for the same
   // reason (docs/.vitepress/postinstall.mjs).
   symlinkSync(join(vitepress, 'node_modules'), join(source, 'node_modules'), 'junction')
-}
-
-/**
- * A home page, because the tag never had one.
- *
- * Written rather than copied: `docs/` at `1.0.1` holds three directories and no
- * index, since it was read on GitHub where a directory listing is the index.
- */
-function homePage(archive) {
-  return `---
-title: ${archive.title}
----
-
-# Signet PDF ${archive.line}
-
-**This is the archived documentation for the ${archive.line} line, frozen at
-\`${archive.tag}\`.** It is the prose that shipped with that release, published
-as it stood: the specification, the decision records and the history.
-
-For the line that is current now, go to the
-[current documentation](${CURRENT}).
-
-The \`${archive.line}\` line had no guide. It was documented by its README, which
-is on the tag, and by the pages below.
-
-- [Specification](./spec/public-api)
-- [Decisions](./decisions/README)
-- [History](./history/decision-log)
-`
-}
-
-function config(archive) {
-  return `import { defineConfig } from 'vitepress'
-import { index, pages } from './sidebar'
-
-// Generated by docs/.vitepress/versions.mjs. Editing it edits nothing: the
-// archive is rebuilt from ${archive.tag} on every deploy.
-export default defineConfig({
-  title: ${JSON.stringify(archive.title)},
-  description: 'Archived documentation for the ${archive.line} line.',
-  base: '/signet-pdf/${archive.prefix}/',
-  cleanUrls: true,
-
-  // The date a page was last updated comes from the commit that touched it, and
-  // this tree is an extract rather than a repository.
-  lastUpdated: false,
-
-  // **Deliberate, and only here.** These pages were written to be read on
-  // GitHub at their tag, so they link to README.md, UPGRADE.md and files under
-  // src/, none of which is a page of this site. Failing the build on those
-  // would mean editing an archive, which would stop it being one.
-  ignoreDeadLinks: true,
-
-  head: [['meta', { name: 'theme-color', content: '#cf222e' }]],
-
-  themeConfig: {
-    nav: [
-      { text: 'Specification', link: '/spec/public-api', activeMatch: '^/spec/' },
-      { text: 'Decisions', link: '/decisions/README', activeMatch: '^/decisions/' },
-      { text: 'History', link: '/history/decision-log', activeMatch: '^/history/' },
-      {
-        text: ${JSON.stringify(archive.line + ' (archived)')},
-        items: [
-          // Absolute, because an internal path here would get the archive's
-          // own prefix; and with a target, because the router would otherwise
-          // intercept a same-origin link and look for the route inside the
-          // archive, which does not have it.
-          { text: 'Current documentation', link: '${CURRENT}', target: '_self' },
-          { text: 'All releases', link: 'https://github.com/lsnepomuceno/signet-pdf/releases' },
-        ],
-      },
-    ],
-
-    sidebar: {
-      '/spec/': [{ text: 'Specification', items: pages('spec') }],
-      '/history/': [{ text: 'History', items: pages('history') }],
-      '/decisions/': [
-        { text: 'Decisions', link: index('decisions'), items: pages('decisions'), collapsed: false },
-      ],
-    },
-
-    outline: [2, 3],
-
-    socialLinks: [
-      { icon: 'github', link: 'https://github.com/lsnepomuceno/signet-pdf/tree/${archive.tag}' },
-    ],
-
-    search: { provider: 'local' },
-
-    footer: {
-      message: 'Released under the MIT Licence.',
-      copyright: 'Copyright © Lucas Nepomuceno',
-    },
-  },
-})
-`
 }
 
 function build(source) {
@@ -241,10 +183,7 @@ console.log('versions: built the current line at the root')
 for (const archive of ARCHIVES) {
   const source = materialise(archive)
 
-  install(source)
-  writeFileSync(join(source, 'index.md'), homePage(archive))
-  writeFileSync(join(source, '.vitepress', 'config.mjs'), config(archive))
-
+  install(source, archive)
   build(source)
 
   cpSync(join(source, '.vitepress', 'dist'), join(dist, archive.prefix), { recursive: true })
