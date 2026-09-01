@@ -118,6 +118,27 @@ into the same silence.
 - Upgrading the pin is a deliberate act with a verdict to re-establish, not a
   dependency bump.
 
-## Outcome
+## Outcome, 2026-09-01: the witness and the authority agree
 
-None yet.
+**The instrument was right, and the authority said so within hours of it being
+installed.** The two documents DSS reported `POLICY DIGEST OK: true` for were
+submitted to ITI's Verificador and both came back approved, as qualified
+electronic signatures under MP 2.200-2/01 and Lei 14.063/20
+([#137](https://github.com/lsnepomuceno/signet-pdf/issues/137)).
+
+So the record now has both halves of what an instrument has to demonstrate:
+
+| | |
+|---|---|
+| It sees a defect the suite passed | the eighteen file hashes, which pdfsig, pyHanko and Demoiselle all approved |
+| It agrees with the authority when there is no defect | v3 and v4, approved offline and then approved by ITI |
+
+The second half is the one that was missing when this was written, and without
+it the gate could have been a verifier with an opinion of its own. It is not: it
+computes what ETSI TS 101 733 specifies, which is what ITI checks.
+
+None of this makes the online run unnecessary. **DSS answers for the European
+standards and says nothing about ICP-Brasil's profile rules**, which was already
+in the consequences above and is unchanged by the agreement. What changed is
+that the offline check now has a measured relationship to the online one rather
+than an assumed one.

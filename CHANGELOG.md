@@ -233,6 +233,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   them ever compares
   ([0124](docs/decisions/0124-the-policy-digest-has-an-offline-witness.md)).
 
+  **ITI's Verificador accepts the corrected signature.** Two documents signed
+  with a real RFB e-CPF A1 at `pades-b-b`, declaring AD-RB v1.3 and AD-RB v1.2,
+  were submitted on 2026-09-01 and both came back approved, as qualified
+  electronic signatures under MP 2.200-2/01 and Lei 14.063/20. DSS had approved
+  the same two files offline first, so the gate and the authority agree.
+  `pades-b-b` and the AD-RB family only: the other three families declare more
+  than a baseline signature carries.
+
   **Every signature this package produced declaring an ICP-Brasil policy is
   affected**, and re-signing is the only fix for a document already issued: the
   attribute is signed, so it cannot be corrected in place.
