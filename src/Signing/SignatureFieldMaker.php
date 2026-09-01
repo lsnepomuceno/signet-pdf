@@ -90,18 +90,22 @@ final readonly class SignatureFieldMaker
         $widgetNumber = $document->nextObjectNumber();
         $appearanceNumber = $widgetNumber + 1;
 
-        return new SignedPdf(
-            $this->writer->appendObjects($pdfContents, $document, [
-                $widgetNumber => $this->widget($widgetNumber, $appearanceNumber, $pageNumber, $name, $rectangle, $cipher),
-                // ISO 19005-1 §6.9 wants every form field to have an appearance
-                // dictionary, empty field or not, and pyHanko reads the field
-                // through it (docs/decisions/0025-what-signing-does-to-pdf-a.md).
-                $appearanceNumber => $this->appearance->emptyForm($appearanceNumber, $cipher),
-                $document->root => $this->writer->catalogWithField($pdfContents, $document, $widgetNumber),
-                $pageNumber => $this->writer->pageWithAnnotation($pdfContents, $document, $pageNumber, $widgetNumber),
-            ]),
-            $fileName,
-        );
+        $revision = $this->writer->objectRevision($pdfContents, $document, [
+            $widgetNumber => $this->widget($widgetNumber, $appearanceNumber, $pageNumber, $name, $rectangle, $cipher),
+            // ISO 19005-1 §6.9 wants every form field to have an appearance
+            // dictionary, empty field or not, and pyHanko reads the field
+            // through it (docs/decisions/0025-what-signing-does-to-pdf-a.md).
+            $appearanceNumber => $this->appearance->emptyForm($appearanceNumber, $cipher),
+            $document->root => $this->writer->catalogWithField($pdfContents, $document, $widgetNumber),
+            $pageNumber => $this->writer->pageWithAnnotation($pdfContents, $document, $pageNumber, $widgetNumber),
+        ]);
+
+        // Concatenated rather than extended in place, and deliberately: the
+        // caller still holds these bytes, since this takes them by value, so
+        // there is nothing to hand over and pretending otherwise would copy
+        // just the same. Adding a field is not the path a 300 MB document takes
+        // (docs/decisions/0122-signing-a-document-larger-than-memory.md).
+        return new SignedPdf($pdfContents . $revision, $fileName);
     }
 
     /**

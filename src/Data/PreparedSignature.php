@@ -7,6 +7,7 @@ namespace LSNepomuceno\Signet\Data;
 use LSNepomuceno\Signet\Enums\CertificationLevel;
 use LSNepomuceno\Signet\Enums\DigestAlgorithm;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
+use LSNepomuceno\Signet\Support\DocumentBuffer;
 
 /**
  * A document with everything written except the signature itself.
@@ -25,7 +26,12 @@ use LSNepomuceno\Signet\Enums\SignatureProfile;
 final readonly class PreparedSignature extends BaseData
 {
     /**
-     * @param  string  $document  The document as it stands, placeholder and all.
+     * @param  DocumentBuffer  $document  The document as it stands, placeholder
+     *          and all. A buffer rather than a string, because the second phase
+     *          writes the signature into it and every further revision is
+     *          appended to it: holding the bytes in a second variable would
+     *          make each of those writes allocate the whole document again
+     *          (docs/decisions/0122-signing-a-document-larger-than-memory.md).
      * @param  array{0: int, 1: int, 2: int, 3: int}  $byteRange  The four
      *          numbers written into /ByteRange, as the specification orders
      *          them: offset, length, offset, length.
@@ -40,7 +46,7 @@ final readonly class PreparedSignature extends BaseData
      *          the first one wrote.
      */
     public function __construct(
-        public string $document,
+        public DocumentBuffer $document,
         public array $byteRange,
         public int $reservedBytes,
         public SignatureProfile $profile,
@@ -61,8 +67,8 @@ final readonly class PreparedSignature extends BaseData
      */
     public function signableBytes(): string
     {
-        return substr($this->document, $this->byteRange[0], $this->byteRange[1])
-            . substr($this->document, $this->byteRange[2], $this->byteRange[3]);
+        return $this->document->read($this->byteRange[0], $this->byteRange[1])
+            . $this->document->read($this->byteRange[2], $this->byteRange[3]);
     }
 
     public function digestHex(): string

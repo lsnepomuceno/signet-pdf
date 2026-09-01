@@ -7,6 +7,44 @@ number (`docs/spec/quality-policy.md`).
 
 ---
 
+# Upgrading to 3.0 from 2.x
+
+## `PreparedSignature::$document` is a buffer, not a string
+
+```php
+$prepared = $signer->prepare($contents, $info);
+
+$prepared->document;          // was string, now Support\DocumentBuffer
+$prepared->document->bytes;   // the bytes
+```
+
+Everything else on `Data\PreparedSignature` is unchanged, `signableBytes()`,
+`digestBase64()` and `fits()` included, and the object still `serialize()`s
+whole.
+
+**The change is what makes a large document signable.** Phase two writes the
+signature into the document and appends a further revision for each level above
+`pades-b-b`, and PHP extends a string in place only while nothing else points at
+it. A plain string property is copied by the first thing that reads it, and the
+copy is the size of the document: measured at 64.1 MB against 0.1 MB on a 64 MB
+file. Peak memory while signing was one document plus another; it is one
+document plus a working set that does not grow with it
+([0122](docs/decisions/0122-signing-a-document-larger-than-memory.md)).
+
+Assigning the bytes out is still allowed and still costs a copy, which is the
+point of the property being visible rather than hidden behind an accessor that
+looks free.
+
+## `intervention/image` requires 4.x
+
+`^3.11` becomes `^4.3`. If your application pins `intervention/image` to 3.x it
+cannot take this release until it moves, and the move is usually a version
+bump: Intervention Image 4 renamed `ImageManager::read()` to `decode()`, which
+is the whole of what this package used
+([0125](docs/decisions/0125-the-seal-renders-on-intervention-image-4.md)).
+
+---
+
 # Upgrading to 2.0 from 1.x
 
 ## `Contracts\PdfSigner` has two more methods

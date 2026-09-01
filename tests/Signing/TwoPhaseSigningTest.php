@@ -43,8 +43,8 @@ it('prepares a document whose signature space is still empty', function () {
         ->pdf(resource('test.pdf'))
         ->prepare();
 
-    preg_match_all('/\/Contents\s*<([0-9a-fA-F]*)>/', $prepared->document, $contents);
-    preg_match_all('/\/ByteRange\[0 (\d+)\s+(\d+)\s+(\d+)\s*\]/', $prepared->document, $range, PREG_SET_ORDER);
+    preg_match_all('/\/Contents\s*<([0-9a-fA-F]*)>/', $prepared->document->bytes, $contents);
+    preg_match_all('/\/ByteRange\[0 (\d+)\s+(\d+)\s+(\d+)\s*\]/', $prepared->document->bytes, $range, PREG_SET_ORDER);
 
     $placeholder = (string) end($contents[1]);
     $last = end($range);
@@ -67,7 +67,7 @@ it('needs no certificate to prepare', function () {
         ->pdf(resource('test.pdf'))
         ->prepare();
 
-    expect($prepared->document)->toMatch('#/FT\s*/Sig#')
+    expect($prepared->document->bytes)->toMatch('#/FT\s*/Sig#')
         // strlen rather than a length expectation: the digest is bytes, and
         // the multibyte helpers behind toHaveLength() count 27 of these 32.
         ->and(strlen($prepared->digestValue))->toBe(32);

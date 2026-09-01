@@ -13,6 +13,7 @@ use LSNepomuceno\Signet\Exceptions\SignatureTransportException;
 use LSNepomuceno\Signet\Signing\Cades\TimestampCodec;
 use LSNepomuceno\Signet\Signing\Encryption\ObjectCipher;
 use LSNepomuceno\Signet\Support\Bytes;
+use LSNepomuceno\Signet\Support\DocumentBuffer;
 use Throwable;
 
 /**
@@ -64,10 +65,10 @@ final readonly class DocTimeStampWriter
      *          which is the one failure here worth retrying.
      */
     public function append(
-        string $pdf,
+        DocumentBuffer $pdf,
         #[\SensitiveParameter]
         string $documentPassword = '',
-    ): string {
+    ): void {
         $url = $this->config->timestamp->url;
 
         if ($url === null || $url === '') {
@@ -76,13 +77,13 @@ final readonly class DocTimeStampWriter
             );
         }
 
-        $document = $this->reader->read($pdf, $documentPassword);
+        $document = $this->reader->read($pdf->bytes, $documentPassword);
         $cipher = ObjectCipher::for($document);
 
         $stampNumber = $document->size;
         $widgetNumber = $stampNumber + 1;
         $appearanceNumber = $widgetNumber + 1;
-        $pageNumber = $this->reader->findFirstPage($pdf, $document);
+        $pageNumber = $this->reader->findFirstPage($pdf->bytes, $document);
 
         $objects = [
             $stampNumber => $this->docTimeStamp->valueObject($stampNumber, self::CONTENTS_HEX_LENGTH),
@@ -91,7 +92,7 @@ final readonly class DocTimeStampWriter
                 $stampNumber,
                 $pageNumber,
                 $appearanceNumber,
-                $pdf,
+                $pdf->bytes,
                 $document,
                 $cipher,
             ),
@@ -101,17 +102,22 @@ final readonly class DocTimeStampWriter
             // 0025 named as unmeasured and a committed B-LTA sample then showed
             // outright (docs/decisions/0025-what-signing-does-to-pdf-a.md).
             $appearanceNumber => $this->appearance->emptyForm($appearanceNumber, $cipher),
-            $document->root => $this->writer->catalogWithField($pdf, $document, $widgetNumber),
-            $pageNumber => $this->writer->pageWithAnnotation($pdf, $document, $pageNumber, $widgetNumber),
+            $document->root => $this->writer->catalogWithField($pdf->bytes, $document, $widgetNumber),
+            $pageNumber => $this->writer->pageWithAnnotation($pdf->bytes, $document, $pageNumber, $widgetNumber),
         ];
 
-        $withRevision = $this->writer->appendObjects($pdf, $document, $objects);
-        // In place: apply() writes a fixed-width span over the document
-        // rather than returning a new one (issue #285).
-        $this->byteRange->apply($withRevision, self::CONTENTS_HEX_LENGTH);
-        $withByteRange = $withRevision;
+        $revision = $this->writer->objectRevision($pdf->bytes, $document, $objects);
 
-        return $this->embedToken($withByteRange, $url);
+        // Extended in place rather than rebuilt: the revision is a few
+        // kilobytes and the document may be hundreds of megabytes
+        // (docs/decisions/0122-signing-a-document-larger-than-memory.md).
+        $pdf->append($revision);
+
+        // In place too: apply() writes a fixed-width span over the document
+        // rather than returning a new one (issue #285).
+        $this->byteRange->apply($pdf->bytes, self::CONTENTS_HEX_LENGTH);
+
+        $this->embedToken($pdf, $url);
     }
 
     /**
@@ -119,13 +125,19 @@ final readonly class DocTimeStampWriter
      * @throws ProcessRunTimeException
      * @throws SignatureTransportException
      */
-    private function embedToken(string $pdf, string $url): string
+    private function embedToken(DocumentBuffer $pdf, string $url): void
     {
-        [$open, $close, $trailing] = $this->byteRange->readLast($pdf);
-        $open = $this->byteRange->lastContentsOffset($pdf);
+        [$open, $close, $trailing] = $this->byteRange->readLast($pdf->bytes);
+        $open = $this->byteRange->lastContentsOffset($pdf->bytes);
 
+        // **The one copy of the document this pipeline still makes.** An
+        // RFC 3161 request carries the digest of what it timestamps, and the
+        // client hashes the content itself rather than taking an imprint, so
+        // the covered span has to be assembled to be handed over. Everything
+        // else here works from a digest computed in chunks
+        // (docs/decisions/0122-signing-a-document-larger-than-memory.md).
         $token = $this->requestToken(
-            $this->byteRange->signableSpan($pdf, $open, $close, $trailing),
+            $this->byteRange->signableSpan($pdf->bytes, $open, $close, $trailing),
             $url,
         );
 
@@ -139,9 +151,7 @@ final readonly class DocTimeStampWriter
             ));
         }
 
-        Bytes::overwrite($pdf, str_pad($hex, self::CONTENTS_HEX_LENGTH, '0'), $open + 1);
-
-        return $pdf;
+        Bytes::overwrite($pdf->bytes, str_pad($hex, self::CONTENTS_HEX_LENGTH, '0'), $open + 1);
     }
 
     /**

@@ -147,6 +147,54 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Signing no longer holds the document twice.** The peak was a multiple of the
+  file: `Signing\Incremental\RevisionWriter` returned the whole document, so a
+  revision of a few kilobytes allocated the file a second time to add itself to
+  it. It returns the revision now, and the caller extends the document in place,
+  which PHP does without copying while nothing else points at those bytes.
+
+  Measured through `tests/Signing/MemoryFootprintTest.php`, on the same fixtures
+  as before:
+
+  | Document | Peak before | Peak now |
+  |---|---|---|
+  | 8 MB | 22.1 MB, 2.75x | 17.6 MB, 2.19x |
+  | 16 MB | 38.1 MB, 2.38x | 24.1 MB, 1.50x |
+  | 32 MB | 70.1 MB, 2.19x | 40.1 MB, 1.25x |
+
+  **And the size this is actually for:**
+
+  | 300 MB document | Peak while signing |
+  |---|---|
+  | before | 602.0 MB, 2.01x |
+  | now | **309.8 MB, 1.03x** |
+
+  It signs in 1.4 seconds, validates here, and `pdfsig` reads it. A 300 MB
+  document is a scanned process file or a photographic annex, and every one of
+  those was a signature this package could not produce on a default
+  configuration.
+
+  **The ratio falling is not the point; the constant is.** What is held is one
+  document plus about 8 MB, at every size, where it used to be two documents.
+  The 8 MB is the chunk the covered span is hashed in. The test asserts the
+  constant rather than a ratio, because a ratio passes for a large document
+  however many copies are made.
+
+  **It does not yet sign in less than its own size**, which is what
+  [#48](https://github.com/lsnepomuceno/signet-pdf/issues/48) asks for: 300 MB
+  under a 128 MB limit needs the structure read by seeking rather than from a
+  string, and 0122 carries what that costs and which fourteen files it touches.
+
+  `pades-b-lta` holds one more, and it is named rather than absorbed: an RFC
+  3161 request carries the digest of what it timestamps and the client hashes
+  that content itself instead of taking an imprint, so the archive timestamp
+  assembles the span it covers
+  ([0122](docs/decisions/0122-signing-a-document-larger-than-memory.md)).
+
+  **`Data\PreparedSignature::$document` is a `Support\DocumentBuffer` rather
+  than a string**, which is what lets phase two write into the document instead
+  of around it. `UPGRADE.md` carries the one-line change.
+
 - **Switching version on the documentation site keeps the page.** The control
   used to link to an archive's front door from everywhere, so a reader on
   `/spec/public-api` who wanted the `1.x` version of that page navigated again

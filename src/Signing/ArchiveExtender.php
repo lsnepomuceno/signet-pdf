@@ -15,6 +15,7 @@ use LSNepomuceno\Signet\Signing\Incremental\CertificationReader;
 use LSNepomuceno\Signet\Signing\Incremental\DocTimeStampWriter;
 use LSNepomuceno\Signet\Signing\Incremental\DocumentReader;
 use LSNepomuceno\Signet\Signing\Incremental\DssWriter;
+use LSNepomuceno\Signet\Support\DocumentBuffer;
 use LSNepomuceno\Signet\Validation\ChainBuilder;
 use LSNepomuceno\Signet\Validation\PdfSignatureExtractor;
 use LSNepomuceno\Signet\Validation\Pkcs7Reader;
@@ -94,13 +95,12 @@ final readonly class ArchiveExtender
         // document already carries has to be inside the file, and then the new
         // archive timestamp covers it. Extending without this produced a longer
         // chain of timestamps over evidence that was ageing out.
-        return new SignedPdf(
-            $this->timestamps->append(
-                $this->store->refresh($pdfContents, $this->certificateChains($signatures), $documentPassword),
-                $documentPassword,
-            ),
-            $fileName,
-        );
+        $extended = DocumentBuffer::take($pdfContents);
+
+        $this->store->refresh($extended, $this->certificateChains($signatures), $documentPassword);
+        $this->timestamps->append($extended, $documentPassword);
+
+        return new SignedPdf($extended->bytes, $fileName);
     }
 
     /**

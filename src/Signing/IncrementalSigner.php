@@ -32,6 +32,7 @@ use LSNepomuceno\Signet\Signing\Incremental\FieldLockReader;
 use LSNepomuceno\Signet\Signing\Incremental\RevisionWriter;
 use LSNepomuceno\Signet\Signing\Incremental\SignatureFieldReader;
 use LSNepomuceno\Signet\Support\Bytes;
+use LSNepomuceno\Signet\Support\DocumentBuffer;
 use LSNepomuceno\Signet\Support\SigningLog;
 use LSNepomuceno\Signet\Validation\ChainBuilder;
 use LSNepomuceno\Signet\Validation\Pkcs7Reader;
@@ -179,7 +180,7 @@ final readonly class IncrementalSigner implements PdfSigner
         // signable document from about 27 MB to about 36 MB (issue #274).
         $fieldName = $target === null ? $this->uniqueFieldName($pdfContents, $fieldName) : $target->name;
 
-        $signed = $this->writer->append(
+        $revision = $this->writer->revision(
             $pdfContents,
             $document,
             $info,
@@ -193,18 +194,22 @@ final readonly class IncrementalSigner implements PdfSigner
             $lock,
         );
 
-        // The caller passed the document by reference and every guard above has
-        // already read it, so emptying it here releases the last copy of the
-        // original bytes while the revision is hashed. On a 200 MB plan that is
-        // 200 MB not held for the rest of the call (issue #285).
-        $pdfContents = '';
+        // **The document is handed over, not copied.** The caller passed it by
+        // reference and every guard above has already read it, so taking it
+        // leaves this the only thing pointing at those bytes, and appending the
+        // revision extends the allocation instead of duplicating it. Measured
+        // on 64 MB: 0.1 MB this way, 64.1 MB through a concatenation
+        // (docs/decisions/0122-signing-a-document-larger-than-memory.md).
+        $signed = DocumentBuffer::take($pdfContents);
+
+        $signed->append($revision);
 
         // In place, and the reason the offsets stop moving here: the
         // replacement is the same width as the placeholder by construction, so
         // everything after this point is a fixed-width overwrite.
-        $this->byteRange->apply($signed, self::CONTENTS_HEX_LENGTH);
+        $this->byteRange->apply($signed->bytes, self::CONTENTS_HEX_LENGTH);
 
-        [$open, $close, $trailing] = $this->byteRange->readLast($signed);
+        [$open, $close, $trailing] = $this->byteRange->readLast($signed->bytes);
 
         $digest = $this->cades->digest();
 
@@ -214,7 +219,7 @@ final readonly class IncrementalSigner implements PdfSigner
             intdiv(self::CONTENTS_HEX_LENGTH, 2),
             $profile,
             $digest,
-            $this->byteRange->digestOfSpan($signed, $open, $close, $trailing, $digest),
+            $this->byteRange->digestOfSpan($signed->bytes, $open, $close, $trailing, $digest),
             $fieldName,
             $certification,
         );
@@ -228,22 +233,28 @@ final readonly class IncrementalSigner implements PdfSigner
         #[\SensitiveParameter]
         string $documentPassword = '',
     ): SignedPdf {
+        // The buffer rather than a copy of its bytes: every step below writes
+        // into the document it was handed, and a second variable holding the
+        // same string would make each of those writes allocate the document
+        // again (docs/decisions/0122-signing-a-document-larger-than-memory.md).
         $signed = $prepared->document;
 
-        $this->embed($signed, $cms);
+        $this->embed($signed->bytes, $cms);
 
         // B-LT and above append the validation material as a further revision,
         // after the signature it vouches for is already in place.
         if ($prepared->profile->needsValidationMaterial()) {
-            $signed = $certificate === null
-                ? $this->dss->refresh($signed, $this->chains($cms), $documentPassword)
-                : $this->dss->append($signed, $certificate, $documentPassword);
+            if ($certificate === null) {
+                $this->dss->refresh($signed, $this->chains($cms), $documentPassword);
+            } else {
+                $this->dss->append($signed, $certificate, $documentPassword);
+            }
         }
 
         // B-LTA closes with an archive timestamp over the whole file, so the
         // validation material is attested along with the signature.
         if ($prepared->profile->needsArchiveTimestamp()) {
-            $signed = $this->archiveTimestamp->append($signed, $documentPassword);
+            $this->archiveTimestamp->append($signed, $documentPassword);
         }
 
         $this->log->record(SigningEvent::SignatureApplied, [
@@ -255,7 +266,7 @@ final readonly class IncrementalSigner implements PdfSigner
             'signer' => $certificate?->commonName(),
         ]);
 
-        return new SignedPdf($signed);
+        return new SignedPdf($signed->bytes);
     }
 
     /**

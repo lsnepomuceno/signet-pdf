@@ -13,6 +13,7 @@ use LSNepomuceno\Signet\Data\{Certificate,
     SignatureInfo,
     SignedPdf};
 use LSNepomuceno\Signet\Enums\{CertificationLevel, DigestAlgorithm, SignatureProfile};
+use LSNepomuceno\Signet\Support\DocumentBuffer;
 use PHPUnit\Framework\Assert;
 
 /**
@@ -91,7 +92,7 @@ final class FakePdfSigner implements PdfSigner
         $document = $this->fakeDocument();
 
         $prepared = new PreparedSignature(
-            $document,
+            new DocumentBuffer($document),
             [0, strlen($document), strlen($document), 0],
             8192,
             $profile ?? SignatureProfile::PadesBB,
@@ -120,14 +121,14 @@ final class FakePdfSigner implements PdfSigner
         $this->completed[] = $cms;
 
         $this->signed[] = [
-            'document' => $prepared->document,
+            'document' => $prepared->document->bytes,
             'fieldName' => $prepared->fieldName,
             'profile' => $prepared->profile,
             'certification' => $prepared->certification,
             'sealed' => false,
         ];
 
-        return new SignedPdf($prepared->document);
+        return new SignedPdf($prepared->document->bytes);
     }
 
     private function fakeDocument(): string

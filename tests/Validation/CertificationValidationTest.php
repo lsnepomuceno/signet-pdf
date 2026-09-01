@@ -12,6 +12,7 @@ use LSNepomuceno\Signet\Signing\Incremental\DocTimeStampWriter;
 use LSNepomuceno\Signet\Signing\Incremental\DocumentReader;
 use LSNepomuceno\Signet\Signing\Incremental\FormFieldReader;
 use LSNepomuceno\Signet\Signing\Incremental\RevisionWriter;
+use LSNepomuceno\Signet\Support\DocumentBuffer;
 use LSNepomuceno\Signet\Support\Files;
 use LSNepomuceno\Signet\Testing\LocalTimestampAuthority;
 
@@ -164,10 +165,11 @@ it('does not call an archive timestamp a violation of no-changes', function () {
     harness()->bind(SignatureTransport::class, LocalTimestampAuthority::class);
     setConfig('signature.timestamp.url', 'https://timestamp.invalid/tsr');
 
-    $certified = certifiedDocument(CertificationLevel::NoChanges);
-    $archived = resolve(DocTimeStampWriter::class)->append($certified);
+    $archived = new DocumentBuffer(certifiedDocument(CertificationLevel::NoChanges));
 
-    $report = resolve(SignatureValidator::class)->validate($archived);
+    resolve(DocTimeStampWriter::class)->append($archived);
+
+    $report = resolve(SignatureValidator::class)->validate($archived->bytes);
 
     expect($report->certification)->toBe(CertificationLevel::NoChanges)
         ->and($report->timestamps())->toHaveCount(1)
@@ -187,7 +189,7 @@ it('reports a further signature on a no-changes document', function () {
     // Appended through the revision writer rather than through the signer, for
     // the same reason the fixture above is committed: the signer refuses.
     $document = resolve(DocumentReader::class)->read($certified);
-    $modified = resolve(RevisionWriter::class)->appendObjects($certified, $document, [
+    $modified = $certified . resolve(RevisionWriter::class)->objectRevision($certified, $document, [
         $document->size => "{$document->size} 0 obj\n<</Type/Annot/Subtype/Widget/FT/Sig/T (Later)>>\nendobj\n",
     ]);
 
@@ -223,7 +225,7 @@ it('reports a revision that rewrote a field an earlier signature locked', functi
 
     expect($locked)->toBeGreaterThan(0);
 
-    $rewritten = resolve(RevisionWriter::class)->appendObjects($signed, $document, [
+    $rewritten = $signed . resolve(RevisionWriter::class)->objectRevision($signed, $document, [
         $locked => "{$locked} 0 obj\n<</Type/Annot/Subtype/Widget/FT/Sig/T (SignatureManager)"
             . "/Rect[0 0 10 10]/P 3 0 R/F 4/Ff 0>>\nendobj\n",
     ]);
@@ -255,7 +257,7 @@ it('says nothing when the revision touched something no lock covers', function (
     $fields = resolve(FormFieldReader::class)->objectNumbers($signed, $document);
     $manager = $fields['SignatureManager'] ?? 0;
 
-    $rewritten = resolve(RevisionWriter::class)->appendObjects($signed, $document, [
+    $rewritten = $signed . resolve(RevisionWriter::class)->objectRevision($signed, $document, [
         $manager => "{$manager} 0 obj\n<</Type/Annot/Subtype/Widget/FT/Sig/T (SignatureManager)"
             . "/Rect[0 0 10 10]/P 3 0 R/F 4/Ff 0>>\nendobj\n",
     ]);
