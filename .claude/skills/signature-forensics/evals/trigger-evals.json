@@ -1,30 +1,30 @@
 [
   {
-    "query": "o teste tests/Signing/StructureTreeTest.php quebrou depois que eu mexi no DssWriter, e o pdfsig diz que a assinatura nao cobre o documento inteiro. me ajuda a entender o que aconteceu",
+    "query": "tests/Signing/StructureTreeTest.php broke after I touched DssWriter, and pdfsig says the signature does not cover the whole document. help me work out what happened",
     "should_trigger": true
   },
   {
-    "query": "assinei um pdf aqui com o perfil b-lt e o Adobe Reader diz que a assinatura e invalida, mas o nosso PdfSignatureValidator diz que ta tudo certo. quem ta errado",
+    "query": "I signed a pdf with the b-lt profile and Adobe Reader says the signature is invalid, but our own PdfSignatureValidator says it is fine. which one is wrong",
     "should_trigger": true
   },
   {
-    "query": "6 testes de B-LTA falhando com 'Refusing the SHA-1 signing-certificate attribute' e eu nao mexi em nada de timestamp nesse branch",
+    "query": "6 B-LTA tests failing with 'Refusing the SHA-1 signing-certificate attribute' and I touched nothing to do with timestamps on this branch",
     "should_trigger": true
   },
   {
-    "query": "o pyhanko nao acha assinatura nenhuma num pdf que a gente assinou, mas o pdfsig acha as duas normalmente. investiga isso",
+    "query": "pyhanko finds no signatures at all in a pdf we signed, but pdfsig finds both of them without complaining. dig into this",
     "should_trigger": true
   },
   {
-    "query": "preciso ver quais atributos assinados existem no CMS do samples/pades-b-lt.pdf, principalmente se o signing-certificate-v2 esta la ou se saiu a v1",
+    "query": "I need to see which signed attributes are in the CMS of samples/pades-b-lt.pdf, mainly whether signing-certificate-v2 is there or whether the v1 came out instead",
     "should_trigger": true
   },
   {
-    "query": "vou escrever um script rapido pra ver o que o ByteRangeCalculator ta calculando no documento de seis assinaturas, me ajuda a montar",
+    "query": "I'm going to write a quick script to see what ByteRangeCalculator is computing on the six-signature document, help me put it together",
     "should_trigger": true
   },
   {
-    "query": "tests/Validation/SecurityStoreTest.php passa no php 8.4 e falha no 8.5 no mesmo run. isso faz algum sentido pra voce?",
+    "query": "tests/Validation/SecurityStoreTest.php passes on php 8.4 and fails on 8.5 in the same run. does that make any sense to you?",
     "should_trigger": true
   },
   {
@@ -32,51 +32,51 @@
     "should_trigger": true
   },
   {
-    "query": "depois do meu ultimo commit o six-signatures.pdf ficou com a primeira assinatura corrompida e as outras cinco intactas",
+    "query": "after my last commit six-signatures.pdf ended up with the first signature corrupted and the other five intact",
     "should_trigger": true
   },
   {
-    "query": "qpdf --check reclama do xref no arquivo que a gente acabou de assinar mas o documento abre normal no chrome",
+    "query": "qpdf --check complains about the xref in the file we just signed but the document opens fine in chrome",
     "should_trigger": true
   },
   {
-    "query": "adiciona um enum novo pro tipo de politica ICP-Brasil la em src/IcpBrasil/Enums",
+    "query": "add a new enum for the ICP-Brasil policy type over in src/IcpBrasil/Enums",
     "should_trigger": false
   },
   {
-    "query": "escreve o registro de decisao explicando por que a verificacao tem duas implementacoes",
+    "query": "write the decision record explaining why verification has two implementations",
     "should_trigger": false
   },
   {
-    "query": "abre o PR do bump do tc-lib-pdf-sign e fica de olho nos checks",
+    "query": "open the PR for the tc-lib-pdf-sign bump and keep an eye on the checks",
     "should_trigger": false
   },
   {
-    "query": "como eu configuro o freetsa como TSA na aplicacao que consome o pacote? tem exemplo no guia?",
+    "query": "how do I configure freetsa as the TSA in an application that consumes the package? is there an example in the guide?",
     "should_trigger": false
   },
   {
-    "query": "documenta no guia como validar uma assinatura pelo CLI, com o --json",
+    "query": "document in the guide how to validate a signature from the CLI, with --json",
     "should_trigger": false
   },
   {
-    "query": "o composer install ta falhando no container php85 com erro de memoria do composer",
+    "query": "composer install is failing in the php85 container with a composer memory error",
     "should_trigger": false
   },
   {
-    "query": "renomeia Pkcs7Reader pra CmsReader e atualiza todas as citacoes em comentario",
+    "query": "rename Pkcs7Reader to CmsReader and update every mention of it in the comments",
     "should_trigger": false
   },
   {
-    "query": "quanto tempo leva a suite inteira hoje? quero saber se vale paralelizar mais",
+    "query": "how long does the whole suite take today? I want to know whether more parallelism is worth it",
     "should_trigger": false
   },
   {
-    "query": "explica pra mim o que e um DocTimeStamp e por que ele nao conta no isValid",
+    "query": "explain to me what a DocTimeStamp is and why it does not count towards isValid",
     "should_trigger": false
   },
   {
-    "query": "gera os samples de novo, o generate.php mudou e os arquivos ficaram desatualizados",
+    "query": "regenerate the samples, generate.php changed and the files are out of date",
     "should_trigger": false
   }
 ]

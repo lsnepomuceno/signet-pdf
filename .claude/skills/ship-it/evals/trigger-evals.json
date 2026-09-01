@@ -1,34 +1,34 @@
 [
   {
-    "query": "terminei a implementacao, pode commitar e abrir o PR",
+    "query": "I'm done with the implementation, go ahead and commit and open the PR",
     "should_trigger": true
   },
   {
-    "query": "sobe isso pro repositorio pra mim",
+    "query": "push this up to the repository for me",
     "should_trigger": true
   },
   {
-    "query": "abre o PR e fica esperando os checks passarem",
+    "query": "open the PR and wait for the checks to pass",
     "should_trigger": true
   },
   {
-    "query": "faz o merge do 134 e atualiza a main aqui local",
+    "query": "merge 134 and bring main up to date here locally",
     "should_trigger": true
   },
   {
-    "query": "corrigi um typo no README, manda direto pra main que e uma linha so",
+    "query": "I fixed a typo in the README, send it straight to main, it is a single line",
     "should_trigger": true
   },
   {
-    "query": "preciso cortar a 2.1.0, o Unreleased ja tem tudo que entrou",
+    "query": "I need to cut 2.1.0, Unreleased already has everything that landed",
     "should_trigger": true
   },
   {
-    "query": "qual nome de branch eu uso pra essa mudanca do policy attribute?",
+    "query": "what branch name do I use for this policy attribute change?",
     "should_trigger": true
   },
   {
-    "query": "esqueci de atualizar o changelog antes do commit e ja commitei, e agora",
+    "query": "I forgot to update the changelog before committing and I have already committed, now what",
     "should_trigger": true
   },
   {
@@ -36,47 +36,47 @@
     "should_trigger": true
   },
   {
-    "query": "os checks do PR passaram todos, pode seguir com o resto",
+    "query": "the PR checks have all passed, go ahead with the rest",
     "should_trigger": true
   },
   {
-    "query": "roda o composer check no container php85 e me mostra o resultado",
+    "query": "run composer check in the php85 container and show me the result",
     "should_trigger": false
   },
   {
-    "query": "o PHP 8.5 quebrou no CI com dead catch no SymfonyProcessRunner, resolve",
+    "query": "PHP 8.5 broke in CI with a dead catch in SymfonyProcessRunner, fix it",
     "should_trigger": false
   },
   {
-    "query": "escreve o registro de decisao dessa mudanca antes de qualquer coisa",
+    "query": "write the decision record for this change before anything else",
     "should_trigger": false
   },
   {
-    "query": "adiciona a classe PolicyReport em src/IcpBrasil/Data seguindo o padrao",
+    "query": "add the PolicyReport class under src/IcpBrasil/Data following the existing pattern",
     "should_trigger": false
   },
   {
-    "query": "me mostra os ultimos 5 commits da main com uma linha cada",
+    "query": "show me the last 5 commits on main, one line each",
     "should_trigger": false
   },
   {
-    "query": "por que o pdfsig reclama da assinatura desse arquivo aqui?",
+    "query": "why is pdfsig complaining about the signature in this file?",
     "should_trigger": false
   },
   {
-    "query": "explica a diferenca entre merge e squash e qual o github ta configurado pra usar",
+    "query": "explain the difference between merge and squash and which one github is configured to use",
     "should_trigger": false
   },
   {
-    "query": "quantos PRs abertos tem hoje no repositorio?",
+    "query": "how many open PRs are there in the repository today?",
     "should_trigger": false
   },
   {
-    "query": "atualiza a descricao do PR 130 explicando o timeout que aconteceu no merge",
+    "query": "update the description of PR 130 explaining the timeout that happened during the merge",
     "should_trigger": false
   },
   {
-    "query": "o gh nao ta autenticado nessa maquina, resolve isso pra mim",
+    "query": "gh is not authenticated on this machine, sort that out for me",
     "should_trigger": false
   }
 ]

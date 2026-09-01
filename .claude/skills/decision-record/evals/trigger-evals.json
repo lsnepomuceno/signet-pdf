@@ -1,26 +1,26 @@
 [
   {
-    "query": "documenta por que a gente aceita o binding SHA-1 do timestamp mesmo sabendo que a flag e mais larga do que precisava",
+    "query": "document why we accept the SHA-1 timestamp binding even knowing the flag is broader than we needed",
     "should_trigger": true
   },
   {
-    "query": "preciso registrar em algum lugar que o rebuild do laravel-a1-pdf-sign vai ser em cima desse pacote",
+    "query": "I need to write down somewhere that the laravel-a1-pdf-sign rebuild is going to sit on top of this package",
     "should_trigger": true
   },
   {
-    "query": "escreve um ADR sobre assinar documento maior que a memoria, com os tres estagios que a gente combinou",
+    "query": "write an ADR about signing a document larger than memory, with the three stages we agreed on",
     "should_trigger": true
   },
   {
-    "query": "eu ia explicar no corpo do PR por que nao fizemos um caminho streaming separado, mas ficou grande demais pra caber la",
+    "query": "I was going to explain in the PR body why we did not do a separate streaming path, but it got far too long to live there",
     "should_trigger": true
   },
   {
-    "query": "a decisao 0116 nao vale mais depois dessa mudanca. o que eu faco com ela, apago?",
+    "query": "decision 0116 does not hold any more after this change. what do I do with it, delete it?",
     "should_trigger": true
   },
   {
-    "query": "adiciona a linha do registro novo no indice das decisoes, esqueci na hora",
+    "query": "add the row for the new record to the decisions index, I forgot it at the time",
     "should_trigger": true
   },
   {
@@ -28,55 +28,55 @@
     "should_trigger": true
   },
   {
-    "query": "qual o proximo numero livre pra um registro de decisao novo?",
+    "query": "what is the next free number for a new decision record?",
     "should_trigger": true
   },
   {
-    "query": "registra que psr/log e a unica dependencia nao-Symfony e o motivo disso",
+    "query": "record that psr/log is the one non-Symfony dependency and the reason for it",
     "should_trigger": true
   },
   {
-    "query": "essa mudanca quebra a API publica e eu quero deixar escrito o porque antes de comecar a mexer",
+    "query": "this change breaks the public API and I want the reasoning written down before I start touching anything",
     "should_trigger": true
   },
   {
-    "query": "atualiza o CHANGELOG com a entrada do SigningKey na secao Added",
+    "query": "update the CHANGELOG with the SigningKey entry under Added",
     "should_trigger": false
   },
   {
-    "query": "documenta no guia como usar o SigningKey numa aplicacao que tem KMS",
+    "query": "document in the guide how to use SigningKey from an application that has a KMS",
     "should_trigger": false
   },
   {
-    "query": "le a decisao 0104 e me explica em duas linhas o que ela decidiu",
+    "query": "read decision 0104 and explain to me in two lines what it decided",
     "should_trigger": false
   },
   {
-    "query": "abre uma issue no github propondo o versionamento da documentacao no vitepress",
+    "query": "open a github issue proposing the documentation versioning in vitepress",
     "should_trigger": false
   },
   {
-    "query": "o SpecTest ta falhando com um caminho de documentacao que nao resolve, acha qual e",
+    "query": "SpecTest is failing on a documentation path that does not resolve, find which one",
     "should_trigger": false
   },
   {
-    "query": "corrige o link quebrado que tem no README das decisoes apontando pro 0037",
+    "query": "fix the broken link in the decisions README that points at 0037",
     "should_trigger": false
   },
   {
-    "query": "roda a suite so da pasta Validation pra eu ver se ficou verde",
+    "query": "run only the Validation suite so I can see whether it went green",
     "should_trigger": false
   },
   {
-    "query": "faz o merge do PR 134 e volta pra main",
+    "query": "merge PR 134 and get me back onto main",
     "should_trigger": false
   },
   {
-    "query": "resume pra mim o que mudou entre a 2.0.0 e a 2.0.1",
+    "query": "summarise for me what changed between 2.0.0 and 2.0.1",
     "should_trigger": false
   },
   {
-    "query": "escreve o comentario no Jira com o link do PR no topo",
+    "query": "write the Jira comment with the PR link at the top",
     "should_trigger": false
   }
 ]

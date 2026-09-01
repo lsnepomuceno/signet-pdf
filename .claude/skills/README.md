@@ -16,34 +16,51 @@ That is not verifiable by reading. It has to be measured against the prompts
 somebody would really type, which is what `evals/trigger-evals.json` holds:
 twenty queries per skill, ten that must trigger it and ten that must not.
 
-**The queries are mostly Portuguese on purpose**, because that is what gets
-typed here, while the descriptions are English like everything else in the
-repository. Whether that combination works is precisely the kind of thing that
-cannot be assumed.
+**The queries are written the way work is actually asked for**, in the register
+somebody types rather than as tidy specifications: a concrete file path, the
+exact text of an error, the half-sentence that comes before the real question.
+A query polished into a specification measures a prompt nobody sends.
 
 **The negatives are what the set is really for.** An obviously unrelated query
 tests nothing. Each of the ten is a near miss, and most of them are a positive
-for one of the other three skills: `escreve o registro de decisao dessa mudanca`
-must not summon `ship-it`, and `atualiza a descricao do PR 130` must not summon
-it either.
+for one of the other three skills: `write the decision record for this change`
+must not summon `ship-it`, and neither must `update the description of PR 130`.
 
 ## The measured baseline
 
-Taken 2026-08-29, three runs per query, against the descriptions as committed.
+Taken 2026-09-01, three runs per query, against the descriptions as committed.
+It replaces a measurement taken over the previous query set, which was
+Portuguese, and the two numbers are not comparable: the fixture changed, so the
+older one describes a set that no longer exists.
 
 | Skill | Score | Missed |
 |---|---|---|
-| `signature-forensics` | 20/20 | none |
 | `ship-it` | 20/20 | none |
-| `new-class-in-src` | 19/20 | `adiciona uma constante com a largura reservada do /Contents` |
-| `decision-record` | 19/20 | `preciso registrar em algum lugar que o rebuild vai ser aqui` |
+| `signature-forensics` | 19/20 | `tests/Signing/StructureTreeTest.php broke after I touched DssWriter` |
+| `new-class-in-src` | 19/20 | `add a constant for the reserved width of /Contents` |
+| `decision-record` | 18/20 | `I need to write down somewhere that the laravel-a1-pdf-sign rebuild is going to sit on top of this package`, and `record that psr/log is the one non-Symfony dependency and the reason for it` |
 
-**78 of 80, and no false positive in forty negatives.** Both misses are the same
-shape: a positive phrased with none of the words the description offers. They
-were left alone deliberately. The prize is one query, the held-out split is
-eight, and the run-to-run noise is larger than both: several queries scored 0.50,
-the same query with the same description firing in half its runs. Chasing a
-difference smaller than the noise is how the forty clean negatives get spent.
+**76 of 80, and no false positive in forty negatives.**
+
+**Three runs cannot tell a miss from a coin flip**, and three of those four
+scored 1/3, so each was run nine more times against the same description:
+
+| The query that dropped | Three runs | Nine runs |
+|---|---|---|
+| `signature-forensics`, the `StructureTreeTest` failure | 1/3 | 9/9 |
+| `new-class-in-src`, the reserved `/Contents` width | 1/3 | 5/9 |
+| `decision-record`, the rebuild going on top of this | 0/3 | 0/9 |
+| `decision-record`, `psr/log` as the one exception | 1/3 | 1/9 |
+
+So one of the four was noise outright and that description is fine at twenty.
+One sits on the threshold, firing in about half its runs, which is where the
+previous set's equivalent query sat too. **Two are real, both on
+`decision-record`, and both are the same shape: a positive phrased with none of
+the words the description offers.**
+
+They are left alone until somebody measures a description that buys them without
+costing a negative. The prize is two queries, the held-out split is eight, and a
+description edit is measured before and after or it is not measured at all.
 
 The asymmetry is the reason to be conservative here. A skill that occasionally
 fails to appear costs one worse answer. A skill that appears when it should not
