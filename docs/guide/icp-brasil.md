@@ -151,6 +151,39 @@ policies. `pdfsig`, pyHanko and Demoiselle all passed the defective document,
 because none of them resolves the policy at all
 ([0124](../decisions/0124-the-policy-digest-has-an-offline-witness.md)).
 
+### What ITI's Verificador says about it
+
+**Checked rather than claimed.** Two documents signed with a real RFB e-CPF A1
+at `pades-b-b`, each declaring a policy, were submitted to
+[validar.iti.gov.br](https://validar.iti.gov.br) on 2026-09-01:
+
+| Policy declared | Verdict |
+|---|---|
+| AD-RB v1.3, `2.16.76.1.7.1.11.1.3` | signature approved, reported as a qualified electronic signature under MP 2.200-2/01 and Lei 14.063/20 |
+| AD-RB v1.2, `2.16.76.1.7.1.11.1.2` | the same |
+
+**The offline check and the authority agree**, which is the strongest statement
+available about either: EU DSS approved both documents before they were
+submitted, and ITI approved the same two files.
+
+Two limits on what that establishes, and neither is hidden anywhere else:
+
+- **`pades-b-b` and the AD-RB family only.** AD-RT, AD-RC and AD-RA declare more
+  than a baseline signature carries, and submitting for those needs a timestamp
+  authority ICP-Brasil accredits rather than the one the suite uses.
+- **A verdict is about a document, not about a release.** The Verificador is an
+  online service, so it cannot be a gate
+  ([0026](../decisions/0026-verification-tools-are-instruments.md)); what runs on
+  every change is the offline pair above. This is the manual acceptance that
+  says the two are looking for the same thing.
+
+Getting there took a rejection first: the first submission came back with one
+attribute invalid out of five, `IdAaEtsSigPolicyId`, and everything else passing
+including the certification path. The digest was the hash of the wrong artefact,
+and it is the reason both this section and
+[0121](../decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md) spend
+so long on which hash is which.
+
 ### Reading a declaration back
 
 ```php

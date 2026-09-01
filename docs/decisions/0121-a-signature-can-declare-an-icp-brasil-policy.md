@@ -2,7 +2,8 @@
 
 **Status:** accepted, and implemented. The attribute was wrong until
 2026-09-01, in two ways, and the first outcome below diagnosed it incorrectly.
-Read both.
+Read all three: the third records the authority accepting the corrected
+signature.
 
 ## Context
 
@@ -198,3 +199,43 @@ enum against the list was comparing against the wrong artefact with great rigour
 The suite now reads each value from the artefact that defines it: the identifier
 and the validity window from the list, the digest from the policy, and it asserts
 the digest is **not** the file hash, since that is the specific mistake.
+
+---
+
+## Outcome, 2026-09-01: the authority accepts it
+
+**The claim this record makes is no longer unverified.** Two documents signed
+with a real RFB e-CPF A1 at `pades-b-b`, one declaring AD-RB v1.3 and one AD-RB
+v1.2, were submitted to ITI's Verificador after the corrections above. Both came
+back **approved**, reported as qualified electronic signatures under MP 2.200-2/01
+and Lei 14.063/20 ([#137](https://github.com/lsnepomuceno/signet-pdf/issues/137)
+carries the file hashes and the verdicts).
+
+The sequence is worth keeping, because each step corrected the one before it:
+
+| | |
+|---|---|
+| First submission | rejected. One attribute invalid out of five, `IdAaEtsSigPolicyId`, everything else passing |
+| First outcome above | fixed the `AlgorithmIdentifier` encoding and concluded the digest was never the problem. **Wrong** |
+| Second submission | rejected identically, which is what proved that conclusion wrong |
+| Second outcome above | found the two hashes, and fixed all eighteen digests |
+| Third submission | approved |
+
+**The offline witness and the authority agree.** EU DSS reported
+`POLICY DIGEST OK: true` on both documents before either was submitted, and it
+was the only instrument that had reported the defect in the first place
+(0124-the-policy-digest-has-an-offline-witness.md). Two independent
+implementations reaching the same verdict is the strongest statement available
+about either, and it is why the offline gate is worth what it costs.
+
+**What is still unverified**, and stated so it does not get assumed: only
+`pades-b-b` and only the AD-RB family. AD-RT, AD-RC and AD-RA declare more than a
+baseline signature carries, and submitting for those needs a timestamp authority
+ICP-Brasil accredits rather than the one the suite uses.
+
+**And the service is not a gate.** It stopped returning verdicts for an hour and
+a half during the diagnosis, answering `NAO_ASSINADO` to bytes that had produced
+a full conformance report earlier the same afternoon. A manual acceptance run
+against an online authority is what this always was
+(0026-verification-tools-are-instruments.md), and that hour is the reason the
+digest check now runs offline on every change.
