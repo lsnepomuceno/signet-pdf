@@ -1,18 +1,18 @@
 [
   {
-    "query": "preciso de um objeto que carregue o resultado da checagem de politica, com os findings e uma mensagem por finding. onde coloco e com que forma",
+    "query": "I need an object to carry the result of the policy check, with the findings and a message per finding. where does it go and what shape should it have",
     "should_trigger": true
   },
   {
-    "query": "cria um contrato novo pra assinatura remota via PKCS#11, o token fica fora do processo",
+    "query": "create a new contract for remote signing over PKCS#11, the token lives outside the process",
     "should_trigger": true
   },
   {
-    "query": "vou adicionar o OID do sigPolicyId no PolicyAttribute, uso constante privada ou tem lugar melhor",
+    "query": "I'm going to add the sigPolicyId OID to PolicyAttribute, do I use a private constant or is there a better home for it",
     "should_trigger": true
   },
   {
-    "query": "onde e que eu ponho um helper que le o CRL distribution point do certificado? Support ou Validation?",
+    "query": "where do I put a helper that reads the CRL distribution point out of the certificate? Support or Validation?",
     "should_trigger": true
   },
   {
@@ -20,63 +20,63 @@
     "should_trigger": true
   },
   {
-    "query": "quero um enum novo pros tipos de qualificador de politica, sao dois valores fixados pela RFC",
+    "query": "I want a new enum for the policy qualifier types, there are two values and the RFC fixes both",
     "should_trigger": true
   },
   {
-    "query": "esse metodo novo devia devolver array ou um objeto de valor? ele lista o que nao bateu na conformidade",
+    "query": "should this new method return an array or a value object? it lists what failed the conformance check",
     "should_trigger": true
   },
   {
-    "query": "preciso escrever uma classe que envolve o openssl pra gerar CRL nos testes, em que namespace ela entra",
+    "query": "I need to write a class that wraps openssl to generate CRLs in the tests, which namespace does it belong in",
     "should_trigger": true
   },
   {
-    "query": "vou criar o equivalente do NativeSignatureVerifier pro timestamp, me ajuda a colocar no lugar certo",
+    "query": "I'm going to build the timestamp equivalent of NativeSignatureVerifier, help me put it in the right place",
     "should_trigger": true
   },
   {
-    "query": "adiciona uma constante com a largura reservada do /Contents, hoje ta hardcoded em dois lugares",
+    "query": "add a constant for the reserved width of /Contents, right now it is hardcoded in two places",
     "should_trigger": true
   },
   {
-    "query": "o pdfsig diz que a assinatura nao cobre o documento todo, investiga por favor",
+    "query": "pdfsig says the signature does not cover the whole document, please dig into it",
     "should_trigger": false
   },
   {
-    "query": "commita isso e abre o PR com o assignee de sempre",
+    "query": "commit this and open the PR with the usual assignee",
     "should_trigger": false
   },
   {
-    "query": "escreve o ADR de por que o core nao le configuracao nenhuma",
+    "query": "write the ADR for why the core reads no configuration at all",
     "should_trigger": false
   },
   {
-    "query": "refatora o CadesBuilder pra reduzir o numero de argumentos do construtor, ta com cinco",
+    "query": "refactor CadesBuilder to cut down the constructor arguments, it is up to five",
     "should_trigger": false
   },
   {
-    "query": "roda o phpstan no container e me mostra so os erros de nivel max",
+    "query": "run phpstan in the container and show me only the level max errors",
     "should_trigger": false
   },
   {
-    "query": "explica o que o BaseData faz e por que todo Data estende dele",
+    "query": "explain what BaseData does and why every Data extends it",
     "should_trigger": false
   },
   {
-    "query": "atualiza o composer.json pra permitir php 8.5 tambem",
+    "query": "update composer.json to allow php 8.5 as well",
     "should_trigger": false
   },
   {
-    "query": "escreve os testes que faltam pro PolicyConformance que ja existe",
+    "query": "write the tests that are missing for the PolicyConformance that already exists",
     "should_trigger": false
   },
   {
-    "query": "traduz os comentarios do DerReader que ficaram em portugues por engano",
+    "query": "translate the DerReader comments that ended up in portuguese by mistake",
     "should_trigger": false
   },
   {
-    "query": "quantas classes tem hoje em src/Validation?",
+    "query": "how many classes are there in src/Validation today?",
     "should_trigger": false
   }
 ]
