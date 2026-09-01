@@ -169,6 +169,39 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The ICP-Brasil policy attribute was rejected by ITI's Verificador, and the
+  digest was never the problem.** A document signed with an RFB e-CPF A1 at
+  AD-RB v1.3 came back `Assinatura reprovada`, with one attribute invalid out of
+  five and everything else passing, the certification path included:
+
+  ```
+  Nome do atributo: IdAaEtsSigPolicyId
+  Corretude: Invalid
+  Mensagem de erro: Falha ao construir o atributo.
+                    O valor do resumo criptográfico não é equivalente ao esperado.
+  ```
+
+  The digest was correct. What was wrong was the `AlgorithmIdentifier` around
+  it: `Signing\Cades\PolicyAttribute` wrote `300d` with an explicit `NULL` in
+  the OPTIONAL `parameters` field, where `LPA_PAdES.der` and every
+  `PA_PAdES_*.der` write `300b`, the OID alone. The verifier rebuilds the
+  structure from what the policy declares and compares, so two bytes failed the
+  attribute. RFC 5754 section 2 is explicit that implementations "MUST generate
+  SHA2 AlgorithmIdentifiers with absent parameters", and the code carried a
+  comment citing RFC 4055 for the opposite
+  ([0121](docs/decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md)
+  carries the outcome).
+
+  **Every signature this package produced declaring an ICP-Brasil policy is
+  affected**, and re-signing is the only fix for a document already issued: the
+  attribute is signed, so it cannot be corrected in place.
+
+  The test that was meant to guard this compared the enum's digest against the
+  digest parsed out of the published list, and both were right. Nothing looked
+  at the bytes around the value. The suite now compares the whole
+  `OtherHashAlgAndValue` against the authority's own bytes, for all eighteen
+  policies rather than the one that happened to be submitted.
+
 - **A temporary file holding key material was world-readable while it existed.**
   `Certificates\OpenSslCliCertificateReader` writes the decrypted private key to
   disk, because `-nodes` is how the `openssl` binary emits one, and

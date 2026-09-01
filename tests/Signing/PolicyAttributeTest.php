@@ -75,3 +75,29 @@ it('refuses a digest that is not hexadecimal', function () {
     // input it cannot read, and a warning fails the suite by design.
     expect($encode)->toThrow(ProcessRunTimeException::class, 'not hexadecimal');
 });
+
+it('omits the parameters in a signature a document actually carries', function () {
+    // The encoder is one thing and what reaches the CMS is another: the
+    // attribute is handed to the CMS library, and this is the half that broke
+    // in the field rather than in a unit test.
+    $policy = LSNepomuceno\Signet\IcpBrasil\Enums\SignaturePolicy::AdRbV1_3;
+
+    [$pfxPath, $password] = debugCertificate();
+
+    $signed = new LSNepomuceno\Signet\Signet(
+        new LSNepomuceno\Signet\Config\SignetConfig(
+            new LSNepomuceno\Signet\Config\SigningConfig(policy: $policy->identifier()),
+        ),
+    )
+        ->newSignature()
+        ->certificate($pfxPath, $password)
+        ->pdf(resource('test.pdf'))
+        ->sign();
+
+    $cms = new LSNepomuceno\Signet\Validation\PdfSignatureExtractor()
+        ->extract($signed->contents())[0]['cms'];
+
+    expect(bin2hex($cms))->toContain('300b0609608648016503040201')
+        ->and(bin2hex($cms))->toContain($policy->digest())
+        ->and(bin2hex($cms))->not->toContain('300d06096086480165030402010500');
+});
