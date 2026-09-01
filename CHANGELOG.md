@@ -175,8 +175,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `Support\Files::write()` writes at the process umask. Measured at the default
   0022: the file was **0644** inside a **0755** directory, so any user on the
   host could read the key for the length of the call. The file was always
-  deleted in a `finally`, which is what
-  [SECURITY.md](SECURITY.md) promised and was never the part at issue.
+  deleted in a `finally`, which is what `SECURITY.md` promised and was never the
+  part at issue.
 
   `Support\Files::writePrivate()` and `Support\Files::makePrivateDirectory()` are
   the fix, and `Support\TemporaryFile` uses them for every caller: the CMS, the
