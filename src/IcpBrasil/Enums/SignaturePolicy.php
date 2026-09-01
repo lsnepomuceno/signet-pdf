@@ -19,14 +19,18 @@ use LSNepomuceno\Signet\Enums\SignatureProfile;
  * uses, ITI's own Verificador among them
  * (docs/decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md).
  *
- * **Every value here was read from the artefact, never transcribed.** The
- * source is ITI's list of approved policies for PAdES,
- * `http://politicas.icpbrasil.gov.br/LPA_PAdES.der`, **read on 2026-08-29**,
- * and that exact file is committed at
- * `tests/Resources/icp-brasil/LPA_PAdES.der`.
- * `tests/IcpBrasil/SignaturePolicyTest.php` parses it and fails when a case
- * here disagrees with it, because a wrong policy hash produces a signature
- * that declares conformance and fails it.
+ * **Every value here was read from an artefact, never transcribed, and there
+ * are two artefacts because there are two different hashes.** The identifier,
+ * the URI and the validity window come from ITI's list of approved policies,
+ * `http://politicas.icpbrasil.gov.br/LPA_PAdES.der`, **read on 2026-08-29**.
+ * `digest()` comes from each policy document itself, read on 2026-09-01, since
+ * the hash the list records is over the file and the hash a signature declares
+ * is the one the policy carries in its own `signPolicyHash`. Both artefacts
+ * are committed, under `tests/Resources/icp-brasil/`, and
+ * `tests/IcpBrasil/SignaturePolicyTest.php` reads each value from the artefact
+ * that actually defines it: a wrong policy hash produces a signature that
+ * declares conformance and fails it, which is precisely what happened when
+ * every digest here came from the list.
  *
  * The four families map onto the four profiles this package produces. Every
  * version ITI has published is a case, superseded ones included, so a
@@ -119,32 +123,45 @@ enum SignaturePolicy: string
     }
 
     /**
-     * The digest of the policy document, lowercase hex.
+     * The policy's own `signPolicyHash`, lowercase hex.
      *
-     * What a verifier compares against the document it fetches, which is
-     * what makes the declaration a commitment rather than a label.
+     * **This is not the digest of the policy file, and the difference is the
+     * whole of ICP-Brasil issue 137.** A policy document is
+     * `SEQUENCE { signPolicyHashAlg, signPolicyInfo, signPolicyHash }`, and
+     * the hash it carries in that third field covers the first two only:
+     * including the field would make it hash itself. That is the value a
+     * signature declares, and it is what ITI's Verificador rebuilds from the
+     * policy document and compares against.
+     *
+     * `LPA_PAdES.der` records a **different** hash for the same policy, over
+     * the whole file, which is how a verifier checks it downloaded the right
+     * document. Reading the list and putting that value in the attribute is
+     * the defect this package shipped: every field of the attribute was right
+     * except the one that mattered, and the digest matched a real artefact, so
+     * nothing looked wrong
+     * (docs/decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md).
      */
     public function digest(): string
     {
         return match ($this) {
-            self::AdRbV1_0 => '739a8249a24b681e4b2280e16055d254b26b684a7ac7bc0e5aca234cc0506bbd',
-            self::AdRtV1_0 => '92d4f1c9cf16ae43a7e6461470b9474cc97dc9f9ff03ade6eeaf3f1ff8c11380',
-            self::AdRcV1_0 => 'a1cda04a15c7b79f4cb8653647b81c869f51818e7524bc18290fc99b8a7bd4ce',
-            self::AdRaV1_0 => '7b80c1ff81c53c55e2845039acd821790eabb1191bb311a5a352e4e384bf97b2',
-            self::AdRcV1_1 => 'e30d4aff9c88a1cf33ece0fe84859869c5e77802b2a23265aec9338171a48de6',
-            self::AdRaV1_1 => '8e7ce798e62840acefb7180020f9a904ddc3ea6d74b3004052334bc6aafdd040',
-            self::AdRbV1_1 => '95752d26ca974d46675ae7fb787b606a71ea941f26b59f6b6a321f97d63b9cb1',
-            self::AdRtV1_1 => '953f7a202391c912216b9e84cf5dae75fe3e10e7f725fc77b60fca32fbac6426',
-            self::AdRcV1_2 => '012ad1cbe9629a53d8c310dc9e0733d3b77d6bb5877bdcd07627bb0f98771a8b',
-            self::AdRaV1_2 => '8e7689b5533dca9ff7a56655d6ceeb5e9409c6c4aea41bb1cd4bddde8b608ff2',
-            self::AdRbV1_2 => '84ed4620c6531e4a4853adecc9e2496926c823418dd3141963ed9c4f9704a03d',
-            self::AdRtV1_2 => 'da6e12c17e9be0343abbdb494723effcb53fe95f5f0b9bbee1b35bcef3a01eef',
-            self::AdRcV1_3 => '8fbcd072bb60e9776a520a53218a31fb1b0535b12ea3f6599abeef44d2cb8ba7',
-            self::AdRaV1_3 => '6102b07606a2704aa5ae4d04e6583725c840ba53c56f095699a3fe24f1f2834d',
-            self::AdRbV1_3 => '23da544aef71f7a75dc85fa6e17a83875741e4baef41ec178258a5c86ace54dd',
-            self::AdRtV1_3 => '92a972e7c292bb884e98e650773d9e9876994effb43eb36199b06bf2864a677c',
-            self::AdRcV1_4 => 'defe0ce4a45be8d7bf0a62bfe7baba5329b7665e5585568de00b9f3e56c0ce83',
-            self::AdRaV1_4 => 'b77680a623ba7b9757c38404d4759d966791338665ff5cf152c1c0917f97c548',
+            self::AdRbV1_0 => '501d69b4b71fc6e57323c2c74131a9c8c62409be378ba788dc288555611b9e58',
+            self::AdRtV1_0 => 'cefbba0147077bd216eb04d2b25c56c3d4ac60dbbe08cdd697d2dcd0029b56e8',
+            self::AdRcV1_0 => 'b3d8a9ef6b475a8cd62f07b3edb8b0bd974dd15a165eeb197bd987d7591e0fee',
+            self::AdRaV1_0 => '6d1dd552117d1de402f515f9f77ef9d30b2162995f93a2290c134c9c24387bdf',
+            self::AdRcV1_1 => '3fe5e1eeea9f6723568dc9e2c313c0e19c817faa923ab29b52ea76d1fb53027c',
+            self::AdRaV1_1 => '2ac50c5be4ccdde5c240a4a304f7021642841642aa0ed8b403e6c518dd9d81b6',
+            self::AdRbV1_1 => '44fc5816eb2d705d8c8f022a7f93b3fb49edfae1a7b9149ef6fab833e9bb63f8',
+            self::AdRtV1_1 => 'fa1d44e76ad91e2f6cd471b6987e9c0f1c70d4b70da0956e7becf4dc792c0c1f',
+            self::AdRcV1_2 => '9f743696b821e535252c17df754cd9379fd2d3b6870179248c64a5c80604399d',
+            self::AdRaV1_2 => '1f1b8e74be9626bc1702d40ce1c126eb1c9caf7bade6b1fd779c8f60e733dd7c',
+            self::AdRbV1_2 => 'bf22358c963b52971f18c822d8529c5163fe55fa8eed1068d327adc6bc082ee2',
+            self::AdRtV1_2 => '19e0be31d91a6ffa694bbe0e9b35e4bc2f877f62dc6ac7a7833ada6345e15af8',
+            self::AdRcV1_3 => '235488859f7ada5d4984c364cc1c8eee4673fb7c70ff8b19dd236a86f3d87cc2',
+            self::AdRaV1_3 => '542600efaa7cac8e1db8cee572ef275f6157de27cf5e2fd75466ae2dcf8fab04',
+            self::AdRbV1_3 => '23e4be4b9b362172e4ebb0e72b86a133ece5aad843d8651c6e38a0ba3f08fc60',
+            self::AdRtV1_3 => '21d6e8d9f85e5626dc71307337a7cabd6ffef8d085038746775cf0ce6ba4d3b5',
+            self::AdRcV1_4 => '712f18a9f0163c1e90da6ff0b7165543378a18a0f06d3cb21668067cac229bd2',
+            self::AdRaV1_4 => 'ffa9fd474812f6ce63d625679c9ef235a6547b017be941b2c094aa868e67e123',
         };
     }
 

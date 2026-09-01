@@ -169,10 +169,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **The ICP-Brasil policy attribute was rejected by ITI's Verificador, and the
-  digest was never the problem.** A document signed with an RFB e-CPF A1 at
-  AD-RB v1.3 came back `Assinatura reprovada`, with one attribute invalid out of
-  five and everything else passing, the certification path included:
+- **The ICP-Brasil policy attribute declared the wrong hash of the right
+  policy.** A document signed with an RFB e-CPF A1 at AD-RB v1.3 was rejected by
+  ITI's Verificador, with one attribute invalid out of five and everything else
+  passing, the certification path included:
 
   ```
   Nome do atributo: IdAaEtsSigPolicyId
@@ -181,26 +181,39 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
                     O valor do resumo criptográfico não é equivalente ao esperado.
   ```
 
-  The digest was correct. What was wrong was the `AlgorithmIdentifier` around
-  it: `Signing\Cades\PolicyAttribute` wrote `300d` with an explicit `NULL` in
-  the OPTIONAL `parameters` field, where `LPA_PAdES.der` and every
-  `PA_PAdES_*.der` write `300b`, the OID alone. The verifier rebuilds the
-  structure from what the policy declares and compares, so two bytes failed the
-  attribute. RFC 5754 section 2 is explicit that implementations "MUST generate
-  SHA2 AlgorithmIdentifiers with absent parameters", and the code carried a
-  comment citing RFC 4055 for the opposite
+  **There are two hashes of a policy, and this package used the wrong one.** A
+  policy document is `SEQUENCE { signPolicyHashAlg, signPolicyInfo,
+  signPolicyHash }`, and the third field is a hash over the first two, excluding
+  itself. That is the value `sigPolicyHash` must carry, and it is what a
+  verifier rebuilds from the policy and compares. `LPA_PAdES.der` records a
+  different hash over the whole file, which is how you check you downloaded the
+  right document.
+
+  | For `PA_PAdES_AD_RB_v1_3.der` | |
+  |---|---|
+  | What the list records, over the file | `23da544aef71f7a7...` |
+  | What the policy carries in `signPolicyHash` | `23e4be4b9b362172...` |
+  | What this package declared | the first |
+
+  All eighteen digests came from the list, so all eighteen were the file hash.
+  Both are genuine hashes of genuine artefacts published by the authority, which
+  is why the wrong one survived review and a test that compared it against the
+  list. `digest()` now comes from each policy document, all eighteen of which
+  are committed and checked against the list's file hash before use
   ([0121](docs/decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md)
-  carries the outcome).
+  carries both outcomes, including a first diagnosis that was wrong).
 
   **Every signature this package produced declaring an ICP-Brasil policy is
   affected**, and re-signing is the only fix for a document already issued: the
   attribute is signed, so it cannot be corrected in place.
 
-  The test that was meant to guard this compared the enum's digest against the
-  digest parsed out of the published list, and both were right. Nothing looked
-  at the bytes around the value. The suite now compares the whole
-  `OtherHashAlgAndValue` against the authority's own bytes, for all eighteen
-  policies rather than the one that happened to be submitted.
+- **The policy hash algorithm was encoded with explicit `NULL` parameters.**
+  Found while diagnosing the above and fixed on its own merits, not because it
+  caused the rejection: it did not. RFC 5754 section 2 is explicit that
+  implementations "MUST generate SHA2 AlgorithmIdentifiers with absent
+  parameters", and names omitting them the correct encoding. ICP-Brasil follows
+  that in both the list and every policy document; this package wrote `300d`
+  with the `NULL` where they write `300b`.
 
 - **A temporary file holding key material was world-readable while it existed.**
   `Certificates\OpenSslCliCertificateReader` writes the decrypted private key to

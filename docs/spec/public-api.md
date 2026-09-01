@@ -257,17 +257,29 @@ $config = new SignetConfig(new SigningConfig(
 ```
 
 `IcpBrasil\Enums\SignaturePolicy` carries every policy ITI has published for
-PDF, superseded versions included, each with its URI, the digest of its document
-and the profile that satisfies it. The values are read from
-`http://politicas.icpbrasil.gov.br/LPA_PAdES.der`, and the copy read on
-2026-08-29 is committed at `tests/Resources/icp-brasil/LPA_PAdES.der` with a
-test that fails when the two disagree.
+PDF, superseded versions included, each with its URI, its validity window, the
+profile that satisfies it, and `digest()`.
+
+**`digest()` is the policy's own `signPolicyHash`, not the hash of the policy
+file.** The two are different values of the same policy: the file hash is what
+`LPA_PAdES.der` records, so a fetch can be checked, and the policy's own hash
+covers its contents excluding that field and is what a signature declares. A
+verifier rebuilds the attribute from the policy document and compares, so the
+distinction decides whether a signature is accepted
+([0121](../decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md)).
+
+The identifier, URI and window are read from
+`http://politicas.icpbrasil.gov.br/LPA_PAdES.der` as read on 2026-08-29, and
+`digest()` from each policy document as read on 2026-09-01. All of them are
+committed under `tests/Resources/icp-brasil/`, with tests that fail when a value
+and its artefact disagree.
 
 `IcpBrasil\PolicyConformance::check()` reads a declaration back and returns an
 `IcpBrasil\Data\PolicyReport`, the shape `Data\Report` has: what was examined,
 the findings, `conforms()`, `has()` and `messages()`. It reports an unknown
-identifier, a digest that disagrees with the list, a policy not in force at the
-signing time, and a signature that carries less than the policy demands.
+identifier, a digest that disagrees with the policy document, a policy not in
+force at the signing time, and a signature that carries less than the policy
+demands.
 **`isValid()` consults none of it**, deliberately: keeping to a policy and
 verifying are different questions.
 

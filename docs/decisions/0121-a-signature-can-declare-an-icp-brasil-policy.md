@@ -1,7 +1,8 @@
 # 0121: A signature can declare an ICP-Brasil policy
 
-**Status:** accepted, and implemented. The attribute's encoding was wrong
-until 2026-09-01: see the outcome below.
+**Status:** accepted, and implemented. The attribute was wrong until
+2026-09-01, in two ways, and the first outcome below diagnosed it incorrectly.
+Read both.
 
 ## Context
 
@@ -101,7 +102,7 @@ decision this did not need to make.
   gate is that `pdfsig` and pyHanko still read a signature carrying the new
   attribute, which is what proves the CMS structure survived it.
 
-## Outcome, 2026-09-01
+## Outcome, 2026-09-01: the encoding, and a wrong diagnosis
 
 **The attribute was rejected by ITI's Verificador, and the digest was never the
 problem.** The manual run this record said could not be a gate is what found it
@@ -150,3 +151,50 @@ put it.** The Verificador being an online service is why it cannot gate a build.
 It is not a reason to treat one manual run as optional: it was the only thing
 that read this attribute the way a Brazilian verifier reads it, and it found in
 one submission what the suite, `pdfsig` and pyHanko had all passed.
+
+## Outcome, 2026-09-01: the digest, and what the outcome above got wrong
+
+**The signature corrected above was rejected again, with the same message on the
+same attribute.** So the outcome above is wrong where it says "the digest was
+never the problem". The `AlgorithmIdentifier` encoding was a real defect against
+RFC 5754 and it was not what ITI was objecting to.
+
+**There are two hashes of a policy, and this package used the wrong one.**
+
+A policy document is `SEQUENCE { signPolicyHashAlg, signPolicyInfo,
+signPolicyHash }`. The third field is a hash over the first two, which excludes
+itself because a document cannot hash its own hash. That is the value a
+signature declares in `sigPolicyHash`, and it is what a verifier rebuilds from
+the policy document and compares.
+
+`LPA_PAdES.der` records a **different** hash for the same policy, over the whole
+file, which is how a verifier checks it downloaded the right document.
+
+| For `PA_PAdES_AD_RB_v1_3.der` | |
+|---|---|
+| What the list records, over the file | `23da544aef71f7a7...` |
+| What the policy carries in `signPolicyHash` | `23e4be4b9b362172...` |
+| What this package declared | the first |
+
+Every one of the eighteen digests was read from the list, so every one was the
+file hash. **Both values are genuine hashes of genuine artefacts**, which is why
+the wrong one survived review, a test, and a diagnosis: it matched something
+real, and the thing it matched was published by the authority.
+
+**The evidence came from a tool this record's first outcome dismissed.** The EU
+Commission's DSS reported the mismatch on the first submission and printed the
+value it expected, `23e4be4b...`, and that was read as DSS disagreeing with
+ICP-Brasil about what to hash. DSS was right. It computes what ETSI TS 101 733
+specifies, which is what the policy stores, which is what ITI checks.
+
+The fix reads `digest()` from each policy document rather than from the list.
+All eighteen documents are committed under
+`tests/Resources/icp-brasil/policies/`, and the suite checks each against the
+list's file hash first, so the fixture is the authority's bytes rather than a
+download somebody trusted.
+
+**What the previous test could not do, and the new one does.** Comparing the
+enum against the list was comparing against the wrong artefact with great rigour.
+The suite now reads each value from the artefact that defines it: the identifier
+and the validity window from the list, the digest from the policy, and it asserts
+the digest is **not** the file hash, since that is the specific mistake.

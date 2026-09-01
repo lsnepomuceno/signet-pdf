@@ -36,7 +36,7 @@ enum PolicyFinding: string
         return match ($this) {
             self::NoPolicyDeclared => 'the signature declares no ICP-Brasil signature policy',
             self::UnknownPolicy => 'the policy identifier is not on the published list',
-            self::PolicyDigestDisagrees => 'the declared digest is not the one the published list carries',
+            self::PolicyDigestDisagrees => 'the declared digest is not the one the policy document carries',
             self::PolicyNotInForce => 'the policy was not in force when the document was signed',
             self::SignatureBelowPolicy => 'the signature does not carry what the declared policy requires',
         };
