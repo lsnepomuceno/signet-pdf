@@ -115,8 +115,21 @@ profiles:
 |---|---|---|
 | AD-RB | a basic reference | `pades-b-b` |
 | AD-RT | a time reference | `pades-b-t` |
-| AD-RC | complete references | `pades-b-lt` |
+| AD-RC | complete references | `pades-b-lta` |
 | AD-RA | archival references | `pades-b-lta` |
+
+::: warning AD-RC is not the `pades-b-lt` policy
+It looks like one, and ETSI puts complete references on that rung. Every AD-RC
+version names `/DocTimeStamp` among the dictionaries it requires, which is what
+`pades-b-lta` adds, and ITI refuses a B-LT document declaring it. So
+**`forProfile(SignatureProfile::PadesBLT)` answers null**: ITI publishes no
+policy a B-LT signature satisfies, and answering the nearest family is what
+produced a document the authority refused while this package called it
+conformant ([0131](../decisions/0131-ad-rc-wants-a-document-timestamp.md)).
+
+`forProfile(SignatureProfile::PadesBLTA)` answers AD-RA, the stronger of the two
+families that land there.
+:::
 
 Every version ITI has published is a case, superseded ones included, so a
 document declaring an older policy can still be named when it is read back.

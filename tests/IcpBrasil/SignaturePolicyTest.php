@@ -12,6 +12,7 @@ use LSNepomuceno\Signet\IcpBrasil\Enums\SignaturePolicy;
 use LSNepomuceno\Signet\IcpBrasil\PolicyConformance;
 use LSNepomuceno\Signet\Signet;
 use LSNepomuceno\Signet\Signing\Cades\PolicyAttribute;
+use LSNepomuceno\Signet\Support\Files;
 use LSNepomuceno\Signet\Testing\LocalTimestampAuthority;
 
 /**
@@ -108,14 +109,51 @@ it('carries exactly what the published list carries', function () {
     }
 });
 
+it('maps a policy onto a profile that carries what the policy document asks for', function () {
+    // **The defect this exists for.** ETSI EN 319 142-1 puts the document
+    // timestamp at B-LTA, so mapping the complete-references family onto B-LT
+    // follows the European ladder exactly and was wrong: every AD-RC version
+    // names `/DocTimeStamp` among the dictionaries it requires, and ITI
+    // refused a `pades-b-lt` document declaring AD-RC v1.4 for exactly that
+    // (docs/decisions/0131-ad-rc-wants-a-document-timestamp.md).
+    //
+    // Read out of each policy document rather than transcribed, so the mapping
+    // is gated by the artefact and not by this file agreeing with the enum.
+    $required = [];
+    $mapped = [];
+
+    foreach (SignaturePolicy::cases() as $policy) {
+        // A raw byte search, because what is wanted is whether the document
+        // names the dictionary anywhere, and the policy's own grammar is not
+        // what is under test here.
+        $required[$policy->value] = str_contains(Files::read(policyDocument($policy)), 'DocTimeStamp');
+        $mapped[$policy->value] = $policy->profile() === SignatureProfile::PadesBLTA;
+    }
+
+    expect($mapped)->toBe($required)
+        // Both answers have to occur, or a search that always returned false
+        // would pass this while asserting nothing.
+        ->and(array_unique(array_values($required)))->toHaveCount(2);
+});
+
 it('names the policy in force for each profile', function () {
     // Read on 2026-08-29, which is what the enum's docblock records.
     $at = 1_787_000_000;
 
     expect(SignaturePolicy::forProfile(SignatureProfile::PadesBB, $at)?->value)->toBe('2.16.76.1.7.1.11.1.3')
         ->and(SignaturePolicy::forProfile(SignatureProfile::PadesBT, $at)?->value)->toBe('2.16.76.1.7.1.12.1.3')
-        ->and(SignaturePolicy::forProfile(SignatureProfile::PadesBLT, $at)?->value)->toBe('2.16.76.1.7.1.13.1.4')
+        // AD-RA rather than AD-RC, which is in force on the same day and
+        // satisfied by the same profile. ITI numbers the families in
+        // increasing order of what they demand, so the later arc wins and the
+        // answer does not depend on the order the cases are declared in.
         ->and(SignaturePolicy::forProfile(SignatureProfile::PadesBLTA, $at)?->value)->toBe('2.16.76.1.7.1.14.1.4');
+});
+
+it('answers nothing for pades-b-lt, because ITI publishes nothing it satisfies', function () {
+    // Not an oversight and not a gap to fill with the nearest family. AD-RC
+    // looks like the B-LT policy and is not one, and answering it here is what
+    // produced a document ITI refused while this package called it conformant.
+    expect(SignaturePolicy::forProfile(SignatureProfile::PadesBLT, 1_787_000_000))->toBeNull();
 });
 
 it('refuses to call a superseded policy current', function () {
