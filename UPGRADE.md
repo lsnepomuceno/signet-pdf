@@ -45,6 +45,49 @@ is the whole of what this package used
 
 ---
 
+## `SignaturePolicy::forProfile()` answers nothing for `pades-b-lt`
+
+```php
+SignaturePolicy::forProfile(SignatureProfile::PadesBLT);   // was AD-RC, now null
+SignaturePolicy::forProfile(SignatureProfile::PadesBLTA);  // AD-RA, as before
+```
+
+**AD-RC is not the B-LT policy.** Every version of it names `/DocTimeStamp`
+among the dictionaries it requires, which is what `pades-b-lta` adds, and ITI
+refuses a `pades-b-lt` document declaring it. ITI publishes no policy a B-LT
+signature satisfies, so there is nothing to answer with.
+
+If you were doing this, you were producing documents the authority rejects:
+
+```php
+policy: SignaturePolicy::forProfile($profile)?->identifier(),
+```
+
+The fix is to sign one level higher when you need a Brazilian policy above
+AD-RT:
+
+```php
+profile: SignatureProfile::PadesBLTA,
+policy: SignaturePolicy::forProfile(SignatureProfile::PadesBLTA)?->identifier(),
+```
+
+Nothing else moves. `pades-b-lt` still signs, still writes the security store,
+and is still the right profile for a document that needs long-term validation
+material without an archive timestamp: it simply is not a level ICP-Brasil has
+a policy for
+(`docs/decisions/0131-ad-rc-wants-a-document-timestamp.md`).
+
+## An AD-RA signature grows by about 15 KB
+
+Nothing to do, and worth knowing before a size check somewhere else fails.
+A signature declaring an ICP-Brasil archival policy now carries the policy
+document, ITI's published policy list and that list's signature inside the
+Document Security Store, because the policy requires them and ITI refuses a
+document without them.
+
+Every other signature is byte for byte what it was
+(`docs/decisions/0132-the-store-carries-the-policy-artefacts.md`).
+
 # Upgrading to 2.0 from 1.x
 
 ## `Contracts\PdfSigner` has two more methods
