@@ -126,6 +126,7 @@ entry point entirely.
 | **Archive maintenance** | refresh a B-LTA archive with no certificate and no key material involved, from PHP or from a cron entry |
 | **Verification** | the CMS is actually verified, with the timestamp, the profile and revocation reported |
 | **ICP-Brasil identity** | CPF, CNPJ (including the alphanumeric one) and the rest, read from the certificate rather than parsed out of a name |
+| **ICP-Brasil policies** | a signature declares the policy it was made under, and an archival one carries the policy document and ITI's published list inside the file |
 | **PDF/A** | a signed document stays conformant, measured with veraPDF rather than assumed |
 | **PDF/UA** | measured too: an accessible document stays conformant, seal or not, because the widget joins the structure tree and carries a description |
 
@@ -133,10 +134,10 @@ entry point entirely.
 
 Everything else is at
 **[lsnepomuceno.github.io/signet-pdf](https://lsnepomuceno.github.io/signet-pdf/)**:
-twenty pages covering profiles and timestamps, visible seals, signature fields,
-certification, encrypted documents, validation, trust, ICP-Brasil, the command
-line, testing your own code, and every exception this package raises, plus the
-changelog and the upgrade guide. The `1.x` line is archived at
+twenty-one pages covering profiles and timestamps, visible seals, signature
+fields, certification, encrypted documents, validation, trust, ICP-Brasil, the
+command line, testing your own code, every exception this package raises and
+every limit it still has, plus the changelog and the upgrade guide. The `1.x` line is archived at
 [/v1/](https://lsnepomuceno.github.io/signet-pdf/v1/).
 
 <p>

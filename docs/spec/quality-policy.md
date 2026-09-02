@@ -563,9 +563,23 @@ Three things about how it is gated are load-bearing:
   instruments passed the defective document. Asserting only the digest would let
   this gate decay into the same silence.
 - **The policy documents are supplied, never fetched.** The eighteen are
-  committed under `tests/Resources/icp-brasil/policies/`, and are themselves
-  checked against the published list's file hash, which is what that hash is
-  for. A run that reached the authority would be measuring its uptime.
+  committed, the archival five under `src/Resources/icp-brasil/policies/`
+  because signing embeds them and the rest under `tests/Resources/`, and they
+  are themselves checked against the published list's file hash, which is what
+  that hash is for. A run that reached the authority would be measuring its
+  uptime.
+
+**The same witness reads the baseline level**, `PAdES-BASELINE-B` through
+`-LTA`, and that half needs a fourth thing said about it: **it has to be told
+what to trust**. DSS decides the level by asking whether the document carries
+validation material for every certificate in every chain, and excludes trust
+anchors because a trust anchor needs none. Given none, it cannot answer above
+`-T` whatever the document holds, and it reported this package's B-LT and B-LTA
+output that way for a month with nothing wrong with the output
+([0133](../decisions/0133-the-witness-has-to-trust-something.md)). The
+conformance test passes an anchor and signs with an identity that publishes a
+distribution point, because both are needed and either one missing gives the
+same wrong answer.
 
 It costs a JVM per invocation and no new runtime, since Java is already
 installed for veraPDF. **The group is excluded from mutation runs**
