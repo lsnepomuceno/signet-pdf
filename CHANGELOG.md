@@ -279,6 +279,34 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The security store named the signature by the wrong hash, and every
+  Brazilian verifier said so.** A `/VRI` entry is keyed by the SHA-1 of the
+  signature's `/Contents`, and that value is a fixed-width placeholder: the CMS
+  at the front and zeroes after it. Two different strings to hash, and this
+  package hashed the first:
+
+  ```
+  Nome do atributo: DSS
+  Corretude: Invalid
+  Mensagem de erro: Não encontrado VRI identificado com o hash da assinatura.
+  ```
+
+  Settled by submitting the same document twice, once under each key, since both
+  are forty hexadecimal characters and one can be written over the other in
+  place. The second came back **`DSS: Valid`**.
+
+  **The fix retires a hazard rather than working around it.** The key was once
+  the CMS recovered with `rtrim()`, which lost a trailing `0x00` about one
+  signature in 256 ([#103](https://github.com/lsnepomuceno/signet-pdf/issues/103),
+  invariant 5), and then the CMS recovered by declared length. There is no
+  recovery left to get wrong: the bytes hashed are the bytes in the file
+  ([0130](docs/decisions/0130-the-store-is-keyed-by-the-contents-as-written.md)).
+
+  `Data\SignatureDetails` gains `contentsAsWritten`, and `samples/` is
+  regenerated. **A document signed by an earlier version now reports its store
+  as not covering its signature**, which is the honest answer and what every
+  other verifier already said about it.
+
 - **A `pades-b-lt` signature could come back short and say nothing.** The
   profile gathers revocation evidence for every link of the chain and embeds
   only what verifies, which is deliberate

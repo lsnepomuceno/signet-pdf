@@ -239,17 +239,37 @@ final readonly class DssWriter
      * The /Contents of the signature this store covers, which is what the
      * store is keyed by.
      *
-     * Read at the length the DER declares rather than trimmed. Trimming with
-     * rtrim() is invariant 5, and it was not theoretical here: a CMS whose
-     * final byte is 0x00 lost it, so the /VRI entry was written under the
-     * SHA-1 of one byte less than the signature it belongs to. Every reader
-     * then reported a document carrying validation material as carrying
-     * nothing for its own signature, about one signature in 256 (issue #103).
+     * **The value as written, padding and all, which is neither of the two
+     * things this has been before.** It was the CMS recovered with `rtrim()`,
+     * which lost a trailing `0x00` about one signature in 256 (issue #103), and
+     * then the CMS recovered by declared length, which is invariant 5 and is
+     * self-consistent. Neither is what a verifier looks up: ITI reports the
+     * second as "não encontrado VRI identificado com o hash da assinatura", and
+     * the same document keyed by the padded value comes back `DSS: Valid`
+     * (docs/decisions/0130-the-store-is-keyed-by-the-contents-as-written.md).
+     *
+     * **This retires the hazard rather than working around it.** There is no
+     * recovery to get wrong: the bytes hashed are the bytes in the file.
      *
      * @throws InvalidPdfFileException
      */
     private function signatureContents(string $pdf): string
     {
-        return $this->byteRange->lastContents($pdf);
+        $open = $this->byteRange->lastContentsOffset($pdf);
+        $close = strpos($pdf, '>', $open);
+
+        if ($close === false) {
+            throw new InvalidPdfFileException('the last /Contents is not closed');
+        }
+
+        $hex = substr($pdf, $open + 1, $close - $open - 1);
+
+        // Checked before the conversion rather than after it: hex2bin() warns
+        // on input it cannot read, and a warning fails the suite by design.
+        if (preg_match('/^(?:[0-9a-fA-F]{2})+$/', $hex) !== 1) {
+            throw new InvalidPdfFileException('the last /Contents is not an even-length hexadecimal string');
+        }
+
+        return (string) hex2bin($hex);
     }
 }

@@ -140,6 +140,7 @@ final readonly class PdfSignatureValidator implements SignatureValidator
                 isTimestamp: $signature['isTimestamp'],
                 signedAt: $signature['signedAt'],
                 rawContents: $signature['cms'],
+                contentsAsWritten: $signature['contents'],
                 chain: $chain,
                 chainReachesRoot: $chain !== [] && $this->chains->reachesRoot($ordered),
                 // Null, not false, when nobody was asked
