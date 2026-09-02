@@ -54,11 +54,23 @@ final readonly class IncrementalSigner implements PdfSigner
     /**
      * Reserved size of the /Contents placeholder, in hex characters.
      *
-     * tc-lib-pdf reserves 11742 bytes. This is deliberately larger: a plain
-     * CMS is ~1.5 KB, but embedding the certificate chain pushes it up, and
-     * overflowing the placeholder is a hard failure. See §3h risks.
+     * **16 KB of CMS, doubled from 8 KB because 8 KB does not fit a real
+     * ICP-Brasil certificate.** An RFB e-CPF A1 signing at `pades-b-t` produces
+     * a 10501-byte CMS: the chain to AC Raiz costs most of it and the signature
+     * timestamp, with the authority's own chain inside it, costs the rest. The
+     * old value refused that document outright, and every profile above
+     * `pades-b-b` with it
+     * (docs/decisions/0126-the-placeholder-fits-a-real-certificate.md).
+     *
+     * The old comment claimed this was larger than tc-lib-pdf's 11742 bytes.
+     * It was not: 16384 **hex characters** is 8192 bytes, and the two numbers
+     * were being compared in different units.
+     *
+     * Overflowing is a hard failure rather than a truncation, so the cost of
+     * being generous is 8 KB of zeroes per signature and the cost of being
+     * tight is a document that cannot be signed at all.
      */
-    private const int CONTENTS_HEX_LENGTH = 16384;
+    private const int CONTENTS_HEX_LENGTH = 32768;
 
     public function __construct(
         private DocumentReader $reader,

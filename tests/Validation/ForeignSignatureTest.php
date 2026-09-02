@@ -96,3 +96,61 @@ it('names the signer the foreign document carries', function () {
     expect($signers)->toHaveCount(1)
         ->and($signers[0]->commonName)->toBe('Test Certificate');
 });
+
+/**
+ * A signature dictionary whose /Contents placeholder is wider than any this
+ * package writes, holding a real CMS.
+ *
+ * Built rather than committed, because what is being varied is one number and a
+ * fixture would only say it once. The numbers are fixed-width, the way a real
+ * signer pads them, so the offsets can be computed and then written back
+ * without moving anything.
+ *
+ * @return array{0: string, 1: int} The document, and the placeholder's width in
+ *          hex characters.
+ */
+function documentReservingMoreThanWeDo(int $width = 131_072): array
+{
+    [$contents] = foreignSigned();
+
+    $extracted = new PdfSignatureExtractor()->extract($contents);
+    $payload = str_pad(bin2hex($extracted[0]['cms']), $width, '0');
+
+    $head = "%PDF-1.7\n1 0 obj\n<</Type/Sig/Filter/Adobe.PPKLite/SubFilter/ETSI.CAdES.detached/ByteRange[0 ";
+    $numbers = static fn(int $open, int $close, int $trailing): string => implode(' ', [
+        str_pad((string) $open, 10),
+        str_pad((string) $close, 10),
+        str_pad((string) $trailing, 10),
+    ]);
+    $middle = ']/Contents<';
+    $tail = ">/M(D:20260901120000+00'00')/Reason(a placeholder nobody sized for us)>>\nendobj\n%%EOF\n";
+
+    // The '<' is the last byte of $middle, and every number above is padded to
+    // ten characters, so none of this moves when the real values replace them.
+    $open = strlen($head) + strlen($numbers(0, 0, 0)) + strlen($middle) - 1;
+    $close = $open + 1 + $width + 1;
+    $trailing = strlen($tail) - 1;
+
+    return [$head . $numbers($open, $close, $trailing) . $middle . $payload . $tail, $width];
+}
+
+it('reads a signature whose placeholder is wider than the one this package reserves', function () {
+    // **The defect this exists for.** /M was read from a 32 KB window scanned
+    // forward from the /ByteRange, which cleared this package's 16 KB
+    // placeholder and nothing larger. A producer reserving more lost its
+    // signing time silently, and doubling this package's own placeholder made
+    // it lose every one of its own
+    // (docs/decisions/0126-the-placeholder-fits-a-real-certificate.md).
+    [$document, $width] = documentReservingMoreThanWeDo();
+
+    $extracted = new PdfSignatureExtractor()->extract($document);
+
+    expect($extracted)->toHaveCount(1)
+        // The construction is a well-formed signature rather than a contrivance
+        // shaped to pass: the /ByteRange has to describe what it points at.
+        ->and($extracted[0]['byteRangeSound'])->toBeTrue()
+        ->and($width)->toBeGreaterThan(32_768)
+        ->and($extracted[0]['subFilter'])->toBe('ETSI.CAdES.detached')
+        ->and($extracted[0]['signedAt'])->toBeInt()
+        ->and(gmdate('Y-m-d', (int) $extracted[0]['signedAt']))->toBe('2026-09-01');
+});

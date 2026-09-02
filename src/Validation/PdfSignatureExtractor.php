@@ -51,9 +51,9 @@ final class PdfSignatureExtractor
                 'byteRange' => [$open, $close, $trailing],
                 'cms' => $cms,
                 'coverageEnd' => $close + $trailing,
-                'isTimestamp' => $this->isDocumentTimestamp($pdf, $match[0][1]),
-                'signedAt' => $this->claimedTime($pdf, $match[0][1]),
-                'subFilter' => $this->subFilter($pdf, $match[0][1]),
+                'isTimestamp' => $this->isDocumentTimestamp($dictionary = $this->dictionary($pdf, $match[0][1], $open, $close)),
+                'signedAt' => $this->claimedTime($dictionary),
+                'subFilter' => $this->subFilter($dictionary),
                 'byteRangeSound' => $this->byteRangeIsSound($pdf, $open, $close, $trailing),
             ];
         }
@@ -122,32 +122,45 @@ final class PdfSignatureExtractor
      * it the way a signature is verified always fails, so it has to be told
      * apart before anything tries.
      */
-    private function isDocumentTimestamp(string $pdf, int $byteRangeOffset): bool
+    private function isDocumentTimestamp(string $dictionary): bool
     {
-        $dictionary = $this->dictionaryAround($pdf, $byteRangeOffset);
-
         return str_contains($dictionary, '/DocTimeStamp') || str_contains($dictionary, 'ETSI.RFC3161');
     }
 
     /**
-     * The signature dictionary around a /ByteRange, on both sides of it.
+     * The signature dictionary, with its own /Contents cut out of the middle.
      *
      * Key order inside a dictionary carries no meaning, and producers differ.
-     * This package writes /Type, /SubFilter and /ByteRange before the 16 KB
+     * This package writes /Type, /SubFilter and /ByteRange ahead of the
      * /Contents placeholder, so everything worth reading sits *behind* the
      * /ByteRange. pyHanko writes /Contents first and /Type, /Filter and
-     * /SubFilter *after* the /ByteRange, and reading only backwards found
-     * neither: the sub-filter came back null, and with it the profile, and a
-     * /DocTimeStamp from that producer would have been classified as a
-     * signature and then reported invalid for failing to verify as one.
+     * /SubFilter *after* it, and reading only backwards found neither: the
+     * sub-filter came back null, and with it the profile, and a /DocTimeStamp
+     * from that producer would have been classified as a signature and then
+     * reported invalid for failing to verify as one.
      *
-     * Both windows are 200 bytes, which cannot reach a neighbouring signature:
-     * the /Contents placeholder between two of them is measured in kilobytes.
+     * **The placeholder is skipped rather than cleared.** Two fixed windows
+     * around the /ByteRange were the same assumption in a different disguise:
+     * whichever key sits on the far side of /Contents is found only while the
+     * placeholder is smaller than the window looking past it. Reading /M
+     * depended on a 32 KB window clearing a 16 KB placeholder, and doubling the
+     * placeholder made every signing time come back null, silently. **A
+     * document from a producer that reserves more than this package does was
+     * already losing them**, which is invariant 4 again: what this package
+     * emits is one of the shapes it has to read, not the measure of them.
+     *
+     * The offsets are the /ByteRange's own, so the gap being skipped is this
+     * entry's payload and no other. 512 bytes on each side of it, which is far
+     * more than a signature dictionary and far less than the distance to the
+     * next one.
      */
-    private function dictionaryAround(string $pdf, int $byteRangeOffset): string
+    private function dictionary(string $pdf, int $byteRangeOffset, int $open, int $close): string
     {
-        return substr($pdf, max(0, $byteRangeOffset - 200), 200)
-            . substr($pdf, $byteRangeOffset, 200);
+        $from = max(0, min($byteRangeOffset, $open) - 512);
+        $to = max($byteRangeOffset, $close) + 512;
+
+        return substr($pdf, $from, max(0, $open - $from))
+            . substr($pdf, $close, max(0, $to - $close));
     }
 
     /**
@@ -159,10 +172,8 @@ final class PdfSignatureExtractor
      * reading of the document's contents, and a caller comparing the two can
      * see a file that says CAdES while carrying nothing a CAdES signature needs.
      */
-    private function subFilter(string $pdf, int $byteRangeOffset): ?string
+    private function subFilter(string $dictionary): ?string
     {
-        $dictionary = $this->dictionaryAround($pdf, $byteRangeOffset);
-
         return preg_match('#/SubFilter\s*/([A-Za-z0-9.]+)#', $dictionary, $found) === 1 ? $found[1] : null;
     }
 
@@ -175,22 +186,17 @@ final class PdfSignatureExtractor
      * not emit it, and /M is both what this package writes and what poppler
      * reports as the signing time.
      *
-     * Searched forward, unlike the /SubFilter above. /M is written after
-     * /Contents, whose placeholder is 16 KB of hex, so it sits far past the
-     * /ByteRange this entry was found at rather than just ahead of it.
+     * Read from the same payload-free window as /SubFilter above. It used to be
+     * a 32 KB forward scan, wide enough to clear a 16 KB placeholder and no
+     * wider, which is the coupling `dictionary()` exists to remove.
      *
      * /M is inside the range the signature covers, so altering it breaks the
      * signature. It remains the signer's own clock, which is why the report
      * calls it claimed rather than proven.
      */
-    private function claimedTime(string $pdf, int $byteRangeOffset): ?int
+    private function claimedTime(string $dictionary): ?int
     {
-        // Wide enough to clear the /Contents placeholder and the metadata after
-        // it, and bounded so a document with several signatures cannot answer
-        // for one entry with the dictionary of a later one.
-        $window = substr($pdf, $byteRangeOffset, 32_768);
-
-        if (preg_match('/\/M\s*\(D:(\d{14})/', $window, $found) !== 1) {
+        if (preg_match('/\/M\s*\(D:(\d{14})/', $dictionary, $found) !== 1) {
             return null;
         }
 

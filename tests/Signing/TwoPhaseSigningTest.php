@@ -60,6 +60,28 @@ it('prepares a document whose signature space is still empty', function () {
         ->and($prepared->digest)->toBe(DigestAlgorithm::Sha256);
 });
 
+it('reserves enough space for a real certificate chain and a timestamp', function () {
+    // **A number rather than a certificate, and that is the weakness of it.**
+    // An RFB e-CPF A1 signing at pades-b-t produces a 10501-byte CMS: the chain
+    // to AC Raiz costs most of it and the signature timestamp, carrying the
+    // authority's own chain, costs the rest. The reserved space was 8192 bytes,
+    // so pades-b-t, pades-b-lt and pades-b-lta were all unreachable for a real
+    // ICP-Brasil certificate, and the suite could not see it because
+    // `Testing\DebugCertificate` issues a self-signed certificate with no chain
+    // at all (docs/decisions/0126-the-placeholder-fits-a-real-certificate.md).
+    //
+    // This asserts the floor that measurement establishes. It is a weaker check
+    // than the one that found the defect, which was putting a real certificate
+    // through the pipeline, and it is here so the width cannot be quietly taken
+    // back.
+    $prepared = signet()->newSignature()
+        ->pdf(resource('test.pdf'))
+        ->prepare();
+
+    expect($prepared->reservedBytes)->toBeGreaterThanOrEqual(16384)
+        ->and($prepared->fits(str_repeat("\x00", 10501)))->toBeTrue();
+});
+
 it('needs no certificate to prepare', function () {
     // The whole point, stated as the smallest possible test: the builder is
     // never given a certificate and phase one still produces a document.

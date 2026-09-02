@@ -33,11 +33,16 @@ use Throwable;
 final readonly class DocTimeStampWriter
 {
     /**
-     * Reserved space for the token, in hex characters. A TSA token is smaller
-     * than a CAdES signature, but the responder's own certificate chain rides
-     * along, so this stays generous.
+     * Reserved space for the token, in hex characters.
+     *
+     * A TSA token is smaller than a CAdES signature, but the responder's own
+     * certificate chain rides along, so this stays generous. Doubled with the
+     * signature placeholder, and for the same reason: an authority whose chain
+     * reaches a national root is exactly the case the old width was too tight
+     * for, and here it would fail after the signature was already written
+     * (docs/decisions/0126-the-placeholder-fits-a-real-certificate.md).
      */
-    private const int CONTENTS_HEX_LENGTH = 16384;
+    private const int CONTENTS_HEX_LENGTH = 32768;
 
     public function __construct(
         private DocumentReader $reader,
