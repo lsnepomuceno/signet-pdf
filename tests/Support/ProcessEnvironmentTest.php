@@ -112,3 +112,29 @@ it('lets an unrelated LogicException through rather than mislabelling it', funct
 
     expect(fn() => $runner->run('openssl version'))->toThrow(LogicException::class, 'something else entirely');
 });
+
+it('hands the child no environment of its own unless it is asked to', function () {
+    // `usePathEnv` defaults to off, and the default is the security-relevant
+    // half: passing the host `PATH` to a child is what
+    // `Config\CertificateConfig::$usePathEnv` exists to opt into, for the one
+    // environment where the openssl binary is not on the default search list.
+    // A default of on would hand every shell-out the caller's `PATH` silently.
+    //
+    // The factory is the same seam the two tests above use, here to keep hold
+    // of the process rather than to make it fail.
+    $spawned = [];
+
+    $runner = new SymfonyProcessRunner(factory: static function (string $command) use (&$spawned): Process {
+        $process = Process::fromShellCommandline($command);
+
+        $spawned[] = $process;
+
+        return $process;
+    });
+
+    $runner->run('true');
+    $runner->run('true', usePathEnv: true);
+
+    expect($spawned[0]->getEnv())->toBe([])
+        ->and($spawned[1]->getEnv())->toHaveKey('PATH');
+});
