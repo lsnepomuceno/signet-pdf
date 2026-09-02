@@ -129,13 +129,52 @@ it('reads a document carrying a colour profile, which every sealed one does', fu
     expect(dssPolicyVerdict(sample('two-seals.pdf'))['format'])->toBe('PAdES-BASELINE-B');
 })->group('dss');
 
-it('is read as the European profile it claims to be, at the two levels that are settled', function (string $sample, string $format) {
+it('is read as the European profile it claims to be, at every level', function () {
     // What the reference implementation of the European standards calls this
-    // package's output. `pades-b-lt` and `pades-b-lta` are deliberately absent:
-    // DSS reads both as BASELINE-T, and whether that is this package's fault or
-    // the sample certificate's is the open question in
-    // [#152](https://github.com/lsnepomuceno/signet-pdf/issues/152). Asserting
-    // the current answer would bless it before it is understood.
+    // package's output, from `pades-b-b` through `pades-b-lta`.
+    //
+    // **The anchor is the whole test.** DSS decides the level by asking whether
+    // the document carries validation material for every certificate in every
+    // chain, and excludes trust anchors because a trust anchor needs none. Told
+    // to trust nothing it cannot answer above T whatever the document carries,
+    // which is why it read the B-LT and B-LTA samples as `PAdES-BASELINE-T` and
+    // why that looked like a defect in this package for a month
+    // ([#152](https://github.com/lsnepomuceno/signet-pdf/issues/152),
+    // docs/decisions/0133-the-witness-has-to-trust-something.md).
+    //
+    // Signed here rather than read from `samples/`, because a sample is signed
+    // with a throwaway certificate that is not committed, so there is no anchor
+    // to hand over for one.
+    [$path, $password] = revocableIdentity();
+
+    setConfig('signature.timestamp.url', 'https://timestamp.invalid/tsr');
+
+    $anchor = trustAnchorFrom($path, $password);
+
+    foreach ([
+        'pades-b-b' => 'PAdES-BASELINE-B',
+        'pades-b-t' => 'PAdES-BASELINE-T',
+        'pades-b-lt' => 'PAdES-BASELINE-LT',
+        'pades-b-lta' => 'PAdES-BASELINE-LTA',
+    ] as $profile => $format) {
+        $signed = signet()->newSignature()
+            ->certificate($path, $password)
+            ->pdf(resource('test.pdf'))
+            ->profile($profile)
+            ->sign()
+            ->save(tempFile('.pdf'));
+
+        expect(dssBaselineLevel($signed, $anchor))->toBe($format, $profile);
+
+        unlink($signed);
+    }
+})->group('dss');
+
+it('reads the committed samples at the levels an anchorless verifier can reach', function (string $sample, string $format) {
+    // The samples carry no anchor, so this is the ceiling rather than the
+    // verdict: B and T are decidable without one and the two above are not.
+    // It stays because it is the one assertion made over the files a consumer
+    // downloads rather than over something signed in the run.
     expect(dssPolicyVerdict(sample("{$sample}.pdf"))['format'])->toBe($format);
 })->with([
     ['pades-b-b', 'PAdES-BASELINE-B'],

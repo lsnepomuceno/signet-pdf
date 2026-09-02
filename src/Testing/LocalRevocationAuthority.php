@@ -59,6 +59,17 @@ final class LocalRevocationAuthority implements SignatureTransport
     }
 
     /**
+     * The certificate this authority stamps with, as PEM.
+     *
+     * @throws ProcessRunTimeException
+     * @throws FileNotFoundException
+     */
+    public function certificate(): string
+    {
+        return $this->timestamps->certificate();
+    }
+
+    /**
      * @return callable(string, string): (string|false)
      */
     public function ocsp(): callable

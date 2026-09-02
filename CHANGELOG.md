@@ -325,6 +325,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The offline witness read every B-LT and B-LTA document as `BASELINE-T`,
+  and the documents were right the whole time.** EU DSS decides a baseline level
+  by asking whether the file carries validation material for every certificate
+  in every chain, excluding trust anchors because a trust anchor needs none. It
+  was configured to trust nothing, so a self-signed root was an ordinary
+  certificate with no revocation data and **no document could be read above T
+  whatever it carried**.
+
+  Given one anchor and a certificate that publishes a distribution point, the
+  reference implementation of the European standards reads this package's output
+  as `PAdES-BASELINE-B`, `-T`, `-LT` and `-LTA`, and the suite asserts all four
+  on every run.
+
+  `Testing\LocalTimestampAuthority::certificate()` is new, and is what lets a
+  test trust the authority it stamped with. Nothing in `src/` changed
+  ([0133](docs/decisions/0133-the-witness-has-to-trust-something.md)).
+
+  The committed samples still read as `BASELINE-T` at those two levels, and
+  correctly: their certificate has no responder and no distribution point, so
+  there is no revocation material to embed. `docs/guide/samples.md` says so.
+
 - **AD-RC was mapped onto `pades-b-lt`, and ITI refuses that document.** Every
   AD-RC version names `/DocTimeStamp` among the dictionaries it requires, which
   is what `pades-b-lta` adds, so the family that looks like the B-LT policy is

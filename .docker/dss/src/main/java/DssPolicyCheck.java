@@ -8,6 +8,8 @@ import eu.europa.esig.dss.diagnostic.DiagnosticData;
 import eu.europa.esig.dss.diagnostic.SignatureWrapper;
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.model.FileDocument;
+import eu.europa.esig.dss.spi.x509.CommonTrustedCertificateSource;
+import eu.europa.esig.dss.spi.DSSUtils;
 import eu.europa.esig.dss.spi.policy.SignaturePolicyProvider;
 import eu.europa.esig.dss.spi.validation.CommonCertificateVerifier;
 import eu.europa.esig.dss.validation.SignedDocumentValidator;
@@ -24,10 +26,22 @@ import eu.europa.esig.dss.validation.reports.Reports;
  * Usage:
  *
  *   dss-policy-check document.pdf 2.16.76.1.7.1.11.1.3=/path/PA_PAdES_AD_RB_v1_3.der
+ *   dss-policy-check document.pdf --trust=/path/ca.pem
  *
  * Each argument after the document maps a key to a policy document. The key is
  * an OID or a URI, and both maps are filled from it, because implementations
  * differ on which one they look the policy up by.
+ *
+ * A `--trust=` argument adds a trust anchor, and it changes what the format
+ * field can say. DSS decides the baseline level by asking whether the document
+ * carries the validation material for every certificate in every chain, and it
+ * excludes trust anchors from that question because a trust anchor needs none.
+ * Given no anchors, a self-signed root is an ordinary certificate with no
+ * revocation data, so **no document can reach LT or LTA whatever it carries**.
+ * That is a property of how the witness is configured rather than of the
+ * document, and it read every B-LT and B-LTA sample as BASELINE-T until this
+ * argument existed
+ * (docs/decisions/0133-the-witness-has-to-trust-something.md).
  *
  * The policy documents are supplied rather than fetched. Nothing here opens a
  * connection: the eighteen ICP-Brasil policies are committed under
@@ -43,7 +57,7 @@ public final class DssPolicyCheck {
 
     public static void main(String[] args) {
         if (args.length < 1) {
-            System.err.println("usage: dss-policy-check <document> [<oid-or-uri>=<policy.der> ...]");
+            System.err.println("usage: dss-policy-check <document> [--trust=<ca.pem>] [<oid-or-uri>=<policy.der> ...]");
             System.exit(1);
         }
 
@@ -59,7 +73,15 @@ public final class DssPolicyCheck {
         SignedDocumentValidator validator =
             SignedDocumentValidator.fromDocument(new FileDocument(new File(args[0])));
 
-        validator.setCertificateVerifier(new CommonCertificateVerifier());
+        CommonCertificateVerifier verifier = new CommonCertificateVerifier();
+
+        CommonTrustedCertificateSource anchors = trustAnchors(args);
+
+        if (anchors != null) {
+            verifier.setTrustedCertSources(anchors);
+        }
+
+        validator.setCertificateVerifier(verifier);
         validator.setSignaturePolicyProvider(provider(args));
 
         Reports reports = validator.validateDocument();
@@ -79,12 +101,47 @@ public final class DssPolicyCheck {
     }
 
     /**
+     * The certificates to treat as trusted, or null when none were named.
+     *
+     * Null rather than an empty source, because the two are different
+     * configurations: an empty trusted source is still a trust store, and
+     * leaving the verifier's alone is what every call made before this argument
+     * existed.
+     */
+    private static CommonTrustedCertificateSource trustAnchors(String[] args) {
+        CommonTrustedCertificateSource anchors = new CommonTrustedCertificateSource();
+
+        boolean named = false;
+
+        for (int i = 1; i < args.length; i++) {
+            if (!args[i].startsWith(TRUST)) {
+                continue;
+            }
+
+            named = true;
+
+            // One certificate per argument, PEM or DER. Naming them
+            // separately rather than reading a bundle keeps this to the one
+            // DSS call that has the same signature across releases.
+            anchors.addCertificate(DSSUtils.loadCertificate(new File(args[i].substring(TRUST.length()))));
+        }
+
+        return named ? anchors : null;
+    }
+
+    private static final String TRUST = "--trust=";
+
+    /**
      * The policy documents, keyed by every key a signature might name them by.
      */
     private static SignaturePolicyProvider provider(String[] args) {
         Map<String, DSSDocument> policies = new HashMap<>();
 
         for (int i = 1; i < args.length; i++) {
+            if (args[i].startsWith(TRUST)) {
+                continue;
+            }
+
             int separator = args[i].indexOf('=');
 
             if (separator < 1) {
