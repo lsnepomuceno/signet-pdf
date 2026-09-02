@@ -203,15 +203,41 @@ list and its signature can never come from different places.
 
 ### What ITI's Verificador says about it
 
-**Checked rather than claimed.** Two documents signed with a real RFB e-CPF A1
-at `pades-b-b`, each declaring a policy, were submitted to
-[validar.iti.gov.br](https://validar.iti.gov.br) on 2026-09-01:
+**Checked rather than claimed.** Documents signed with a real RFB e-CPF A1 at
+`pades-b-b`, each declaring a policy, submitted to
+[validar.iti.gov.br](https://validar.iti.gov.br):
 
-| Policy declared | Document | Verdict |
-|---|---|---|
-| AD-RB v1.3, `2.16.76.1.7.1.11.1.3` | 42 KB | signature approved, reported as a qualified electronic signature under MP 2.200-2/01 and Lei 14.063/20 |
-| AD-RB v1.2, `2.16.76.1.7.1.11.1.2` | 42 KB | the same |
-| AD-RB v1.3 | **60 MB** | the same |
+| Policy declared | Document | Read on | Verdict |
+|---|---|---|---|
+| AD-RB v1.3, `2.16.76.1.7.1.11.1.3` | 42 KB | 2026-09-01 | signature approved, reported as a qualified electronic signature under MP 2.200-2/01 and Lei 14.063/20 |
+| AD-RB v1.2, `2.16.76.1.7.1.11.1.2` | 42 KB | 2026-09-01 | the same |
+| AD-RB v1.3 | **60 MB** | 2026-09-01 | the same |
+| AD-RB v1.3, **signed by 3.0.0** | 42 KB | 2026-09-02 | the same |
+
+The last row is the release itself, and the conformance report is worth reading
+rather than summarising. Offline verification, so the authority consulted
+nothing over the network to reach it:
+
+| | |
+|---|---|
+| Status de assinatura | Aprovado |
+| Caminho de certificação | Valid, and one anchored signature |
+| Estrutura | Em conformidade com o padrão |
+| Cifra assimétrica, Resumo criptográfico | Aprovada, true |
+| Atributos obrigatórios | Aprovados, all five `Valid` one by one |
+| Mensagem de erro | none |
+
+The chain validated to the root, e-CPF through AC SERPRORFBv5 and AC RFB v4 to
+AC Raiz Brasileira v5, each with `Expirado (LCR): false`.
+
+**And the report carries no alert line.** Every submission above `pades-b-b`
+came back with `Assinaturas inválidas ou não processadas encontradas. Portanto,
+atualizações incrementais não foram verificadas`, and this one does not, which
+places that alert on the timestamp rather than on anything this package writes.
+
+The file's SHA-256 in the report is the value `Data\SigningReceipt::$hash`
+returned when the document was signed, so the receipt describes the bytes the
+authority read.
 
 **Above `pades-b-b` the picture is different, and it is worth being precise about
 what stands where.** Submitted the same way, at `pades-b-lta`:
