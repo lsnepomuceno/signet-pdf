@@ -279,6 +279,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `Data\PreparedSignature::$reservedBytes` reports 16384 rather than 8192, and
   every signed document grows by 8 KB.
 
+- **The EU DSS gate could not read a sealed document, and said nothing about
+  it.** PDFBox loads `liblcms.so` out of the JVM's own `lib/` to decode an ICC
+  profile and the headless JRE omits it, so the witness added in this release
+  died with `UnsatisfiedLinkError` on every document carrying a colour profile,
+  which is every sealed one, while reading the rest perfectly. Not failing, not
+  skipping: silent on part of what it was installed for.
+
+  The image installs the full JRE, and the suite reads a sealed sample through
+  DSS now rather than assuming it can. Reading the rest raised a question that
+  is open rather than answered: DSS calls the `pades-b-lt` and `pades-b-lta`
+  samples `PAdES-BASELINE-T`, most likely because the sample certificate is
+  self-signed and publishes no revocation material for the store to carry
+  ([#152](https://github.com/lsnepomuceno/signet-pdf/issues/152),
+  [0124](docs/decisions/0124-the-policy-digest-has-an-offline-witness.md)).
+
 - **The ICP-Brasil policy attribute declared the wrong hash of the right
   policy.** A document signed with an RFB e-CPF A1 at AD-RB v1.3 was rejected by
   ITI's Verificador, with one attribute invalid out of five and everything else
