@@ -91,8 +91,8 @@ reaching a timestamp authority fail differently and deserve different patience.
 
 ## Substituting the parts
 
-`Signet`'s constructor is also the substitution point. Four collaborators can be
-replaced without a container:
+`Signet`'s constructor is also the substitution point. Seven collaborators can
+be replaced without a container:
 
 ```php
 $signet = new Signet(
@@ -101,8 +101,19 @@ $signet = new Signet(
     transport: $transport,               // Contracts\SignatureTransport
     signer: $signer,                     // Contracts\PdfSigner
     certificateReader: $reader,          // Contracts\CertificateReader
+    verifier: $verifier,                 // Contracts\SignatureVerifier
+    signingKey: $key,                    // Contracts\SigningKey
+    storeContributor: $contributor,      // Contracts\SecurityStoreContributor
 );
 ```
+
+The last three are the newer ones and each answers a question of its own:
+`verifier` decides which implementation judges a signature
+([0114](../decisions/0114-verification-has-two-implementations.md)),
+`signingKey` is where the private key lives when it is not in the certificate
+([0120](../decisions/0120-a-key-can-live-outside-the-process.md)), and
+`storeContributor` is what a signature policy adds to the security store
+([0132](../decisions/0132-the-store-carries-the-policy-artefacts.md)).
 
 That is how the test doubles are installed ([Testing](./testing.md)), and how
 an application owns the network surface ([Profiles](./profiles.md)).

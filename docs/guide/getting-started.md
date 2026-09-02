@@ -146,8 +146,8 @@ general catch still works.
 
 **Tooling**
 
-- [Configuration](./configuration.md): the five configuration objects, their
-  defaults, and the five collaborators you can substitute.
+- [Configuration](./configuration.md): the six configuration objects, their
+  defaults, and the seven collaborators you can substitute.
 - [Command line](./cli.md): `sign`, `verify`, `fields`, `field:add`, `extend`
   and `check`, and the exit status a build can gate on.
 - [Testing your own code](./testing.md): signing in a test suite with no

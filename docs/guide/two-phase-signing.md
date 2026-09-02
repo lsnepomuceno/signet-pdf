@@ -107,7 +107,7 @@ A CMS larger than `reservedBytes` cannot be embedded, and `complete()` says so
 rather than truncating it:
 
 ```
-the 17000-byte signature does not fit the 8192-byte reserved space
+the 17000-byte signature does not fit the 16384-byte reserved space
 ```
 
 ## Where the key actually is
@@ -115,15 +115,19 @@ the 17000-byte signature does not fit the 8192-byte reserved space
 One question decides every integration of this kind, and it is worth asking
 before any code is written: **what does the thing holding the key give back?**
 
-| It gives back | Then |
-|---|---|
-| A detached CAdES, in DER | everything on this page works today |
-| Only a raw RSA or ECDSA signature over a hash | not yet: [#59](https://github.com/lsnepomuceno/signet-pdf/issues/59) |
+| It gives back | Then | The seam |
+|---|---|---|
+| A detached CAdES, in DER | the split on this page, `prepare()` and `complete()` | `Contracts\SignatureProducer` |
+| Only a raw RSA or ECDSA signature over a hash | the seam one level deeper, [below](#the-seam-one-level-deeper-a-raw-signature) | `Contracts\SigningKey` |
 
-The reason the line falls there: building a CMS means writing the signed
-attributes and signing the hash of **those**, not the hash of the document. So
-whoever assembles the CMS needs the key, and the split this package can offer is
-the one where it hands over a digest and takes back an assembled CAdES.
+**Both are supported, and the difference decides which half of this page you
+read.** Building a CMS means writing the signed attributes and signing the hash
+of **those**, not the hash of the document, so a signer that only signs bytes
+cannot assemble one on its own. What it is handed instead is the DER encoding of
+those attributes, which is public material
+([0120](../decisions/0120-a-key-can-live-outside-the-process.md)). Every
+PKCS#11 token, smart card, cloud KMS and Brazilian cloud certificate is in the
+second row.
 
 <!-- Every rectangular label here stays on one line. A node or edge label that
      wraps to two gets its second line clipped by the box, which is a mermaid
@@ -575,16 +579,20 @@ in, which is where a validator reads it from too.
 
 ## Before you integrate: the two things that decide whether it works
 
-**The placeholder holds 8192 bytes.** A plain CAdES is around 1.5 KB, and a
-chain plus an embedded timestamp token pushes it up. `fits()` answers before you
-commit, and `complete()` refuses rather than truncating:
+**The placeholder holds 16384 bytes.** A plain CAdES is around 1.5 KB, and a
+chain plus an embedded timestamp token pushes it up: a real ICP-Brasil chain at
+`pades-b-lta` did not fit the 8192 this reserved before 3.0.0, which made three
+of the four profiles unreachable with a production certificate
+([0126](../decisions/0126-the-placeholder-fits-a-real-certificate.md)).
+`fits()` answers before you commit, and `complete()` refuses rather than
+truncating:
 
 ```
-the 9871-byte signature does not fit the 8192-byte reserved space
+the 20144-byte signature does not fit the 16384-byte reserved space
 ```
 
-The width is a constant today, so a provider whose CAdES is larger than that
-cannot be accommodated by configuration. Measure it once, early, with a throwaway
+The width is a constant, so a provider whose CAdES is larger than that cannot be
+accommodated by configuration. Measure it once, early, with a throwaway
 document: it is a five-minute check that is very expensive to discover in
 production.
 

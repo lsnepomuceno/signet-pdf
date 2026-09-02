@@ -21,12 +21,15 @@ be a gratuitous break. Structure below it:
 src/
 ├── Signet.php                            # the entry point: wires the default graph
 ├── Config/                               # value objects; the core reads no file
-├── Contracts/                            # CertificateReader, PdfSigner, SealRenderer,
-│                                         # SignatureValidator, SignatureVerifier,
-│                                         # SignatureTransport, ProcessRunner,
-│                                         # Encrypter, PdfSource, PdfDestination
+├── Contracts/                            # fourteen. CertificateReader, PdfSigner,
+│                                         # SealRenderer, SignatureValidator,
+│                                         # SignatureVerifier, SignatureTransport,
+│                                         # ProcessRunner, Encrypter, PdfSource,
+│                                         # PdfDestination, SignatureProducer,
+│                                         # DigestSignatureProducer, SigningKey,
+│                                         # SecurityStoreContributor
 ├── Data/                                 # final readonly value objects
-├── Enums/                                # nineteen. SignatureProfile, DigestAlgorithm,
+├── Enums/                                # twenty-one. SignatureProfile, DigestAlgorithm,
 │                                         # CertificationLevel, FieldLockAction, SealPage,
 │                                         # FontSize, ImageDriver, ValidationFinding,
 │                                         # RevocationStatus, RevisionChange, SigningEvent

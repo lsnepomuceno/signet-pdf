@@ -273,10 +273,12 @@ same 300 MB document signs at that level in 602 MB.
 
 **Where the document comes from does not change this.** A `PdfSource` resolves
 to bytes, so a 300 MB document is 300 MB in memory whether it arrives from a
-path, a stream or an object store. Reading the structure by seeking, so the
-original is never a string at all, is the work
-[#48](https://github.com/lsnepomuceno/signet-pdf/issues/48) tracks; until it
-lands, the size of the document is the floor.
+path, a stream or an object store. Removing the floor entirely means reading the
+structure by seeking, so the original is never a string at all, which is a
+different reader:
+[0122](../decisions/0122-signing-a-document-larger-than-memory.md) carries what
+that would take, and until somebody writes it the size of the document is the
+floor.
 
 ## What it will not do
 
@@ -284,4 +286,11 @@ lands, the size of the document is the floor.
 |---|---|
 | RC4-encrypted documents | refused deliberately: signing one means writing RC4 back into it |
 | A security handler other than the standard one | its key comes from somewhere this package cannot reach |
-| A3 tokens, smart cards, HSMs | out of scope: this package signs with A1 material it can hold |
+
+**A key this process cannot hold is supported, and this is not the call that
+does it.** An A3 token, a smart card, an HSM and a cloud signing service all
+sign without the private key ever reaching PHP, through `prepare()` and
+`complete()` rather than through `sign()`.
+[Two-phase signing](./two-phase-signing.md) is the whole of it, with a worked
+example for each, and `Contracts\SigningKey` is the seam
+([0120](../decisions/0120-a-key-can-live-outside-the-process.md)).

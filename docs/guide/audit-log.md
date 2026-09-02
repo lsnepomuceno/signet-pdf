@@ -44,6 +44,7 @@ not.
 |---|---|
 | `SignatureApplied` | a signature was written into a document |
 | `TimestampReceived` | an authority answered |
+| `ValidationMaterialSkipped` | a piece of revocation evidence was looked for and not embedded, with the reason ([0129](../decisions/0129-signing-says-what-it-could-not-embed.md)) |
 | `ValidationCompleted` | a document was validated, with the verdict |
 | `ValidationFailed` | validation could not reach a verdict |
 

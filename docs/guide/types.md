@@ -34,7 +34,7 @@ configuration can stay as plain strings and never has to import anything.
 | `ValidationFinding` | sixteen, listed in [Verifying signatures](./validation.md) | `$report->findings()` |
 | `RevocationStatus` | `good`, `revoked`, `unknown` | `$signature->revocation` |
 | `RevisionChange` | `signature-added`, `timestamp-added`, `security-store-written`, `annotations`, `form-fields`, `pages`, `catalog`, `actions`, `other` | `$signature->changesAfter` |
-| `SigningEvent` | `signature.applied`, `timestamp.received`, `validation.completed`, `validation.failed` | [Audit trail](./audit-log.md) |
+| `SigningEvent` | `signature.applied`, `timestamp.received`, `validation-material.skipped`, `validation.completed`, `validation.failed` | [Audit trail](./audit-log.md) |
 | `ExtendExitCode` | the status `signet extend` exits with | [Command line](./cli.md) |
 
 ### The ones that describe a format
@@ -46,7 +46,7 @@ rarely a reason to reach for one.
 
 ## Contracts
 
-Eleven interfaces, and nothing binds them: `Signet` wires the default graph by
+Fourteen interfaces, and nothing binds them: `Signet` wires the default graph by
 hand and its constructor is where a replacement goes.
 
 | Contract | Replacing it buys |
@@ -62,6 +62,9 @@ hand and its constructor is where a replacement goes.
 | `SignatureValidator` | the validator behind `Signet::validate()` |
 | `SignatureProducer` | who makes the CMS, which is how a key on a token, in an HSM or behind a cloud service is used ([two-phase signing](./two-phase-signing.md)) |
 | `SignatureVerifier` | which implementation decides that a signature matches its bytes: the `openssl` binary by default, or `Validation\NativeSignatureVerifier`, which needs no process |
+| `DigestSignatureProducer` | the same as `SignatureProducer`, taking the digest of the covered bytes rather than the bytes, which is what keeps a large document from being copied to be signed ([0122](../decisions/0122-signing-a-document-larger-than-memory.md)) |
+| `SigningKey` | where the private key is when it is not in the certificate: a token, an HSM, a cloud service. It is handed the signed attributes and answers with a raw signature ([0120](../decisions/0120-a-key-can-live-outside-the-process.md)) |
+| `SecurityStoreContributor` | what a signature policy adds to the Document Security Store beyond what PAdES defines. `IcpBrasil\PolicyArtifacts` is the one that ships ([0132](../decisions/0132-the-store-carries-the-policy-artefacts.md)) |
 
 ```php
 $signet = new Signet(
@@ -71,12 +74,18 @@ $signet = new Signet(
     signer: $signer,
     certificateReader: $reader,
     verifier: $verifier,
+    signingKey: $key,
+    storeContributor: $contributor,
 );
 ```
 
-`SealRenderer` and `Encrypter` are constructor arguments of the classes holding
-them rather than of `Signet`. The last three are implemented rather than
-replaced.
+Seven of them are `Signet` constructor arguments, as above. `SealRenderer`,
+`Encrypter`, `SignatureProducer` and `DigestSignatureProducer` are constructor
+arguments of the classes holding them instead. `PdfSource` and `PdfDestination`
+are implemented and passed per call rather than substituted, and
+`SignatureValidator` is built inside `Signet`, so replacing it means building
+the graph yourself, which is what the boundary rules exist to allow
+([0100](../decisions/0100-the-core-is-framework-agnostic.md)).
 
 ## Exceptions
 
@@ -128,6 +137,7 @@ What each one means in practice, and what to do about it, is
 | `Data\Certificate` | the certificate readers |
 | `Data\RevisionDiff` | `$signature->changesAfter` |
 | `Data\SecurityStore` | `$report->securityStore` |
+| `Data\SecurityStoreEntry` | what a `Contracts\SecurityStoreContributor` answers with, one per named entry the store carries beyond `/Certs`, `/OCSPs` and `/CRLs` |
 | `Data\SignaturePolicy` | `$signature->signaturePolicy`, when the signer declared one |
 | `IcpBrasil\Data\Identity` | `$signer->icpBrasil` |
 | `IcpBrasil\Data\Report` | `icpBrasil()` |
