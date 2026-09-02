@@ -279,6 +279,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A `pades-b-lt` signature could come back short and say nothing.** The
+  profile gathers revocation evidence for every link of the chain and embeds
+  only what verifies, which is deliberate
+  ([0119](docs/decisions/0119-revocation-material-is-verified-before-it-is-embedded.md)):
+  an authority that does not answer must not stop a signature. What was never
+  said is that anything had been dropped, so a document could declare the
+  profile, carry evidence for two links of three, and report success.
+
+  Measured against a real ICP-Brasil chain, one list of three was missing, and
+  the reason existed the whole time in a callback this package did not pass:
+
+  ```
+  crl http://www.receita.fazenda.gov.br/acrfb/acrfbv4.crl: The CRL is too old
+  ```
+
+  `$signed->receipt()->skipped` now carries a `Data\SkippedMaterial` per piece,
+  with what was fetched, where it was asked for and why it was refused, and
+  `Support\SigningLog` records the same as `validation-material.skipped` when a
+  host wires one. **Empty is not a claim of completeness**: at `pades-b-b`
+  nothing is looked for
+  ([0129](docs/decisions/0129-signing-says-what-it-could-not-embed.md)).
+
+  It says nothing about whether the reasons are right. The one above is about a
+  list valid for another two and a half months, and arguing with that rule is
+  [#156](https://github.com/lsnepomuceno/signet-pdf/issues/156). Reporting it is
+  what makes arguing with it possible.
+
 - **`pades-b-lt` and `pades-b-lta` embedded nothing when signed with a real
   certificate authority.** No exception and no finding: `sign()` returned a
   document reporting itself as `pades-b-lt` and carrying no Document Security

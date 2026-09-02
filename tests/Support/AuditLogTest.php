@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Enums\SigningEvent;
 use LSNepomuceno\Signet\Support\SigningLog;
 use Psr\Log\AbstractLogger;
@@ -139,4 +140,39 @@ it('names the profile and the field a signature used', function () {
 
     expect($logger->lines[0]['context']['profile'])->toBe('pades-b-b')
         ->and($logger->lines[0]['context']['field'])->toBe('Signature1');
+});
+
+it('records each piece of evidence it could not embed, and where it looked', function () {
+    // The other half of ending the silence
+    // (docs/decisions/0129-signing-says-what-it-could-not-embed.md). The receipt
+    // answers a program; this answers whoever is reading the trail at three in
+    // the morning wondering why a pades-b-lt document is not one.
+    $logger = recordingLogger();
+
+    harness()->bind(SigningLog::class, new SigningLog($logger));
+
+    [$path, $password] = revocableIdentity();
+
+    setConfig('signature.timestamp.url', 'https://timestamp.invalid/tsr');
+
+    signetWithLog($logger)->newSignature()
+        ->certificate($path, $password)
+        ->pdf(resource('test.pdf'))
+        ->profile(SignatureProfile::PadesBLT)
+        ->sign();
+
+    $skips = array_values(array_filter(
+        $logger->lines,
+        static fn(array $line): bool => $line['message'] === SigningEvent::ValidationMaterialSkipped->value,
+    ));
+
+    expect($skips)->not->toBe([]);
+
+    // The three keys the allowlist had to be widened for, and the reason each
+    // is safe: a distribution point is published inside the certificate and
+    // names no private resource, unlike the file paths the list keeps out.
+    foreach ($skips as $line) {
+        expect($line['context'])->toHaveKeys(['source', 'url', 'reason'])
+            ->and($line['context']['url'])->not->toBe('');
+    }
 });

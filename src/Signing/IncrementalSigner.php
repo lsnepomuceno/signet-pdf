@@ -16,6 +16,7 @@ use LSNepomuceno\Signet\Data\SignatureField;
 use LSNepomuceno\Signet\Data\SignatureInfo;
 use LSNepomuceno\Signet\Data\SignedPdf;
 use LSNepomuceno\Signet\Data\SigningReceipt;
+use LSNepomuceno\Signet\Data\SkippedMaterial;
 use LSNepomuceno\Signet\Enums\CertificationLevel;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Enums\SigningEvent;
@@ -267,13 +268,17 @@ final readonly class IncrementalSigner implements PdfSigner
         $this->embed($signed->bytes, $cms);
 
         // B-LT and above append the validation material as a further revision,
-        // after the signature it vouches for is already in place.
+        // after the signature it vouches for is already in place. What could not
+        // be gathered comes back rather than disappearing: a document declaring
+        // pades-b-lt with material for two links of three used to report
+        // success and say nothing
+        // (docs/decisions/0129-signing-says-what-it-could-not-embed.md).
+        $skipped = [];
+
         if ($prepared->profile->needsValidationMaterial()) {
-            if ($certificate === null) {
-                $this->dss->refresh($signed, $this->chains($cms), $documentPassword);
-            } else {
-                $this->dss->append($signed, $certificate, $documentPassword);
-            }
+            $skipped = $certificate === null
+                ? $this->dss->refresh($signed, $this->chains($cms), $documentPassword)
+                : $this->dss->append($signed, $certificate, $documentPassword);
         }
 
         // B-LTA closes with an archive timestamp over the whole file, so the
@@ -291,7 +296,7 @@ final readonly class IncrementalSigner implements PdfSigner
             'signer' => $certificate?->commonName(),
         ]);
 
-        return new SignedPdf($signed->bytes, signing: $this->receipt($prepared, $certificate));
+        return new SignedPdf($signed->bytes, signing: $this->receipt($prepared, $certificate, $skipped));
     }
 
     /**
@@ -301,8 +306,12 @@ final readonly class IncrementalSigner implements PdfSigner
      * when somebody asks, because on a large document they are the expensive
      * part and a caller who never reads a receipt should not pay for one
      * (docs/decisions/0127-a-signature-comes-with-a-receipt.md).
+     *
+     * @param  list<SkippedMaterial>  $skipped  What the store could not embed,
+     *          which used to be discarded where it was produced
+     *          (docs/decisions/0129-signing-says-what-it-could-not-embed.md).
      */
-    private function receipt(PreparedSignature $prepared, ?Certificate $certificate): SigningReceipt
+    private function receipt(PreparedSignature $prepared, ?Certificate $certificate, array $skipped = []): SigningReceipt
     {
         return new SigningReceipt(
             fieldName: $prepared->fieldName,
@@ -318,6 +327,7 @@ final readonly class IncrementalSigner implements PdfSigner
             icpBrasil: $certificate === null
                 ? null
                 : new IcpBrasilReader()->read($certificate->original),
+            skipped: $skipped,
         );
     }
 

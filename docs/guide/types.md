@@ -118,6 +118,7 @@ What each one means in practice, and what to do about it, is
 |---|---|
 | `Data\SignedPdf` | `sign()`, and `complete()` |
 | `Data\SigningReceipt` | `$signed->receipt()`, carrying the digests, the sizes, the `/ID` and who signed. It holds no PDF, so it is what goes in a column |
+| `Data\SkippedMaterial` | `$receipt->skipped`, one per piece of revocation evidence that was looked for and not embedded, with the reason |
 | `Data\PreparedSignature` | `prepare()`, carrying the document, the byte range and the digest to be signed |
 | `Data\SignatureReport` | `validate()` |
 | `Data\SignatureDetails` | `$report->latest()`, and each entry of the report |
