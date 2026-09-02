@@ -123,6 +123,8 @@ entry point entirely.
 | **Certification** | ISO 32000-1 §12.8.2.2 DocMDP, plus field locks that later signatures honour |
 | **Encrypted documents** | AES-128 and AES-256, signed and re-encrypted under the document's own key |
 | **Two-phase signing** | `prepare()` here, sign on a token, an HSM or a cloud service, `complete()` here: the private key never has to be in this process |
+| **Large documents** | signing needs a little more than the size of the document, not a multiple of it: a 300 MB file signs in 310 MB |
+| **A signing receipt** | what was signed, at what profile, when, by whom, with the digest of the document before and after |
 | **Archive maintenance** | refresh a B-LTA archive with no certificate and no key material involved, from PHP or from a cron entry |
 | **Verification** | the CMS is actually verified, with the timestamp, the profile and revocation reported |
 | **ICP-Brasil identity** | CPF, CNPJ (including the alphanumeric one) and the rest, read from the certificate rather than parsed out of a name |
@@ -179,8 +181,15 @@ Signed output is checked against tools that were not written here, because a
 validator sharing its assumptions with the signer proves very little: veraPDF
 decides PDF/A and PDF/UA, pyHanko enforces `/DocMDP`, qpdf checks structure, the
 Arlington PDF Model checks the emitted objects against the specification's own
-grammar, and poppler's `pdfsig` has caught defects the suite passed straight
-through.
+grammar, EU DSS recomputes the digest a signature declares for its policy and
+reads the PAdES baseline level the output reaches, and poppler's `pdfsig` has
+caught defects the suite passed straight through.
+
+**The last one earned its place by seeing what the others could not.** Every
+ICP-Brasil policy digest this package shipped was the hash of the wrong
+artefact, and `pdfsig`, pyHanko and Demoiselle all reported the resulting
+document as valid, correctly: none of them resolves the policy document, so none
+of them ever compares.
 
 [`samples/`](samples/README.md) holds one signed document per profile plus the
 awkward cases, indexed and explained in
@@ -191,8 +200,8 @@ Which test exercises which tool, and why, is in
 ## Contributing
 
 Patches are expected to come with tests. `composer check` runs everything CI
-runs: Pint, PHPStan at level max with no baseline, a dependency report and the
-suite. Everything runs in Docker, because the floor is PHP 8.4.
+runs: Pint, PHPStan at level max with no baseline, a dependency report, the
+manifest normaliser and the suite. Everything runs in Docker, because the floor is PHP 8.4.
 
 ```bash
 docker compose -f .docker/compose.yaml run --rm php composer check
