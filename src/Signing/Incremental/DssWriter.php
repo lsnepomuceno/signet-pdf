@@ -6,6 +6,8 @@ namespace LSNepomuceno\Signet\Signing\Incremental;
 
 use Com\Tecnick\Pdf\Sign\Output\Dss;
 use Com\Tecnick\Pdf\Sign\Signer;
+use LSNepomuceno\Signet\Config\SigningConfig;
+use LSNepomuceno\Signet\Contracts\SecurityStoreContributor;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Data\Certificate;
 use LSNepomuceno\Signet\Data\SkippedMaterial;
@@ -45,6 +47,17 @@ final readonly class DssWriter
         // logs unasked fills somebody's disk
         // (docs/decisions/0035-the-audit-trail-is-opt-in.md).
         private SigningLog $log = new SigningLog(),
+        // Appended, and null by default. A policy can require entries PAdES
+        // does not define, and which policies exist is not something this class
+        // may know: the contributor is the seam, and `Signet` wires the
+        // ICP-Brasil one (docs/decisions/0132-the-store-carries-the-policy-artefacts.md).
+        private ?SecurityStoreContributor $contributor = null,
+        private StoreEntryWriter $entries = new StoreEntryWriter(),
+        // The declaration the contributor is asked about. It is read from here
+        // rather than passed down the pipeline because this is where
+        // `Signing\Cades\CadesBuilder` reads the same value from, and a
+        // signature declares one policy for its whole life.
+        private SigningConfig $config = new SigningConfig(),
     ) {}
 
     /**
@@ -172,7 +185,18 @@ final readonly class DssWriter
             ObjectCipher::for($document)->streamEncryptor(),
         );
 
-        $objects = $emitted['objects'];
+        // Written after the emitter and into what it produced, so object
+        // numbering, deduplication and stream encryption stay in one place
+        // (docs/decisions/0132-the-store-carries-the-policy-artefacts.md).
+        $objects = $this->entries->apply(
+            $emitted['objects'],
+            $emitted['object_id'],
+            array_values($emitted['state']['vri']),
+            $this->contributor?->entriesFor($this->config->policy) ?? [],
+            $objectNumber,
+            ObjectCipher::for($document)->streamEncryptor(),
+        );
+
         $objects[$document->root] = $this->writer->catalogWithDss($pdf->bytes, $document, $emitted['object_id']);
 
         // Built first and appended second, so the document is extended in place

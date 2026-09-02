@@ -208,6 +208,34 @@ enum SignaturePolicy: string
     }
 
     /**
+     * Whether the policy requires the ICP-Brasil entries in the security store.
+     *
+     * `PBAD_PolicyArtifacts`, `PBAD_LpaArtifacts` and `PBAD_LpaSignatures` in
+     * `/DSS`, and the singular forms in `/VRI`. They carry the policy document,
+     * ITI's published list and the list's signature inside the document, so a
+     * verifier can check the policy years later without reaching
+     * `politicas.icpbrasil.gov.br`, which is the reason the store carries
+     * certificates and CRLs at all.
+     *
+     * **AD-RA alone, and that is read out of the artefacts.** AD-RC asks for a
+     * document timestamp and not for these, which is the only thing separating
+     * the two families now that both are satisfied by `pades-b-lta`
+     * (docs/decisions/0131-ad-rc-wants-a-document-timestamp.md).
+     * `tests/IcpBrasil/SignaturePolicyTest.php` checks this list against the
+     * committed policy documents case by case
+     * (docs/decisions/0132-the-store-carries-the-policy-artefacts.md).
+     */
+    public function requiresPolicyArtifacts(): bool
+    {
+        return match ($this) {
+            self::AdRaV1_0, self::AdRaV1_1, self::AdRaV1_2, self::AdRaV1_3, self::AdRaV1_4 => true,
+            self::AdRbV1_0, self::AdRbV1_1, self::AdRbV1_2, self::AdRbV1_3,
+            self::AdRtV1_0, self::AdRtV1_1, self::AdRtV1_2, self::AdRtV1_3,
+            self::AdRcV1_0, self::AdRcV1_1, self::AdRcV1_2, self::AdRcV1_3, self::AdRcV1_4 => false,
+        };
+    }
+
+    /**
      * When the policy came into force, as a Unix timestamp.
      */
     public function validFrom(): int

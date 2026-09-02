@@ -24,7 +24,7 @@ signature**. Signed with a real RFB e-CPF A1 and submitted to
 | `pades-b-b` | AD-RB v1.3 | approved | nothing |
 | `pades-b-t` | AD-RT v1.3 | refused | the timestamp only |
 | `pades-b-lta` | AD-RC v1.4 | refused | the timestamp only |
-| `pades-b-lta` | AD-RA v1.4 | refused | the timestamp, and the `PBAD_` entries below |
+| `pades-b-lta` | AD-RA v1.4 | refused | the timestamp only, since the `PBAD_` entries landed |
 
 In each refused report the five signed attributes this package writes are
 `Valid`, the certification path is `Valid`, and the structure is reported as
@@ -134,43 +134,6 @@ issued for this one purpose over the certificate you sign with.
 Nothing else changes: the profile, the policy and the rest of the configuration
 are what they were, and `Contracts\SignatureTransport` is the seam this rides on
 ([0027](../decisions/0027-the-transport-is-a-seam.md)).
-
-### What an accredited authority still would not fix
-
-One limit below is about what this package writes rather than about who stamped
-it, so it survives the change: an AD-RA signature needs the `PBAD_` entries.
-
-## The security store is missing the ICP-Brasil entries
-
-**Affects AD-RA only**, which is the family `pades-b-lta` declares.
-
-```
-Nome do atributo: DSS
-Corretude: Invalid
-Mensagem de erro: DSS não contém as seguintes entradas obrigatórias exigidas pela
-                  PA: PBAD_PolicyArtifacts, PBAD_LpaArtifacts,
-                  PBAD_LpaSignatures.
-```
-
-`PBAD_PolicyArtifacts`, `PBAD_LpaArtifacts` and `PBAD_LpaSignatures` are
-Document Security Store entries the Brazilian policies require and PAdES itself
-does not. They carry the policy document, ITI's published policy list and its
-signature *inside the document*, so a verifier can check the policy years later
-without reaching `politicas.icpbrasil.gov.br`. That is the same reason the store
-carries certificates and CRLs at all.
-
-The artefacts are already committed under `tests/Resources/icp-brasil/`, so what
-is missing is writing them rather than fetching them. Tracked in
-[#156](https://github.com/lsnepomuceno/signet-pdf/issues/156).
-
-AD-RB, AD-RT and AD-RC require none of them, and AD-RC's store is reported
-`Valid` as it stands.
-
-**What to do meanwhile:** declare AD-RC rather than AD-RA where the policy is
-yours to choose. Both are satisfied by `pades-b-lta`
-([0131](../decisions/0131-ad-rc-wants-a-document-timestamp.md)), and AD-RC asks
-for the validation material and the archive timestamp without asking for these
-three entries.
 
 ## EU DSS reads the B-LT and B-LTA samples as BASELINE-T
 

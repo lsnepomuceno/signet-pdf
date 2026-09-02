@@ -20,6 +20,34 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **The security store carries the artefacts an ICP-Brasil archival signature
+  declares.** `PBAD_PolicyArtifacts`, `PBAD_LpaArtifacts` and
+  `PBAD_LpaSignatures` in `/DSS`, and the singular forms in `/VRI`, holding the
+  policy document, ITI's published policy list and that list's signature inside
+  the file. ITI refused a document for their absence while every other attribute
+  in the same report passed.
+
+  **Nothing has to be configured.** Sign at `pades-b-lta` declaring an AD-RA
+  policy and they are written, from copies that ship in `src/Resources/`, so
+  signing reaches no network for them. Any other policy, or none, produces the
+  document it produced before: the other three families ask for none of these,
+  AD-RC included.
+
+  The document grows by about 15 KB, which is what buys a verifier the ability
+  to check the policy years later without `politicas.icpbrasil.gov.br`
+  answering.
+
+  ```php
+  // A newer list, before a release carries it.
+  new Signet($config, storeContributor: new PolicyArtifacts('/etc/signet/icp-brasil'));
+  ```
+
+  `Contracts\SecurityStoreContributor` and `Data\SecurityStoreEntry` are the
+  seam, so a host signing under a policy this package has never heard of
+  contributes its own entries and nothing in `src/Signing/` learns what a
+  `PBAD_` entry is
+  ([0132](docs/decisions/0132-the-store-carries-the-policy-artefacts.md)).
+
 - **`Data\SigningReceipt`, so an application can say what it signed.**
   `sign()` returned the bytes and a file name, and every other fact signing knew
   was discarded: which field was filled, at what profile, when, who signed, and
