@@ -156,6 +156,9 @@ general catch still works.
   allowlist.
 - [Troubleshooting](./troubleshooting.md): every exception this package raises,
   and what it means.
+- [Known limits](./known-limits.md): what the package does not do yet, starting
+  with why an ICP-Brasil signature above `pades-b-b` needs an accredited
+  timestamp authority.
 - [Enums, contracts and exceptions](./types.md): the lookup page, for when you
   know the name and want the shape.
 - [Standards and instruments](./references.md): every specification this package

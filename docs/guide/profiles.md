@@ -45,6 +45,13 @@ Each level above `pades-b-b` needs a timestamp authority, so each one adds a
 network dependency at signing time and a reason for signing to fail that the
 lower levels do not have.
 
+::: tip Signing for ICP-Brasil
+Any authority produces a valid PAdES timestamp. A Brazilian verifier asks for
+more than that, and the authorities that satisfy it are contracted rather than
+public, so plan for it before choosing a profile above `pades-b-b`. See
+[Known limits](./known-limits.md#an-icp-brasil-timestamp-needs-an-accredited-authority).
+:::
+
 ## Configuring the authority
 
 ```php

@@ -181,7 +181,15 @@ export default withMermaid(defineConfig({
         { text: 'Certificates', slugs: ['certificates', 'icp-brasil'] },
         {
           text: 'Tooling',
-          slugs: ['cli', 'testing', 'audit-log', 'troubleshooting', 'types', 'references'],
+          slugs: [
+            'cli',
+            'testing',
+            'audit-log',
+            'troubleshooting',
+            'known-limits',
+            'types',
+            'references',
+          ],
         },
       ]),
 
