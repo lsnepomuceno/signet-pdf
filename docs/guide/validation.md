@@ -129,15 +129,21 @@ It matters in Brazil, where a verifier looks for it before calling a signature
 ICP-Brasil conformant: a signature carrying none is cryptographically fine and
 still reported as conformant to nothing.
 
-**This is what the document says, not a verdict.** Nothing checks that the
-policy was satisfied, or that the OID names a policy that exists. Doing either
-means holding the published policy artefacts, and nothing here fetches the URI:
-the network stays behind the injected transport.
+**This is what the document says, not a verdict.** `validate()` reports the
+declaration and judges none of it: whether the OID names a policy anybody
+published, and whether the signature carries what that policy demands, are
+Brazilian questions and the core knows nothing regional
+([0104](../decisions/0104-the-regional-layer-is-its-own-namespace.md)).
+`IcpBrasil\PolicyConformance` is the half that judges, offline and against the
+policy documents that ship, and [ICP-Brasil](./icp-brasil.md#reading-a-declaration-back)
+shows it in use. Nothing here fetches the URI either way: the network stays
+behind the injected transport.
 
-**Null is every signature this package produces today.** Declaring a policy
-means adding a signed attribute, which has to be there before the attributes are
-signed, and the CMS library underneath exposes no way to contribute one. That
-half is [#56](https://github.com/lsnepomuceno/signet-pdf/issues/56).
+**Null is a signature that declared nothing, not a limit of this package.**
+Naming a policy in `Config\SigningConfig` makes every signature carry the
+attribute ([0121](../decisions/0121-a-signature-can-declare-an-icp-brasil-policy.md)),
+and [ICP-Brasil](./icp-brasil.md#declaring-a-signature-policy) is where that is
+set up.
 
 ## Findings
 

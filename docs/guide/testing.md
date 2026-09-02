@@ -85,15 +85,22 @@ The three remaining seams have local substitutes, which is what lets a suite
 exercise `pades-b-t` and above without reaching a live authority:
 
 ```php
-use LSNepomuceno\Signet\Testing\LocalTimestampAuthority;
+use LSNepomuceno\Signet\Support\SymfonyProcessRunner;
 use LSNepomuceno\Signet\Testing\LocalRevocationAuthority;
-use LSNepomuceno\Signet\Testing\FakeProcessRunner;
+use LSNepomuceno\Signet\Testing\LocalTimestampAuthority;
+
+$processes = new SymfonyProcessRunner();
 
 $signet = new Signet(
-    processes: new FakeProcessRunner(),
-    transport: new LocalTimestampAuthority(),
+    transport: new LocalTimestampAuthority($processes),
 );
 ```
+
+**The authority takes a process runner**, because it signs its tokens with
+`openssl ts` rather than pretending to. That is what makes it a substitute for
+an authority rather than a stub: what comes back is a real RFC 3161 token that
+this package's own validator reads. It cannot be a `FakeProcessRunner` for the
+same reason.
 
 **A suite that cannot start a process at all** can validate too, by selecting the
 verifier that needs none:
@@ -107,7 +114,17 @@ $signet = new Signet(
 );
 ```
 
-`LocalTimestampAuthority` answers `timestamp()`, `ocsp()` and `crl()` locally.
+`LocalTimestampAuthority` answers `timestamp()` with a real token and `ocsp()`
+and `crl()` with false, which is honest for the self-signed certificate it
+stamps with. `LocalRevocationAuthority` is the same authority with revocation
+material to hand out, for a suite that needs `pades-b-lt` to embed something.
+
+`certificate()` on either hands back the certificate it stamps with, as PEM. It
+is there so a verifier can be told to trust it: a tool that decides a document's
+baseline level excludes trust anchors from the material it requires, so one told
+to trust nothing cannot read any document above B-T
+([0133](../decisions/0133-the-witness-has-to-trust-something.md)).
+
 `FakeProcessRunner` records what would have been executed:
 
 ```php

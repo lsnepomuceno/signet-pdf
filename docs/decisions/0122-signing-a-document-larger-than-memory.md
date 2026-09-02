@@ -176,7 +176,15 @@ an upstream API that does not exist, or ASN.1 written here, which
 therefore peaks at two documents, and the test asserts that separately so it
 cannot drift into looking like the baseline.
 
-### Stage three is still owed, and it is the acceptance criterion
+### Stage three is still owed, and it was the acceptance criterion
+
+**#48 closed on 2026-09-01 with stage two shipped**, so the paragraph below
+describes work nothing tracks any more. It is left as it was written rather than
+tidied away: what it costs and what it would touch is the only estimate anybody
+has, and a reader deciding whether to attempt it should not have to rebuild it.
+`docs/guide/known-limits.md` is where the limit is stated for a consumer, and it
+points here rather than at an issue.
+
 
 [#48](https://github.com/lsnepomuceno/signet-pdf/issues/48) asks for a 300 MB
 document under a 128 MB `memory_limit`. **A 300 MB document signs now, and it
