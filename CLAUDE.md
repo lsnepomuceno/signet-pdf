@@ -64,7 +64,7 @@ composer analyse        # PHPStan level max, no baseline
 composer lint           # Pint (PER-CS); append --test to only check
 composer deps           # unused/shadow dependency report
 composer test:types     # type coverage, gated at 100%
-composer test:mutate    # mutation testing over Certificates, Signing, Support, Validation
+composer test:mutate    # mutation testing over Certificates, IcpBrasil, Signing, Support, Validation
 
 vendor/bin/pest tests/Signing/SigningTest.php                    # single file
 vendor/bin/pest --filter="writes the CAdES sub-filter"   # single test
@@ -196,15 +196,22 @@ can be pointed at them
 
 ### Supporting pieces
 
-- `Contracts/`: the seams. `ProcessRunner` and `SignatureTransport` are the two
-  that invariants 8 and 9 rest on; `PdfSource`, `PdfDestination` and `Encrypter`
-  are the newer ones.
+- `Contracts/`: the seams, fourteen of them. `ProcessRunner` and
+  `SignatureTransport` are the two that invariants 8 and 9 rest on;
+  `PdfSource`, `PdfDestination` and `Encrypter` came with the split; and
+  `DigestSignatureProducer` (0122), `SigningKey` (0120) and
+  `SecurityStoreContributor` (0132) are the newest.
 - `Io/`: `FileSource`, `StringSource`, `StreamSource`, `FileDestination`,
   `StreamDestination`.
 - `Support/`: `SymfonyProcessRunner` (the only class that spawns a process),
-  `Files`, `TemporaryFile`, `TempDirectory`, `OpensslEncrypter`, `Probe`.
-- `Console/` and `bin/signet`: `sign`, `verify`, `fields` and `check`, over
-  `symfony/console`. `verify --json` puts the verdict in the exit status.
+  `Files`, `TemporaryFile`, `TempDirectory`, `OpensslEncrypter`, `Probe`, and
+  `DocumentBuffer`, **the one mutable class in the package**: a document is
+  extended in place because a second variable holding the same string allocates
+  the whole file again (0122).
+- `Console/` and `bin/signet`: `sign`, `verify`, `fields`, `field:add`, `extend`
+  and `check`, over `symfony/console`. `verify --json` puts the verdict in the
+  exit status, and `extend` exits `75` when the authority did not answer, which
+  is the only failure a cron entry should retry.
 - `Support/SigningLog`: the opt-in audit trail, null by default, whose context
   is an allowlist rather than a denylist. `psr/log` is the one non-Symfony
   runtime dependency and 0101 records why.
@@ -261,7 +268,7 @@ The one that matters most is `imports no framework`.
 
 ## Skills
 
-Four procedures live in `.claude/skills/`, and they are there rather than here
+Five procedures live in `.claude/skills/`, and they are there rather than here
 because each is long, and each is needed only when its own kind of work starts.
 They hold what a gate cannot check: the order to reach for things in, and the
 questions to ask before writing rather than after.
@@ -271,6 +278,7 @@ questions to ask before writing rather than after.
 | `signature-forensics` | a signing, validation or conformance test fails, or a signed document is refused by another reader |
 | `new-class-in-src` | anything is about to be added under `src/` |
 | `decision-record` | a change picks one design over another a reader would question |
+| `documentation-audit` | the prose has to be checked against the code, after a release or when two pages disagree |
 | `ship-it` | a change is finished: branch, changelog, commit, pull request, merge |
 
 They are committed to the repository rather than kept per machine, so
@@ -377,7 +385,13 @@ here.
   (structure), pyHanko (`/DocMDP` and a foreign signature), `pdfsig` (an
   independent reader), the Arlington PDF Model's `testgrammar`, and EU DSS (the
   digest a signature declares for its ICP-Brasil policy, which is the one
-  property the other five cannot see). Ghostscript
+  property the other five cannot see, and the PAdES baseline level the output
+  reaches). **DSS has to be told what to trust**: it excludes trust anchors from
+  the validation material it requires, so given none it cannot report a level
+  above `PAdES-BASELINE-T` whatever the document carries, and it read this
+  package's B-LT and B-LTA output that way for a month with nothing wrong with
+  the output (docs/decisions/0133-the-witness-has-to-trust-something.md).
+  Ghostscript
   and `pdftoppm` are named only in the ban list in `tests/Project/ArchTest.php`,
   which is deliberate: the rule forbids reaching for an instrument from `src/`,
   and it costs nothing to forbid one nobody has reached for yet.

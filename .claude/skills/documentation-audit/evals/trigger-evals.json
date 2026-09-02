@@ -1,0 +1,82 @@
+[
+  {
+    "query": "signing.md says A3 tokens are out of scope but two-phase-signing has a whole section on them",
+    "should_trigger": true
+  },
+  {
+    "query": "revise the documentation and make sure there are no disagreements between pages",
+    "should_trigger": true
+  },
+  {
+    "query": "is the README still accurate after everything that landed this week?",
+    "should_trigger": true
+  },
+  {
+    "query": "we shipped three features and I do not think the prose caught up with any of them",
+    "should_trigger": true
+  },
+  {
+    "query": "somebody tried the snippet in the testing guide and it does not run",
+    "should_trigger": true
+  },
+  {
+    "query": "types.md says eleven contracts, is that number still right",
+    "should_trigger": true
+  },
+  {
+    "query": "the reserved size quoted in the two-phase page looks wrong to me",
+    "should_trigger": true
+  },
+  {
+    "query": "before we publish the site check nothing in there is stale",
+    "should_trigger": true
+  },
+  {
+    "query": "audit the docs",
+    "should_trigger": true
+  },
+  {
+    "query": "the guide cites an issue that has been closed for weeks as if it were still open",
+    "should_trigger": true
+  },
+  {
+    "query": "write the decision record for the security store entries",
+    "should_trigger": false
+  },
+  {
+    "query": "commit this and open the PR when the checks pass",
+    "should_trigger": false
+  },
+  {
+    "query": "tests/Conformance/PolicyDigestTest.php started failing after I touched DssWriter",
+    "should_trigger": false
+  },
+  {
+    "query": "I am adding a class under src/Validation, where does it go",
+    "should_trigger": false
+  },
+  {
+    "query": "add a guide page explaining how seals are laid out",
+    "should_trigger": false
+  },
+  {
+    "query": "the site build is failing on a link that goes nowhere",
+    "should_trigger": false
+  },
+  {
+    "query": "pdfsig reports the signature as invalid but our validator says it is fine",
+    "should_trigger": false
+  },
+  {
+    "query": "cut 3.0.1, Unreleased already has the two fixes",
+    "should_trigger": false
+  },
+  {
+    "query": "should the reserved width be an enum case or a class constant",
+    "should_trigger": false
+  },
+  {
+    "query": "the getting started page reads badly, rewrite it so it flows better",
+    "should_trigger": false
+  }
+]

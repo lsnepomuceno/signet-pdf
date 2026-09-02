@@ -1,6 +1,6 @@
 # Skills
 
-Four procedures, listed in `CLAUDE.md` with what each is read for. This file is
+Five procedures, listed in `CLAUDE.md` with what each is read for. This file is
 about the part that is easy to get wrong: whether a skill is consulted at all.
 
 ## A description is the whole triggering mechanism
@@ -23,8 +23,13 @@ A query polished into a specification measures a prompt nobody sends.
 
 **The negatives are what the set is really for.** An obviously unrelated query
 tests nothing. Each of the ten is a near miss, and most of them are a positive
-for one of the other three skills: `write the decision record for this change`
+for one of the other four skills: `write the decision record for this change`
 must not summon `ship-it`, and neither must `update the description of PR 130`.
+
+`documentation-audit`'s negatives lean on a distinction worth stating: a page
+that has to be **written** is not a page that has to be **checked**, and a link
+that resolves to nothing is a build failure rather than a stale claim. Both are
+in its ten.
 
 ## The measured baseline
 
@@ -65,6 +70,34 @@ description edit is measured before and after or it is not measured at all.
 The asymmetry is the reason to be conservative here. A skill that occasionally
 fails to appear costs one worse answer. A skill that appears when it should not
 costs context on every neighbouring task, permanently.
+
+### `documentation-audit`, measured 2026-09-02
+
+Added after a reader found the signing guide calling A3 tokens out of scope
+while the two-phase page devoted a section to each. Three runs per query, and
+**three descriptions**, because the first two scored badly in the same place:
+
+| Description | Score | What it missed |
+|---|---|---|
+| First, opening with what the skill does | 14/20 | every positive that named a file: the contradiction, the count, the width, the broken example, the closed issue |
+| Second, naming the four defect shapes | 16/20 | the same four, less consistently |
+| Third, opening with when to use it and saying "including when the report names one file and one sentence" | **19/20** | one, at 1/3 |
+
+**Naming a file in the query was the whole problem.** Every miss in the first
+run was a report about a specific page, and the model went to read that page
+instead of consulting a procedure, which is a reasonable thing to do and exactly
+the case the skill exists for. What fixed it was leading with the trigger
+condition rather than with the activity, and saying that a single suspect line
+counts.
+
+The last one was noise: 1/3 over three runs, **9/9** over nine, against the same
+description. So the third description is 20/20 in effect, with **no false
+positive in forty negative runs**.
+
+Two of its ten negatives are the distinctions worth keeping: `add a guide page
+explaining how seals are laid out` is writing rather than checking, and `the site
+build is failing on a link that goes nowhere` is a gate doing its job rather
+than a stale claim.
 
 ## Running the measurement
 
