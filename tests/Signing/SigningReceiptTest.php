@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use LSNepomuceno\Signet\Data\SkippedMaterial;
 use LSNepomuceno\Signet\Enums\DigestAlgorithm;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\IcpBrasil\Enums\CertificateType;
@@ -182,4 +183,55 @@ it('says nothing about a document that did not come from signing', function () {
 
     expect($withField->receipt())->toBeNull()
         ->and($withField->signing)->toBeNull();
+});
+
+it('says which evidence it could not embed', function () {
+    // **The silence this exists to end.** `pades-b-lt` gathers revocation
+    // evidence for every link of the chain and embeds only what verifies
+    // (docs/decisions/0119-revocation-material-is-verified-before-it-is-embedded.md).
+    // What it never said is that anything had been dropped, so a document could
+    // declare the profile, carry material for some links and not others, and
+    // report success. Measured against a real ICP-Brasil chain, one CRL of
+    // three was missing and nothing anywhere named it
+    // (docs/decisions/0129-signing-says-what-it-could-not-embed.md).
+    [$path, $password] = revocableIdentity();
+
+    setConfig('signature.timestamp.url', 'https://timestamp.invalid/tsr');
+
+    $signed = signet()->newSignature()
+        ->certificate($path, $password)
+        ->pdf(resource('test.pdf'))
+        ->profile(SignatureProfile::PadesBLT)
+        ->sign();
+
+    $receipt = $signed->receipt();
+
+    assert($receipt !== null);
+
+    expect($receipt->skipped)->not->toBe([]);
+
+    foreach ($receipt->skipped as $one) {
+        expect($one)->toBeInstanceOf(SkippedMaterial::class)
+            // Each of the three answers a different question: what was being
+            // fetched, where it was asked for, and why the answer was refused.
+            // A report missing any of them cannot be acted on.
+            ->and($one->source)->not->toBe('')
+            ->and($one->url)->not->toBe('')
+            ->and($one->reason)->not->toBe('')
+            ->and((string) $one)->toContain($one->url);
+    }
+});
+
+it('reports nothing skipped where nothing was looked for', function () {
+    // Empty is not a claim of completeness, and this is the case that shows
+    // why: `pades-b-b` embeds no validation material at all, so there is
+    // nothing to drop and nothing to report.
+    [$pfxPath, $password] = debugCertificate();
+
+    $signed = signet()->newSignature()
+        ->certificate($pfxPath, $password)
+        ->pdf(resource('test.pdf'))
+        ->sign();
+
+    expect($signed->receipt()?->skipped)->toBe([]);
 });

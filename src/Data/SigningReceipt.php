@@ -52,6 +52,12 @@ final readonly class SigningReceipt extends BaseData
      *          anything has been hashed.
      * @param  string|null  $originalHash  The same, over the document as it
      *          arrived.
+     * @param  list<SkippedMaterial>  $skipped  Revocation evidence that was
+     *          looked for and not embedded, with the reason for each. **Empty
+     *          is not the same as complete**: it means nothing was dropped, and
+     *          at `pades-b-b` nothing was looked for either. What it does answer
+     *          is why a document that asked for `pades-b-lt` did not get
+     *          everything (docs/decisions/0129-signing-says-what-it-could-not-embed.md).
      */
     public function __construct(
         public string $fieldName = '',
@@ -65,6 +71,7 @@ final readonly class SigningReceipt extends BaseData
         public ?DigestAlgorithm $algorithm = null,
         public ?string $hash = null,
         public ?string $originalHash = null,
+        public array $skipped = [],
     ) {}
 
     /**
@@ -86,6 +93,7 @@ final readonly class SigningReceipt extends BaseData
             signerName: $this->signerName,
             icpBrasil: $this->icpBrasil,
             algorithm: $algorithm,
+            skipped: $this->skipped,
             hash: hash($algorithm->value, $document),
             // The original is a prefix of the signed file, because signing
             // appends a revision and never rewrites what was there (invariant

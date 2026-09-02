@@ -24,6 +24,15 @@ enum SigningEvent: string
     case TimestampReceived = 'timestamp.received';
 
     /** A document was validated, whatever the verdict. */
+    /**
+     * Revocation evidence was looked for and not embedded, with the reason.
+     *
+     * Recorded per piece rather than per signature, because the interesting
+     * case is a document that got most of what it needed
+     * (docs/decisions/0129-signing-says-what-it-could-not-embed.md).
+     */
+    case ValidationMaterialSkipped = 'validation-material.skipped';
+
     case ValidationCompleted = 'validation.completed';
 
     /** A document did not verify. */

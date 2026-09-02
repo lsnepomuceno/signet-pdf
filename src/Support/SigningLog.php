@@ -46,6 +46,13 @@ final readonly class SigningLog
         'valid',
         'signatures',
         'exception',
+        // What could not be embedded, and where it was looked for. A
+        // distribution point is published inside the certificate itself and
+        // names no private resource, unlike the file paths this list keeps out
+        // (docs/decisions/0129-signing-says-what-it-could-not-embed.md).
+        'source',
+        'url',
+        'reason',
     ];
 
     public function __construct(private ?LoggerInterface $logger = null) {}

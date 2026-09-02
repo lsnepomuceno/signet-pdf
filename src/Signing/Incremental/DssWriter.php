@@ -8,10 +8,13 @@ use Com\Tecnick\Pdf\Sign\Output\Dss;
 use Com\Tecnick\Pdf\Sign\Signer;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Data\Certificate;
+use LSNepomuceno\Signet\Data\SkippedMaterial;
+use LSNepomuceno\Signet\Enums\SigningEvent;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Signing\Encryption\ObjectCipher;
 use LSNepomuceno\Signet\Support\DocumentBuffer;
 use LSNepomuceno\Signet\Support\Pem;
+use LSNepomuceno\Signet\Support\SigningLog;
 use LSNepomuceno\Signet\Validation\ChainBuilder;
 use Throwable;
 
@@ -38,6 +41,10 @@ final readonly class DssWriter
         // Appended with a default, so the arity a hand-built writer relies on
         // does not move (docs/decisions/0128-the-chain-is-built-not-taken-in-order.md).
         private ChainBuilder $chain = new ChainBuilder(),
+        // Appended for the same reason, and null by default: a package that
+        // logs unasked fills somebody's disk
+        // (docs/decisions/0035-the-audit-trail-is-opt-in.md).
+        private SigningLog $log = new SigningLog(),
     ) {}
 
     /**
@@ -46,6 +53,9 @@ final readonly class DssWriter
      *          an encrypted document (ISO 32000-1 §7.6.2), so writing one
      *          without it produces evidence no reader can decode.
      *
+     * @return list<SkippedMaterial> Evidence that was looked for and not
+     *          embedded, with the reason for each.
+     *
      * @throws InvalidPdfFileException
      */
     public function append(
@@ -53,7 +63,7 @@ final readonly class DssWriter
         Certificate $certificate,
         #[\SensitiveParameter]
         string $documentPassword = '',
-    ): void {
+    ): array {
         // **Built, not taken in the order the bundle happens to be in.** The
         // collector pairs each certificate with the next one as its issuer, so
         // an out-of-order pool asks a responder about the wrong pair and
@@ -67,7 +77,11 @@ final readonly class DssWriter
         // The expectation lived here instead.
         $chain = $this->chain->build(Pem::certificates($certificate->original));
 
-        $this->write($pdf, $this->collect($chain), $documentPassword);
+        [$material, $skipped] = $this->collect($chain);
+
+        $this->write($pdf, $material, $documentPassword);
+
+        return $skipped;
     }
 
     /**
@@ -86,6 +100,8 @@ final readonly class DssWriter
      *                                      mixed pile would build OCSP requests
      *                                      against the wrong issuer.
      * @param  string  $documentPassword  The password the document was opened with.
+     * @return list<SkippedMaterial> Evidence that was looked for and not
+     *          embedded, with the reason for each.
      *
      * @throws InvalidPdfFileException
      */
@@ -94,11 +110,15 @@ final readonly class DssWriter
         array $chains,
         #[\SensitiveParameter]
         string $documentPassword = '',
-    ): void {
+    ): array {
         $material = ['certs' => [], 'ocsp' => [], 'crls' => []];
+        $skipped = [];
 
         foreach ($chains as $chain) {
-            $collected = $this->collect($chain);
+            [$collected, $dropped] = $this->collect($chain);
+
+            $skipped = [...$skipped, ...$dropped];
+            /** @var list<SkippedMaterial> $skipped */
 
             if ($collected === null) {
                 continue;
@@ -118,6 +138,8 @@ final readonly class DssWriter
             $material['certs'] === [] && $material['ocsp'] === [] && $material['crls'] === [] ? null : $material,
             $documentPassword,
         );
+
+        return $skipped;
     }
 
     /**
@@ -162,34 +184,55 @@ final readonly class DssWriter
     }
 
     /**
-     * Gathers the revocation material, or null when there is none to embed.
+     * Gathers the revocation material, and what could not be gathered.
      *
      * A self-signed certificate has neither an OCSP responder nor a CRL
      * distribution point, and an unreachable responder must not fail the
-     * signature: in both cases the document simply stays at B-T.
+     * signature: in both cases the document simply stays at B-T
+     * ([0119](docs/decisions/0119-revocation-material-is-verified-before-it-is-embedded.md)).
+     *
+     * **What is new is the second half of the pair.** The collector reports
+     * every piece it dropped and why, through a callback this package did not
+     * pass, so a document could declare `pades-b-lt`, carry material for two
+     * links of three, and say nothing at all. Refusing to sign stays the wrong
+     * answer; saying nothing was a different mistake
+     * (docs/decisions/0129-signing-says-what-it-could-not-embed.md).
      *
      * @param  list<string>  $chain  Leaf first.
-     * @return array{certs: list<string>, ocsp: list<string>, crls: list<string>}|null
+     * @return array{0: array{certs: list<string>, ocsp: list<string>, crls: list<string>}|null, 1: list<SkippedMaterial>}
      */
-    private function collect(array $chain): ?array
+    private function collect(array $chain): array
     {
         if ($chain === []) {
-            return null;
+            return [null, []];
         }
+
+        $skipped = [];
 
         try {
             $material = $this->signer->collectValidationMaterial(
                 $chain,
                 $this->transport->ocsp(),
                 $this->transport->crl(),
+                onSkip: function (string $source, string $url, string $reason) use (&$skipped): void {
+                    $dropped = new SkippedMaterial($source, $url, $reason);
+
+                    $skipped[] = $dropped;
+
+                    $this->log->record(SigningEvent::ValidationMaterialSkipped, [
+                        'source' => $dropped->source,
+                        'url' => $dropped->url,
+                        'reason' => $dropped->reason,
+                    ]);
+                },
             );
         } catch (Throwable) {
-            return null;
+            return [null, $skipped];
         }
 
-        return $material['certs'] === [] && $material['ocsp'] === [] && $material['crls'] === []
-            ? null
-            : $material;
+        $empty = $material['certs'] === [] && $material['ocsp'] === [] && $material['crls'] === [];
+
+        return [$empty ? null : $material, $skipped];
     }
 
     /**

@@ -160,6 +160,40 @@ timestamp: that is `pades-b-t` and above
 `addSignatureField()` and `extend()` both return a `Data\SignedPdf` and neither
 is a signature.
 
+### What it could not embed
+
+**A `pades-b-lt` signature can come back short, and this is where it says so.**
+The profile gathers revocation evidence for every link of the certificate
+chain, and embeds only what verifies: an authority that does not answer must not
+stop a signature
+([0119](../decisions/0119-revocation-material-is-verified-before-it-is-embedded.md)).
+Until now nothing said that anything had been dropped, so a document could
+declare the profile, carry evidence for some links and not others, and report
+success:
+
+```php
+foreach ($signed->receipt()?->skipped ?? [] as $missing) {
+    $missing->source;   // 'crl' or 'ocsp'
+    $missing->url;      // the distribution point that was asked
+    $missing->reason;   // why the answer was not embedded
+}
+```
+
+Measured against a real ICP-Brasil chain, one list of three was missing and this
+is what it says:
+
+```
+crl http://www.receita.fazenda.gov.br/acrfb/acrfbv4.crl: The CRL is too old
+```
+
+**Empty is not a claim of completeness.** At `pades-b-b` nothing is looked for,
+so nothing is dropped. What the list answers is why a document that asked for
+more did not get it.
+
+The same is written to `Support\SigningLog` when a host wires one, as
+`validation-material.skipped`, with the same three fields
+([0129](../decisions/0129-signing-says-what-it-could-not-embed.md)).
+
 ::: tip There is no `download()` and no `toResponse()`
 They existed before the extraction and were removed on purpose: a signing core
 that returns an HTTP response has an opinion about the framework calling it.
