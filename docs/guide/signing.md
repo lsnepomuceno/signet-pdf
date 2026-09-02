@@ -161,6 +161,40 @@ wrong for anything that needs a profile, a seal or a field.
 The last two travel together in practice: Word, "print to PDF" in Chrome and
 LaTeX with compression all emit both.
 
+## Signing a document larger than a few megabytes
+
+**Signing holds one copy of the document, plus about 8 MB.** That number is
+measured on every change rather than assumed, in
+`tests/Signing/MemoryFootprintTest.php`, and the 8 MB is the chunk the signed
+span is hashed in:
+
+| Document | Peak while signing | |
+|---|---|---|
+| 8 MB | 17.6 MB | 2.19x |
+| 16 MB | 24.1 MB | 1.50x |
+| 32 MB | 40.1 MB | 1.25x |
+| 300 MB | 309.8 MB | 1.03x |
+
+So the practical rule is **`memory_limit` a little above the size of the
+document**, and the ratios above fall towards one because what is held beside
+the document does not grow with it. A 300 MB scan signs in 1.4 seconds and 310
+MB. It used to take 602 MB, because the revision was built as a second copy of
+the whole file
+([0122](../decisions/0122-signing-a-document-larger-than-memory.md)).
+
+**`pades-b-lta` needs twice the document**, and the reason is specific rather
+than general: an RFC 3161 request carries the digest of what it timestamps and
+the timestamp client hashes that content itself instead of accepting a
+pre-computed imprint, so the archive timestamp assembles the span it covers. The
+same 300 MB document signs at that level in 602 MB.
+
+**Where the document comes from does not change this.** A `PdfSource` resolves
+to bytes, so a 300 MB document is 300 MB in memory whether it arrives from a
+path, a stream or an object store. Reading the structure by seeking, so the
+original is never a string at all, is the work
+[#48](https://github.com/lsnepomuceno/signet-pdf/issues/48) tracks; until it
+lands, the size of the document is the floor.
+
 ## What it will not do
 
 | Not supported | Why |

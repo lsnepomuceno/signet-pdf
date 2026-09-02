@@ -62,7 +62,8 @@ src/
 ├── Support/                              # Files, SymfonyProcessRunner, TemporaryFile,
 │                                         # TempDirectory, SodiumEncrypter,
 │                                         # OpensslEncrypter, SigningLog,
-│                                         # PdfFilters, PngReader, SrgbProfile
+│                                         # PdfFilters, PngReader, SrgbProfile,
+│                                         # Bytes and DocumentBuffer
 ├── Console/                              # sign, verify, fields, extend, check
 ├── Exceptions/                           # one class per failure mode, all sharing
 │                                         # the SignetException interface
