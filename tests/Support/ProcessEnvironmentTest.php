@@ -136,5 +136,46 @@ it('hands the child no environment of its own unless it is asked to', function (
     $runner->run('true', usePathEnv: true);
 
     expect($spawned[0]->getEnv())->toBe([])
-        ->and($spawned[1]->getEnv())->toHaveKey('PATH');
+        ->and($spawned[1]->getEnv())->toHaveKey('PATH')
+        // While the process is here: the timeout reaches it too. A runner that
+        // stopped applying one would hang a request rather than fail it, and
+        // nothing else in the suite would notice.
+        ->and($spawned[0]->getTimeout())->toBe(60.0);
+});
+
+it('searches the conventional directories when the environment carries no PATH', function () {
+    // **An environment with no PATH is not a missing binary.** The process
+    // layer would have found the program anyway, so refusing there would be
+    // this class inventing a failure that the platform does not have.
+    //
+    // `sh` is `/bin/sh` and `env` is `/usr/bin/env` on every POSIX system, so
+    // the two together show both directories are still searched. Nothing in
+    // `/usr/local/bin` is universal enough to probe for, which is why the
+    // third is taken on trust.
+    $path = getenv('PATH');
+
+    try {
+        putenv('PATH');
+
+        $runner = new SymfonyProcessRunner();
+
+        expect($runner->run('sh -c "exit 0"'))->toBe('')
+            ->and($runner->run('env'))->toBeString();
+    } finally {
+        putenv("PATH={$path}");
+    }
+});
+
+it('leaves a command given as a path to the process layer', function () {
+    // A command built by this package always begins with a bare program name.
+    // Anything else is not searched for, because searching would mean looking
+    // for a file literally named `/bin/echo` inside each PATH directory.
+    expect(new SymfonyProcessRunner()->run('/bin/echo probe'))->toContain('probe');
+});
+
+it('reads the program out of a command that begins with whitespace', function () {
+    // Not a shape this package builds, and one a caller can hand over. Without
+    // the trim the first token is the whitespace itself, and the runner reports
+    // a missing binary for a program that is right there.
+    expect(new SymfonyProcessRunner()->run("\n  openssl version"))->toContain('OpenSSL');
 });
