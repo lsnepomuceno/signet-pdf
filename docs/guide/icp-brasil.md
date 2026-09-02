@@ -163,6 +163,21 @@ at `pades-b-b`, each declaring a policy, were submitted to
 | AD-RB v1.2, `2.16.76.1.7.1.11.1.2` | 42 KB | the same |
 | AD-RB v1.3 | **60 MB** | the same |
 
+**Above `pades-b-b` the picture is different, and it is worth being precise about
+what stands where.** Submitted the same way, at `pades-b-lta`:
+
+| Attribute | AD-RC v1.4 | AD-RA v1.4 |
+|---|---|---|
+| `IdMessageDigest`, `IdContentType`, `IdAaEtsSigPolicyId`, `IdAaSigningCertificateV2`, `SignatureDictionary` | Valid | Valid |
+| `DSS` | **Valid** | Invalid: the `PBAD_` entries ([#156](https://github.com/lsnepomuceno/signet-pdf/issues/156)) |
+| `DocTimeStamp` | Invalid | Invalid |
+| `IdAaSignatureTimeStampToken` | Not validated | Not validated |
+
+The last two rows are the same fact twice: **the timestamps came from
+freetsa.org, which is not an ICP-Brasil accredited authority**, and the report
+says so in those words. Everything above them is this package's own work and it
+is accepted.
+
 **The offline check and the authority agree**, which is the strongest statement
 available about either: EU DSS approved both documents before they were
 submitted, and ITI approved the same two files.

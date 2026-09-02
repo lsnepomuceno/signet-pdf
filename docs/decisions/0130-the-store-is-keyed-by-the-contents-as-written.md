@@ -90,6 +90,25 @@ either way.
   AD-RC needing a document timestamp
   ([#158](https://github.com/lsnepomuceno/signet-pdf/issues/158)).
 
-## Outcome
+## Outcome, 2026-09-02: confirmed on a document this package wrote
 
-None yet.
+The evidence for this record was a file patched by hand, twenty characters
+changed in a document that had already been submitted. That proves the key and
+not the writer.
+
+Two documents signed after the change, with the real certificate, both at
+`pades-b-lta`, one declaring AD-RC v1.4 and one AD-RA v1.4:
+
+| Attribute | AD-RC | AD-RA |
+|---|---|---|
+| `IdMessageDigest`, `IdContentType`, `IdAaEtsSigPolicyId`, `IdAaSigningCertificateV2`, `SignatureDictionary` | Valid | Valid |
+| **`DSS`** | **Valid** | Invalid, `PBAD_` only |
+
+**"Não encontrado VRI identificado com o hash da assinatura" is gone from both.**
+
+And the message that remains on AD-RA describes what is still missing in exactly
+the shape the policy artefact declares it: `PBAD_PolicyArtifacts`,
+`PBAD_LpaArtifacts` and `PBAD_LpaSignatures` in the store, and the same three
+singular in the `/VRI`. Two independent readings of the same requirement, one
+from the artefact and one from the verifier
+([#156](https://github.com/lsnepomuceno/signet-pdf/issues/156)).
