@@ -61,5 +61,22 @@
       <artifactId>dss-cms-object</artifactId>
       <version>${dss.version}</version>
     </dependency>
+    <!--
+      DSS ships the CRL interface and no implementation, and picks one off the
+      classpath at class-initialisation time. Without it, any document carrying
+      a CRL dies with
+
+        No implementation found for ICRLUtils in classpath
+
+      which is every B-LT and B-LTA document signed by a real certificate
+      authority. The witness read the ones with no revocation material and was
+      blind to the rest, which is the same shape as the missing colour-profile
+      library (docs/decisions/0124-the-policy-digest-has-an-offline-witness.md).
+    -->
+    <dependency>
+      <groupId>eu.europa.ec.joinup.sd-dss</groupId>
+      <artifactId>dss-crl-parser-x509crl</artifactId>
+      <version>${dss.version}</version>
+    </dependency>
   </dependencies>
 </project>

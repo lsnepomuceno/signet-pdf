@@ -7,6 +7,9 @@ use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
 use LSNepomuceno\Signet\Signing\Incremental\DocumentReader;
 use LSNepomuceno\Signet\Signing\Incremental\RevisionWriter;
+use LSNepomuceno\Signet\Support\DocumentBuffer;
+use LSNepomuceno\Signet\Support\Files;
+use LSNepomuceno\Signet\Validation\RevocationReader;
 
 it('appends a revision without disturbing what came before', function () {
     [$pfxPath, $password] = debugCertificate();
@@ -169,3 +172,37 @@ it('refuses an archive timestamp without an authority', function () {
         ->profile(SignatureProfile::PadesBLTA)
         ->sign();
 })->throws(ProcessRunTimeException::class);
+
+it('builds the chain rather than trusting the order the bundle is in', function () {
+    // **The defect this exists for.** The collector pairs each certificate with
+    // the next one as its issuer, and this trusted the order `Pem::certificates()`
+    // read out of the bundle. A real PKCS#12 is not leaf-first: an RFB e-CPF A1
+    // reads back as leaf, AC RFB, AC Raiz, SERPRORFB, and the leaf's issuer is
+    // the last of those. So every request went out about the wrong pair, nothing
+    // verified, and `pades-b-lt` produced a document with no store at all while
+    // reporting success
+    // (docs/decisions/0128-the-chain-is-built-not-taken-in-order.md).
+    [$path, $password, $crl] = revocableIdentity();
+
+    $certificate = resolve(LSNepomuceno\Signet\Contracts\CertificateReader::class)
+        ->read(Files::read($path), $password);
+
+    // The same certificates, issuer first, which is a legal order for a bundle
+    // and the one that used to embed nothing.
+    $reversed = new LSNepomuceno\Signet\Data\Certificate(
+        original: implode('', array_reverse(LSNepomuceno\Signet\Support\Pem::certificates($certificate->original))),
+        openssl: $certificate->openssl,
+        data: $certificate->data,
+        password: $certificate->password,
+    );
+
+    $signed = new DocumentBuffer(signet()->newSignature()
+        ->certificate($path, $password)
+        ->pdf(resource('test.pdf'))
+        ->sign()
+        ->contents);
+
+    resolve(LSNepomuceno\Signet\Signing\Incremental\DssWriter::class)->append($signed, $reversed);
+
+    expect(resolve(RevocationReader::class)->material($signed->bytes)['crls'])->toContain($crl);
+});
