@@ -164,6 +164,43 @@ policies. `pdfsig`, pyHanko and Demoiselle all passed the defective document,
 because none of them resolves the policy at all
 ([0124](../decisions/0124-the-policy-digest-has-an-offline-witness.md)).
 
+### What an archival signature carries beyond PAdES
+
+AD-RA asks for three entries in the Document Security Store that PAdES does not
+define, and ITI refuses a document without them:
+
+| In `/DSS` | In `/VRI` | Holds |
+|---|---|---|
+| `PBAD_PolicyArtifacts` | `PBAD_PolicyArtifact` | the policy document the signature declares |
+| `PBAD_LpaArtifacts` | `PBAD_LpaArtifact` | ITI's published list of approved policies |
+| `PBAD_LpaSignatures` | `PBAD_LpaSignature` | that list's own signature |
+
+**Nothing has to be configured for it.** Sign at `pades-b-lta` declaring an
+AD-RA policy and they are written, from copies that ship inside the package, so
+signing reaches no network for them. A signature declaring any other policy, or
+none, is byte for byte what it was: the other three families ask for none of
+these, AD-RC included
+([0132](../decisions/0132-the-store-carries-the-policy-artefacts.md)).
+
+They add about 15 KB to the document, and they are what lets a verifier check
+the policy years later without `politicas.icpbrasil.gov.br` answering, which is
+the same reason the store carries certificates and revocation lists.
+
+::: tip A newer list, before a release carries it
+ITI republishes `LPA_PAdES.der` when it approves a policy. Point the package at
+your own copies rather than waiting:
+
+```php
+use LSNepomuceno\Signet\IcpBrasil\PolicyArtifacts;
+
+$signet = new Signet($config, storeContributor: new PolicyArtifacts('/etc/signet/icp-brasil'));
+```
+
+The directory holds `LPA_PAdES.der`, `LPA_PAdES.p7s` and `policies/`, laid out
+the way the shipped one is. It replaces the lot rather than one file, so the
+list and its signature can never come from different places.
+:::
+
 ### What ITI's Verificador says about it
 
 **Checked rather than claimed.** Two documents signed with a real RFB e-CPF A1
@@ -182,7 +219,7 @@ what stands where.** Submitted the same way, at `pades-b-lta`:
 | Attribute | AD-RC v1.4 | AD-RA v1.4 |
 |---|---|---|
 | `IdMessageDigest`, `IdContentType`, `IdAaEtsSigPolicyId`, `IdAaSigningCertificateV2`, `SignatureDictionary` | Valid | Valid |
-| `DSS` | **Valid** | Invalid: the `PBAD_` entries ([#156](https://github.com/lsnepomuceno/signet-pdf/issues/156)) |
+| `DSS` | **Valid** | Invalid at the time, for the `PBAD_` entries the store now carries |
 | `DocTimeStamp` | Invalid | Invalid |
 | `IdAaSignatureTimeStampToken` | Not validated | Not validated |
 

@@ -3,10 +3,13 @@
 declare(strict_types=1);
 
 use Com\Tecnick\Pdf\Sign\Output\Dss;
+use LSNepomuceno\Signet\Data\SecurityStoreEntry;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
+use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
 use LSNepomuceno\Signet\Signing\Incremental\DocumentReader;
 use LSNepomuceno\Signet\Signing\Incremental\RevisionWriter;
+use LSNepomuceno\Signet\Signing\Incremental\StoreEntryWriter;
 use LSNepomuceno\Signet\Support\DocumentBuffer;
 use LSNepomuceno\Signet\Support\Files;
 use LSNepomuceno\Signet\Validation\RevocationReader;
@@ -205,4 +208,74 @@ it('builds the chain rather than trusting the order the bundle is in', function 
     resolve(LSNepomuceno\Signet\Signing\Incremental\DssWriter::class)->append($signed, $reversed);
 
     expect(resolve(RevocationReader::class)->material($signed->bytes)['crls'])->toContain($crl);
+});
+
+it('refuses to extend an object the emitter did not shape as a dictionary', function () {
+    // The two dictionaries are edited rather than re-emitted, which is what
+    // keeps object numbering, deduplication and stream encryption upstream
+    // (docs/decisions/0132-the-store-carries-the-policy-artefacts.md). The
+    // shape being relied on is checked, because the failure to avoid is a
+    // store that looks written and is malformed.
+    new StoreEntryWriter()->apply(
+        [7 => "7 0 obj\n<< /Type /DSS >>"],
+        7,
+        [],
+        [new SecurityStoreEntry('PBAD_LpaArtifacts', 'PBAD_LpaArtifact', ['DER'])],
+        7,
+    );
+})->throws(InvalidPdfFileException::class, 'does not end as a dictionary');
+
+it('refuses to extend an object that is not there', function () {
+    new StoreEntryWriter()->apply(
+        [],
+        7,
+        [],
+        [new SecurityStoreEntry('PBAD_LpaArtifacts', 'PBAD_LpaArtifact', ['DER'])],
+        7,
+    );
+})->throws(InvalidPdfFileException::class, 'has no object 7 to extend');
+
+it('adds nothing at all when there is nothing to add', function () {
+    $objects = [7 => "7 0 obj\n<< /Type /DSS >>\nendobj\n"];
+
+    expect(new StoreEntryWriter()->apply($objects, 7, [8], [], 9))->toBe($objects);
+});
+
+it('numbers the entry streams above everything the emitter assigned', function () {
+    $objects = new StoreEntryWriter()->apply(
+        [
+            7 => "7 0 obj\n<< /Type /VRI >>\nendobj\n",
+            8 => "8 0 obj\n<< /Type /DSS /VRI << /AB 7 0 R >> >>\nendobj\n",
+        ],
+        8,
+        [7],
+        [new SecurityStoreEntry('PBAD_LpaArtifacts', 'PBAD_LpaArtifact', ['THE LIST'])],
+        8,
+    );
+
+    // 9, because 8 was the last the emitter handed out. Colliding here would
+    // overwrite the store's own dictionary.
+    expect($objects[9])->toContain('THE LIST')
+        ->toStartWith("9 0 obj\n<< /Length 8 >>")
+        ->and($objects[8])->toContain('/PBAD_LpaArtifacts [ 9 0 R ]')
+        ->and($objects[7])->toContain('/PBAD_LpaArtifact [ 9 0 R ]')
+        // The keys go inside the dictionary, which is the whole of the edit.
+        ->and($objects[8])->toEndWith(" >>\nendobj\n");
+});
+
+it('encrypts an entry stream the way the store encrypts every other one', function () {
+    // A stream in an encrypted document is encrypted under its own object
+    // number (ISO 32000-1 §7.6.2), so an entry written in the clear would be
+    // unreadable to every reader that decrypts the rest.
+    $objects = new StoreEntryWriter()->apply(
+        [4 => "4 0 obj\n<< /Type /DSS >>\nendobj\n"],
+        4,
+        [],
+        [new SecurityStoreEntry('PBAD_LpaArtifacts', 'PBAD_LpaArtifact', ['PLAIN'])],
+        4,
+        static fn(string $data, int $objectId): string => "{$data}-{$objectId}",
+    );
+
+    expect($objects[5])->toContain('PLAIN-5')
+        ->toContain('/Length 7');
 });

@@ -476,7 +476,34 @@ function pyHankoReportsPolicyViolation(string $path, string $trust): bool
  */
 function policyDocument(LSNepomuceno\Signet\IcpBrasil\Enums\SignaturePolicy $policy): string
 {
-    return resource('icp-brasil/policies/' . basename($policy->uri()));
+    foreach (policyDirectories() as $directory) {
+        $path = $directory . '/' . basename($policy->uri());
+
+        if (is_file($path)) {
+            return $path;
+        }
+    }
+
+    throw new RuntimeException('no policy document for ' . $policy->value);
+}
+
+/**
+ * Where the policy documents are, shipped first.
+ *
+ * They are in two places on purpose, one copy of each. The archival family
+ * ships inside the package because signing embeds it in the security store,
+ * and the other thirteen sit beside the suite because only these tests read
+ * them, so a consumer is not sent 160 KB of documents nothing can use
+ * (docs/decisions/0132-the-store-carries-the-policy-artefacts.md).
+ *
+ * @return list<string>
+ */
+function policyDirectories(): array
+{
+    return [
+        packageRoot() . '/src/Resources/icp-brasil/policies',
+        packageRoot() . '/tests/Resources/icp-brasil/policies',
+    ];
 }
 
 /**

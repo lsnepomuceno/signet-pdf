@@ -174,7 +174,7 @@ jobs:
             target: Signing/Incremental/CertificationReader.php,Signing/Incremental/DocumentInfo.php,Signing/Incremental/FieldLockReader.php,Signing/Incremental/FormFieldReader.php,Signing/Incremental/ObjectStreamReader.php,Signing/Incremental/SignatureFieldReader.php,Signing/Incremental/XrefStreamReader.php,Signing/Incremental/XrefSubsections.php
             min: 60                   # provisional, unmeasured. 51 min for eight of the nine
           - name: Signing/Incremental (writers)
-            target: Signing/Incremental/ByteRangeCalculator.php,Signing/Incremental/DocTimeStampWriter.php,Signing/Incremental/DssWriter.php,Signing/Incremental/SealAppearance.php,Signing/Incremental/StructureTreeWriter.php,Signing/Incremental/XrefStreamWriter.php
+            target: Signing/Incremental/ByteRangeCalculator.php,Signing/Incremental/DocTimeStampWriter.php,Signing/Incremental/DssWriter.php,Signing/Incremental/SealAppearance.php,Signing/Incremental/StoreEntryWriter.php,Signing/Incremental/StructureTreeWriter.php,Signing/Incremental/XrefStreamWriter.php
             min: 60                   # provisional, unmeasured. 39 min for three of the six
           - name: Signing (rest)
             target: Signing

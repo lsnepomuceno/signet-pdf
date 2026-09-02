@@ -289,6 +289,15 @@ The identifier, URI and window are read from
 committed under `tests/Resources/icp-brasil/`, with tests that fail when a value
 and its artefact disagree.
 
+`IcpBrasil\PolicyArtifacts` is what an AD-RA signature carries beyond PAdES: the
+three `PBAD_` entries the archival policies require in `/DSS` and `/VRI`. It
+implements `Contracts\SecurityStoreContributor`, is wired by default, and
+answers with nothing for every other policy, so it costs a non-Brazilian
+signature nothing. Constructing it over a directory of your own and passing it
+as `Signet`'s `storeContributor` is how a newer policy list is used before a
+release carries it
+([0132](../decisions/0132-the-store-carries-the-policy-artefacts.md)).
+
 `IcpBrasil\PolicyConformance::check()` reads a declaration back and returns an
 `IcpBrasil\Data\PolicyReport`, the shape `Data\Report` has: what was examined,
 the findings, `conforms()`, `has()` and `messages()`. It reports an unknown

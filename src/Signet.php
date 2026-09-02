@@ -14,6 +14,7 @@ use LSNepomuceno\Signet\Contracts\PdfSigner;
 use LSNepomuceno\Signet\Contracts\PdfSource;
 use LSNepomuceno\Signet\Contracts\ProcessRunner;
 use LSNepomuceno\Signet\Contracts\SealRenderer;
+use LSNepomuceno\Signet\Contracts\SecurityStoreContributor;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
 use LSNepomuceno\Signet\Contracts\SignatureValidator;
 use LSNepomuceno\Signet\Contracts\SignatureVerifier;
@@ -34,6 +35,7 @@ use LSNepomuceno\Signet\Exceptions\SealPlacementException;
 use LSNepomuceno\Signet\Exceptions\SignatureFieldException;
 use LSNepomuceno\Signet\Exceptions\SignatureTransportException;
 use LSNepomuceno\Signet\IcpBrasil\Data\Report;
+use LSNepomuceno\Signet\IcpBrasil\PolicyArtifacts;
 use LSNepomuceno\Signet\IcpBrasil\Validator;
 use LSNepomuceno\Signet\Seal\InterventionSealRenderer;
 use LSNepomuceno\Signet\Signing\ArchiveExtender;
@@ -133,6 +135,12 @@ final class Signet
      *          service. Given one, the certificate needs no key of its own and
      *          `PendingSignature::certificatePublic()` is how it arrives
      *          (docs/decisions/0120-a-key-can-live-outside-the-process.md).
+     * @param  SecurityStoreContributor|null  $storeContributor  What a signature
+     *          policy adds to the Document Security Store. `IcpBrasil\PolicyArtifacts`
+     *          reading the copies that ship is the default, and passing one
+     *          built over a directory of your own is how a newer policy list is
+     *          used before a release carries it
+     *          (docs/decisions/0132-the-store-carries-the-policy-artefacts.md).
      */
     public function __construct(
         public readonly SignetConfig $config = new SignetConfig(),
@@ -142,6 +150,7 @@ final class Signet
         ?CertificateReader $certificateReader = null,
         ?SignatureVerifier $verifier = null,
         private readonly ?SigningKey $signingKey = null,
+        private readonly ?SecurityStoreContributor $storeContributor = null,
     ) {
         $this->processRunner = $processes;
         $this->signatureTransport = $transport;
@@ -558,6 +567,12 @@ final class Signet
             $this->revisionWriter(),
             new ByteRangeCalculator(),
             $this->transport(),
+            // Wired unconditionally, and free for everybody else: it answers
+            // with nothing unless the signature declares an ICP-Brasil policy
+            // that asks for the entries, which only the archival family does
+            // (docs/decisions/0132-the-store-carries-the-policy-artefacts.md).
+            contributor: $this->storeContributor ?? new PolicyArtifacts(),
+            config: $this->config->signing,
         );
     }
 

@@ -46,7 +46,7 @@ use LSNepomuceno\Signet\Testing\LocalTimestampAuthority;
 function publishedPolicies(): array
 {
     $reader = new LSNepomuceno\Signet\Validation\Asn1Reader();
-    $der = (string) file_get_contents(resource('icp-brasil/LPA_PAdES.der'));
+    $der = Files::read(packageRoot() . '/src/Resources/icp-brasil/LPA_PAdES.der');
 
     $outer = $reader->children($der);
     $list = $outer[0] ?? null;
@@ -133,6 +133,28 @@ it('maps a policy onto a profile that carries what the policy document asks for'
     expect($mapped)->toBe($required)
         // Both answers have to occur, or a search that always returned false
         // would pass this while asserting nothing.
+        ->and(array_unique(array_values($required)))->toHaveCount(2);
+});
+
+it('asks for the store entries exactly where the policy document asks for them', function () {
+    // Gated by the artefacts for the reason the profile mapping above is: a
+    // transcription agreeing with itself proves nothing, and this list decides
+    // what a signature embeds
+    // (docs/decisions/0132-the-store-carries-the-policy-artefacts.md).
+    $required = [];
+    $declared = [];
+
+    foreach (SignaturePolicy::cases() as $policy) {
+        $document = Files::read(policyDocument($policy));
+
+        // The plural form, which is the one the policy names for /DSS. The
+        // singular is a substring of it, so searching for that would match
+        // every policy that names either.
+        $required[$policy->value] = str_contains($document, 'PBAD_PolicyArtifacts');
+        $declared[$policy->value] = $policy->requiresPolicyArtifacts();
+    }
+
+    expect($declared)->toBe($required)
         ->and(array_unique(array_values($required)))->toHaveCount(2);
 });
 
@@ -423,9 +445,15 @@ function policyDocuments(): array
     $reader = new LSNepomuceno\Signet\Validation\Asn1Reader();
     $documents = [];
 
-    $paths = glob(packageRoot() . '/tests/Resources/icp-brasil/policies/*.der');
+    $paths = [];
 
-    foreach ($paths === false ? [] : $paths as $path) {
+    foreach (policyDirectories() as $directory) {
+        $found = glob($directory . '/*.der');
+
+        $paths = [...$paths, ...($found === false ? [] : $found)];
+    }
+
+    foreach ($paths as $path) {
         $der = LSNepomuceno\Signet\Support\Files::read($path);
 
         $children = $reader->children($der);
