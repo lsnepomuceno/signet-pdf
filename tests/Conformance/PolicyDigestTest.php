@@ -114,6 +114,34 @@ it('refuses the hash of the policy file, which is the defect that shipped', func
     unlink($path);
 })->group('dss');
 
+it('reads a document carrying a colour profile, which every sealed one does', function () {
+    // **The defect this exists for.** PDFBox, which DSS reads a document with,
+    // loads `liblcms.so` out of the JVM's own lib/ to read an ICC profile, and
+    // the headless JRE omits it along with the rest of java.desktop. So the
+    // witness died with `UnsatisfiedLinkError: no lcms in system library path`
+    // on every sealed document and read the others fine, which is the worst
+    // shape a gate can take: silent on a third of what it was installed for
+    // (docs/decisions/0124-the-policy-digest-has-an-offline-witness.md).
+    //
+    // A committed sample rather than a document signed here, because what has
+    // to be exercised is the colour profile and `samples/` is where the sealed
+    // output lives.
+    expect(dssPolicyVerdict(sample('two-seals.pdf'))['format'])->toBe('PAdES-BASELINE-B');
+})->group('dss');
+
+it('is read as the European profile it claims to be, at the two levels that are settled', function (string $sample, string $format) {
+    // What the reference implementation of the European standards calls this
+    // package's output. `pades-b-lt` and `pades-b-lta` are deliberately absent:
+    // DSS reads both as BASELINE-T, and whether that is this package's fault or
+    // the sample certificate's is the open question in
+    // [#152](https://github.com/lsnepomuceno/signet-pdf/issues/152). Asserting
+    // the current answer would bless it before it is understood.
+    expect(dssPolicyVerdict(sample("{$sample}.pdf"))['format'])->toBe($format);
+})->with([
+    ['pades-b-b', 'PAdES-BASELINE-B'],
+    ['pades-b-t', 'PAdES-BASELINE-T'],
+])->group('dss');
+
 it('reads a signature that declares no policy at all without inventing one', function () {
     [$pfxPath, $password] = debugCertificate();
 

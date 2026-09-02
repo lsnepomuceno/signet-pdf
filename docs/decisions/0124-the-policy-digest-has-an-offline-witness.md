@@ -118,6 +118,38 @@ into the same silence.
 - Upgrading the pin is a deliberate act with a verdict to re-establish, not a
   dependency bump.
 
+## Outcome, 2026-09-01: the witness was reading a third of the samples
+
+**It was installed against a JRE that cannot read a colour profile.** PDFBox,
+which DSS reads a document with, loads `liblcms.so` out of the JVM's own `lib/`
+to decode an ICC profile, and `openjdk17-jre-headless` omits it along with the
+rest of java.desktop. Every sealed document this package emits carries an sRGB
+profile, so the witness died on those with
+
+```
+java.lang.UnsatisfiedLinkError: no lcms in system library path
+```
+
+and read the ones without a profile perfectly. **That is the worst shape a gate
+can take**: not failing, not skipping, simply silent on part of what it was
+installed for, while the part it does read goes green.
+
+The image installs the full JRE now. `tests/Conformance/PolicyDigestTest.php`
+reads `samples/two-seals.pdf` through it, so the colour-profile path is
+exercised rather than assumed, and asserts what DSS calls `pades-b-b` and
+`pades-b-t` besides.
+
+**And reading the rest of the samples raised a question this record does not
+answer.** DSS calls `samples/pades-b-lt.pdf` and `samples/pades-b-lta.pdf`
+`PAdES-BASELINE-T`, although both carry `/DSS` and `/VRI` and the second carries
+a `/DocTimeStamp`. The likeliest cause is the sample certificate: it is
+self-signed, so it publishes no OCSP responder and no CRL, and
+[0119](0119-revocation-material-is-verified-before-it-is-embedded.md) means the
+store carries no revocation material for DSS to raise the level on. That would
+make the verdict correct on a deficient sample rather than a defect here, and it
+is left open rather than assumed
+([#152](https://github.com/lsnepomuceno/signet-pdf/issues/152)).
+
 ## Outcome, 2026-09-01: the witness and the authority agree
 
 **The instrument was right, and the authority said so within hours of it being

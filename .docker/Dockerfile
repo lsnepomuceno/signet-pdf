@@ -40,8 +40,16 @@ RUN printf 'memory_limit = 1G\n' > /usr/local/etc/php/conf.d/zz-dev.ini
 # See docs/decisions/0026-verification-tools-are-instruments.md.
 ARG VERAPDF_VERSION=1.30.2
 
+# **The full JRE, not the headless one.** veraPDF is happy either way; PDFBox,
+# which EU DSS reads a document with, loads `liblcms.so` out of the JVM's own
+# `lib/` to read an ICC profile, and the headless build omits it along with the
+# rest of java.desktop. Every sealed document this package emits carries an sRGB
+# profile, so the witness installed against them died with
+# `UnsatisfiedLinkError: no lcms in system library path` and read only the
+# documents that had none
+# (docs/decisions/0124-the-policy-digest-has-an-offline-witness.md).
 RUN set -eux; \
-        apk add --no-cache openjdk17-jre-headless curl; \
+        apk add --no-cache openjdk17-jre curl; \
         curl -sSL -o /tmp/verapdf.zip \
             "https://software.verapdf.org/releases/${VERAPDF_VERSION%.*}/verapdf-greenfield-${VERAPDF_VERSION}-installer.zip"; \
         unzip -q /tmp/verapdf.zip -d /tmp/verapdf-src; \
