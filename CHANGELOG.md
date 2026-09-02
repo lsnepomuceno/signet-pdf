@@ -16,7 +16,23 @@ consumers test their own signing paths with it.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [3.0.0] - 2026-09-02
+
+The release that made the package usable on a document nobody can hold in
+memory, and conformant to the country it was written for.
+
+**Signing stopped holding the document twice.** A 300 MB file signs in 310 MB
+where it used to need 602, and the ceiling is now the size of the document
+rather than a multiple of it. Every profile is reachable at that size, and the
+receipt says what was signed.
+
+**A signature can be produced without the private key ever entering the
+process**, and the ICP-Brasil work reached the point where the country's own
+Verificador accepts what this package writes: the policy declaration, the
+security store, and the three entries the archival policies require that PAdES
+does not define.
+
+Every breaking change is in [UPGRADE.md](UPGRADE.md), and there are three.
 
 ### Added
 
@@ -1248,6 +1264,7 @@ guarantee and an encryption envelope rather than a dependency.
   in `lsnepomuceno/laravel-a1-pdf-sign`, which remains a separate
   implementation rather than a consumer of this one.
 
+[3.0.0]: https://github.com/lsnepomuceno/signet-pdf/compare/2.0.1...3.0.0
 [2.0.1]: https://github.com/lsnepomuceno/signet-pdf/compare/2.0.0...2.0.1
 [2.0.0]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.1...2.0.0
 [1.0.1]: https://github.com/lsnepomuceno/signet-pdf/compare/1.0.0...1.0.1
