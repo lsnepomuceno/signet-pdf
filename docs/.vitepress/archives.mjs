@@ -26,6 +26,12 @@ import { execFileSync } from 'node:child_process'
  */
 export const ARCHIVES = [
   {
+    prefix: 'v2',
+    line: '2.x',
+    tag: '2.0.1',
+    title: 'Signet PDF 2.x',
+  },
+  {
     prefix: 'v1',
     line: '1.x',
     tag: '1.0.1',

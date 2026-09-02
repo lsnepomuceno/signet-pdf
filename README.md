@@ -137,7 +137,8 @@ Everything else is at
 twenty-one pages covering profiles and timestamps, visible seals, signature
 fields, certification, encrypted documents, validation, trust, ICP-Brasil, the
 command line, testing your own code, every exception this package raises and
-every limit it still has, plus the changelog and the upgrade guide. The `1.x` line is archived at
+every limit it still has, plus the changelog and the upgrade guide. The earlier
+lines are archived at [/v2/](https://lsnepomuceno.github.io/signet-pdf/v2/) and
 [/v1/](https://lsnepomuceno.github.io/signet-pdf/v1/).
 
 <p>
