@@ -17,7 +17,7 @@ final class PdfSignatureExtractor
     public function __construct(private readonly DerReader $der = new DerReader()) {}
 
     /**
-     * @return list<array{byteRange: array{0:int,1:int,2:int}, cms: string, coverageEnd: int, isTimestamp: bool, signedAt: ?int, subFilter: ?string, byteRangeSound: bool}>
+     * @return list<array{byteRange: array{0:int,1:int,2:int}, cms: string, contents: string, coverageEnd: int, isTimestamp: bool, signedAt: ?int, subFilter: ?string, byteRangeSound: bool}>
      */
     public function extract(string $pdf): array
     {
@@ -50,6 +50,11 @@ final class PdfSignatureExtractor
             $signatures[] = [
                 'byteRange' => [$open, $close, $trailing],
                 'cms' => $cms,
+                // The /Contents value as written, padding and all, which is a
+                // different string from the CMS inside it and is what the
+                // security store is keyed by
+                // (docs/decisions/0130-the-store-is-keyed-by-the-contents-as-written.md).
+                'contents' => (string) hex2bin($this->paddedHex($pdf, $open, $close)),
                 'coverageEnd' => $close + $trailing,
                 'isTimestamp' => $this->isDocumentTimestamp($dictionary = $this->dictionary($pdf, $match[0][1], $open, $close)),
                 'signedAt' => $this->claimedTime($dictionary),
@@ -211,6 +216,20 @@ final class PdfSignatureExtractor
     public function coveredBytes(string $pdf, int $open, int $close, int $trailing): string
     {
         return substr($pdf, 0, $open) . substr($pdf, $close, $trailing);
+    }
+
+    /**
+     * The /Contents value exactly as the document writes it, as hexadecimal.
+     *
+     * Even-length, because a hex string of odd length is not decodable and a
+     * producer that writes one has written something this cannot key on either
+     * way.
+     */
+    private function paddedHex(string $pdf, int $open, int $close): string
+    {
+        $hex = substr($pdf, $open + 1, $close - $open - 2);
+
+        return preg_match('/^(?:[0-9a-fA-F]{2})+$/', $hex) === 1 ? $hex : '';
     }
 
     /**

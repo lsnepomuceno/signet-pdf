@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Signing\Incremental\ByteRangeCalculator;
 use LSNepomuceno\Signet\Support\Files;
 use LSNepomuceno\Signet\Validation\SecurityStoreReader;
@@ -163,3 +164,46 @@ it('reads nothing out of a placeholder nobody filled', function () {
     // nothing.
     expect(new ByteRangeCalculator()->lastContents('/Contents <' . str_repeat('0', 64) . '>'))->toBe('');
 });
+
+it('keys the store by the /Contents as written, not by the CMS inside it', function () {
+    // **The defect ITI found, in one assertion.** A signature's /Contents is a
+    // fixed-width placeholder: the CMS at the front and zeroes after it, and
+    // those are two different strings to hash. This package hashed the CMS,
+    // which is self-consistent and which the authority reports as "não
+    // encontrado VRI identificado com o hash da assinatura". The same document
+    // keyed by the value as written came back `DSS: Valid`
+    // (docs/decisions/0130-the-store-is-keyed-by-the-contents-as-written.md).
+    [$path, $password] = revocableIdentity();
+
+    setConfig('signature.timestamp.url', 'https://timestamp.invalid/tsr');
+
+    $signed = signet()->newSignature()
+        ->certificate($path, $password)
+        ->pdf(resource('test.pdf'))
+        ->profile(SignatureProfile::PadesBLT)
+        ->sign()
+        ->contents;
+
+    preg_match_all('/\/Contents\s*<([0-9a-fA-F]*)>/', $signed, $found);
+
+    $asWritten = (string) hex2bin($found[1][0]);
+    $cms = new LSNepomuceno\Signet\Validation\DerReader()->truncate($asWritten);
+
+    // The two are genuinely different here, or the assertion below proves
+    // nothing: the placeholder is reserved wider than any CMS that fits it.
+    expect(strlen($asWritten))->toBeGreaterThan(strlen($cms))
+        ->and($signed)->toContain('/' . strtoupper(sha1($asWritten)))
+        ->and($signed)->not->toContain('/' . strtoupper(sha1($cms)));
+
+    // And the reader agrees with the writer, which is what stops the two
+    // drifting apart the way they did while only one of them was measured.
+    $path = tempFile('.pdf');
+
+    file_put_contents($path, $signed);
+
+    $report = signet()->validate($path);
+
+    expect($report->securityStore?->covers($report->signatures[0]))->toBeTrue();
+
+    unlink($path);
+})->group('store');

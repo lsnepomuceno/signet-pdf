@@ -105,3 +105,4 @@ guarantee two records with the same number within a release or two.
 | [0127](0127-a-signature-comes-with-a-receipt.md) | A signature comes with a receipt |
 | [0128](0128-the-chain-is-built-not-taken-in-order.md) | The chain is built, not taken in order |
 | [0129](0129-signing-says-what-it-could-not-embed.md) | Signing says what it could not embed |
+| [0130](0130-the-store-is-keyed-by-the-contents-as-written.md) | The store is keyed by the /Contents as written |

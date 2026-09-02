@@ -110,6 +110,11 @@ final readonly class SignatureDetails extends BaseData
         // policy, which is every signature this package produces today
         // (issue #56).
         public ?SignaturePolicy $signaturePolicy = null,
+        // Appended for the same reason. The /Contents value as the document
+        // writes it, padding included, which is what the security store is
+        // keyed by and is a different string from the CMS inside it
+        // (docs/decisions/0130-the-store-is-keyed-by-the-contents-as-written.md).
+        public ?string $contentsAsWritten = null,
     ) {}
 
     /**
@@ -201,12 +206,27 @@ final readonly class SignatureDetails extends BaseData
     /**
      * How the Document Security Store names this signature.
      *
-     * /VRI keys entries by the uppercase hex SHA-1 of the signature's
-     * /Contents, which is the only handle the store has on a signature.
+     * `/VRI` keys entries by the uppercase hex SHA-1 of the signature's
+     * `/Contents`, which is the only handle the store has on a signature.
+     *
+     * **Over the value as written, padding and all.** A signature's `/Contents`
+     * is a fixed-width placeholder with the CMS at the front and zeroes after
+     * it, and those are two different strings to hash. This package hashed the
+     * CMS, which is self-consistent and which ITI's Verificador reports as
+     * "não encontrado VRI identificado com o hash da assinatura": it looks up
+     * the value the document actually carries. Measured by submitting the same
+     * document twice, once under each key, and the second came back `DSS:
+     * Valid` (docs/decisions/0130-the-store-is-keyed-by-the-contents-as-written.md).
+     *
+     * `rawContents` is the fallback for details built by hand, where there is
+     * no document to have written anything. For a producer that reserves
+     * exactly the CMS the two are the same string.
      */
     public function securityStoreKey(): ?string
     {
-        return $this->rawContents === null ? null : strtoupper(sha1($this->rawContents));
+        $contents = $this->contentsAsWritten ?? $this->rawContents;
+
+        return $contents === null ? null : strtoupper(sha1($contents));
     }
 
     /**
