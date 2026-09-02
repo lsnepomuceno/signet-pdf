@@ -527,7 +527,10 @@ final class PendingSignature
             $this->documentPassword,
         );
 
-        return new SignedPdf($signed->contents, $this->signedFileName());
+        // The receipt travels with the bytes: this rebuilds the value object
+        // only to attach the file name the builder was given
+        // (docs/decisions/0127-a-signature-comes-with-a-receipt.md).
+        return new SignedPdf($signed->contents, $this->signedFileName(), $signed->signing);
     }
 
     /**

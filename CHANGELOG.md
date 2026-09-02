@@ -20,6 +20,35 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`Data\SigningReceipt`, so an application can say what it signed.**
+  `sign()` returned the bytes and a file name, and every other fact signing knew
+  was discarded: which field was filled, at what profile, when, who signed, and
+  what the document was before it was signed. `$signed->receipt()` returns all of
+  it, plus the digest of the signed document and of the one it was given.
+
+  ```php
+  $receipt = $signed->receipt();
+
+  $receipt->hash;            // the signed document, SHA-256, hex
+  $receipt->originalHash;    // the document as it arrived
+  $receipt->documentId;      // the PDF's own /ID
+  $receipt->signedAt;
+  $receipt->icpBrasil?->cpf;
+  ```
+
+  **It carries no PDF**, because it is what goes in a column or a queue message
+  rather than what is shown, and **`receipt()` is a method because it hashes**:
+  two passes over the document, which on a 300 MB file is a second nobody should
+  spend by calling `sign()`.
+
+  **`documentId` is there because a digest is not an identifier.** ISO 32000-1
+  §14.4 gives a document a permanent `/ID` that survives being re-saved, and a
+  hash of the bytes does not, while the signature inside stays valid either way.
+
+  There is no MD5 and there will not be: `Enums\DigestAlgorithm` is a closed set
+  of SHA-2 and it is the same enum that chooses the digest of the signature
+  itself ([0127](docs/decisions/0127-a-signature-comes-with-a-receipt.md)).
+
 - **`Contracts\SigningKey`, so the private key can live outside this process.**
   `Contracts\SignatureProducer` hands out the covered bytes and takes back a
   complete CMS, which unblocks a signer that assembles CAdES itself. A
@@ -249,6 +278,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   ([0119](docs/decisions/0119-revocation-material-is-verified-before-it-is-embedded.md)).
 
 ### Fixed
+
+- **The signing time said UTC and wrote local time.** `/M` was `date('YmdHis')`
+  followed by a literal `+00'00'`, so a signature made at 10:00 in São Paulo
+  declared 10:00 UTC, three hours before it happened, and every reader that
+  parses the offset believed it, this package's own extractor included. It is
+  `gmdate()` now, so a signed document under a non-UTC process says when it was
+  signed ([0127](docs/decisions/0127-a-signature-comes-with-a-receipt.md)).
 
 - **A real ICP-Brasil certificate did not fit the space reserved for the
   signature.** An RFB e-CPF A1 signing at `pades-b-t` produces a 10501-byte CMS,

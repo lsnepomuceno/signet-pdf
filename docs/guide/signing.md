@@ -111,6 +111,55 @@ $signed->writeTo(new FileDestination('/var/documents'));
 $signed->writeTo(new StreamDestination($handle));
 ```
 
+### The receipt
+
+**What a system stores about a signature, in an object that carries no PDF.**
+Everything on it was known at signing time and used to be thrown away, so
+applications recomputed what they could and invented the rest:
+
+```php
+$receipt = $signed->receipt();          // ?Data\SigningReceipt
+
+$receipt->hash;                         // the signed document, SHA-256, hex
+$receipt->originalHash;                 // the document as it arrived
+$receipt->size;
+$receipt->originalSize;
+$receipt->revisionSize();               // what signing added, in bytes
+$receipt->documentId;                   // the PDF's own /ID
+$receipt->signedAt;                     // unix time, the same the document claims
+$receipt->fieldName;
+$receipt->profile;
+$receipt->signerName;
+$receipt->icpBrasil?->cpf;              // for a Brazilian certificate
+```
+
+Under another digest, if a system asks for one:
+
+```php
+$signed->receipt(DigestAlgorithm::Sha512)->hash;
+```
+
+Three things worth knowing before you store any of it.
+
+**`receipt()` is a method because it hashes**, twice, over the whole document. On
+a 300 MB file that is a second, so it is not paid by calling `sign()`. Call it
+once and keep what comes back.
+
+**`documentId` is the identifier and the hash is not.** ISO 32000-1 §14.4 gives a
+document a permanent `/ID` that survives being re-saved. A digest of the bytes
+changes the moment any reader opens and saves the file, while the signature
+inside it stays perfectly valid. A system keying only on the digest loses the
+document the first time that happens.
+
+**`signedAt` is the signer's own clock**, and it is the same value the document
+carries in `/M`, taken once so the two cannot disagree. It is not a trusted
+timestamp: that is `pades-b-t` and above
+([0127](../decisions/0127-a-signature-comes-with-a-receipt.md)).
+
+`receipt()` returns null for a document that did not come from signing.
+`addSignatureField()` and `extend()` both return a `Data\SignedPdf` and neither
+is a signature.
+
 ::: tip There is no `download()` and no `toResponse()`
 They existed before the extraction and were removed on purpose: a signing core
 that returns an HTTP response has an opinion about the framework calling it.

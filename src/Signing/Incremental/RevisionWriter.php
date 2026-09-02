@@ -64,6 +64,7 @@ final class RevisionWriter
         ?SignatureField  $target = null,
         ?CertificationLevel $certification = null,
         ?FieldLock       $lock = null,
+        ?int             $signedAt = null,
     ): string {
         $visible = $seal !== null && $placement !== null;
 
@@ -128,7 +129,7 @@ final class RevisionWriter
         $offsets = [];
 
         $offsets[$signatureNumber] = $base + strlen($body);
-        $body .= $this->signatureObject($signatureNumber, $info, $contentsHexLength, $profile, $certification, $lock, $catalogNumber, $cipher);
+        $body .= $this->signatureObject($signatureNumber, $info, $contentsHexLength, $profile, $certification, $lock, $catalogNumber, $cipher, $signedAt);
 
         // A visible widget in a tagged document joins the structure tree, which
         // is what ISO 14289-1 7.18.1 asks of any annotation that conveys
@@ -398,6 +399,7 @@ final class RevisionWriter
         ?FieldLock       $lock = null,
         int              $catalogNumber = 0,
         ?ObjectCipher    $cipher = null,
+        ?int             $signedAt = null,
     ): string {
         $cipher ??= new ObjectCipher();
         $metadata = '';
@@ -417,7 +419,7 @@ final class RevisionWriter
             // /Contents is deliberately not encrypted, and it is the one entry
             // that must not be: ISO 32000-1 §7.6.2 excludes it, because it is
             // the signature over the bytes rather than content of the document.
-            . '/M ' . $cipher->text($this->timestamp(), $number)
+            . '/M ' . $cipher->text($this->timestamp($signedAt), $number)
             . ">>\nendobj\n";
     }
 
@@ -908,9 +910,22 @@ final class RevisionWriter
         return $document->id === null ? '' : "/ID {$document->id}";
     }
 
-    private function timestamp(): string
+    /**
+     * The signing time, as ISO 32000-1 §7.9.4 writes one.
+     *
+     * **UTC, and it used to say UTC while writing local time.** `date()` reads
+     * the process timezone and this appends `+00'00'`, so a signature made at
+     * 10:00 in São Paulo claimed 10:00 UTC, which is three hours before it
+     * happened. Every reader that parses the offset believed it, this package's
+     * own extractor included
+     * (docs/decisions/0127-a-signature-comes-with-a-receipt.md).
+     *
+     * Taken from the caller rather than read here, so the value written into
+     * the document and the one the receipt reports cannot disagree.
+     */
+    private function timestamp(?int $at): string
     {
-        return 'D:' . date('YmdHis') . "+00'00'";
+        return 'D:' . gmdate('YmdHis', $at ?? time()) . "+00'00'";
     }
 
     private function escape(string $value): string

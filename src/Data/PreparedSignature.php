@@ -54,6 +54,12 @@ final readonly class PreparedSignature extends BaseData
         public string $digestValue,
         public string $fieldName,
         public ?CertificationLevel $certification = null,
+        // Appended, and carried rather than recomputed: both are facts about
+        // the document as it arrived, and phase two cannot see it any more
+        // (docs/decisions/0127-a-signature-comes-with-a-receipt.md).
+        public int $originalSize = 0,
+        public ?string $documentId = null,
+        public ?int $signedAt = null,
     ) {}
 
     /**

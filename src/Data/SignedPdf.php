@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LSNepomuceno\Signet\Data;
 
 use LSNepomuceno\Signet\Contracts\PdfDestination;
+use LSNepomuceno\Signet\Enums\DigestAlgorithm;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
 use LSNepomuceno\Signet\Support\Files;
 use Symfony\Component\Uid\Uuid;
@@ -28,10 +29,35 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class SignedPdf extends BaseData
 {
+    /**
+     * @param  SigningReceipt|null  $signing  What signing knew, minus anything
+     *          that costs a pass over the document. `receipt()` is how it is
+     *          read, and null here means the document was not produced by
+     *          signing: adding a field and extending an archive both return one
+     *          of these and neither is a signature
+     *          (docs/decisions/0127-a-signature-comes-with-a-receipt.md).
+     */
     public function __construct(
         public string $contents,
         public string $fileName = '',
+        // Appended, so the arity a caller relies on does not move.
+        public ?SigningReceipt $signing = null,
     ) {}
+
+    /**
+     * What happened, in the shape an application stores.
+     *
+     * **A method rather than a property, because it hashes.** Two passes over
+     * the document, which on a 300 MB file is a second nobody should spend by
+     * calling `sign()`. What comes back carries no PDF, so it goes in a column
+     * or a queue message without dragging the document behind it.
+     *
+     * Null when this document did not come from signing.
+     */
+    public function receipt(DigestAlgorithm $algorithm = DigestAlgorithm::Sha256): ?SigningReceipt
+    {
+        return $this->signing?->digested($this->contents, $algorithm);
+    }
 
     public function contents(): string
     {
