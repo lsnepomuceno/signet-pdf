@@ -42,11 +42,10 @@ final class Files
      */
     public static function write(string $path, string $contents): void
     {
-        $directory = dirname($path);
-
-        if (! is_dir($directory)) {
-            self::makeDirectory($directory);
-        }
+        // Unconditionally, because `makeDirectory()` already returns when the
+        // directory is there. A guard here would only be a second copy of that
+        // decision, and one no test could ever tell apart from its absence.
+        self::makeDirectory(dirname($path));
 
         if (Probe::run(static fn() => file_put_contents($path, $contents)) === false) {
             throw new ProcessRunTimeException("could not write to {$path}");
@@ -78,9 +77,7 @@ final class Files
             throw new ProcessRunTimeException("could not restrict {$path}");
         }
 
-        if ($contents !== '') {
-            self::write($path, $contents);
-        }
+        self::write($path, $contents);
     }
 
     public static function exists(string $path): bool

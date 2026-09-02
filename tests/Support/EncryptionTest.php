@@ -156,10 +156,20 @@ it('sends each envelope to the reader that understands it', function () {
     $sodium = new SodiumEncrypter(SodiumEncrypter::generateKey());
     $openssl = new OpensslEncrypter(OpensslEncrypter::generateKey(Cipher::Aes128Cbc), Cipher::Aes128Cbc);
 
+    // The whole message, both halves. The second one is the actionable half:
+    // "wrong envelope" tells somebody nothing they can act on, and "opens with
+    // its own key" tells them what to reach for.
     expect(fn() => $openssl->decryptString($sodium->encryptString('x')))
-        ->toThrow(EncryptionException::class, 'written by the current envelope')
+        ->toThrow(
+            EncryptionException::class,
+            'this payload was written by the current envelope; open it with its 32-byte key',
+        )
         ->and(fn() => $sodium->decryptString($openssl->encryptString('x')))
-        ->toThrow(EncryptionException::class, 'not written by the current envelope');
+        ->toThrow(
+            EncryptionException::class,
+            'this payload was not written by the current envelope; '
+            . 'material sealed by the previous one opens with its own key',
+        );
 });
 
 it('picks the vault encrypter from the length of the key', function () {
@@ -173,4 +183,90 @@ it('picks the vault encrypter from the length of the key', function () {
 it('refuses a vault key belonging to neither envelope', function () {
     expect(fn() => CertificateVault::withKey(random_bytes(24)))
         ->toThrow(EncryptionException::class, '24 given');
+});
+
+/**
+ * The envelope, pinned to bytes rather than to a round-trip.
+ *
+ * **A round-trip cannot see the property this is here for.** The MAC is
+ * computed over the initialisation vector concatenated with the ciphertext, and
+ * a change that swapped the two, or dropped one, would seal and open perfectly
+ * well while producing an envelope the package it interoperates with cannot
+ * read. Both halves would move together and every test would stay green
+ * (docs/decisions/0103-encryption-is-the-platforms.md).
+ *
+ * So this is one envelope with a fixed key and a fixed vector, written down.
+ * It opens, or the format moved.
+ */
+const LEGACY_KEY = "\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01";
+
+const LEGACY_ENVELOPE = 'eyJpdiI6IkFnSUNBZ0lDQWdJQ0FnSUNBZ0lDQWc9PSIsInZhbHVlIjoiam8wKzdWRFl4V2hISWZBUEJVTGhUYmFSLzRlWTZuY2R5cFpOYlZhTDZzYz0iLCJtYWMiOiJkOTdlOWYzYWZhYTI2YzQyZDU4YTRlYzcyODIwODg4Mjg3Njc4MDhjNDQ5NTYwNDM1YzA3NzdjOGUwYjE3NDM0IiwidGFnIjoiIn0=';
+
+it('opens an envelope written down rather than one it wrote a moment ago', function () {
+    expect(new OpensslEncrypter(LEGACY_KEY, Cipher::Aes128Cbc)->decryptString(LEGACY_ENVELOPE))
+        ->toBe('the certificate bytes');
+});
+
+it('writes the empty tag the format reserves', function () {
+    $encrypter = new OpensslEncrypter(OpensslEncrypter::generateKey(Cipher::Aes128Cbc), Cipher::Aes128Cbc);
+
+    /** @var array{tag: string} $envelope */
+    $envelope = json_decode(
+        (string) base64_decode($encrypter->encryptString('anything'), true),
+        true,
+    );
+
+    // Empty rather than absent, and empty rather than anything else: the field
+    // belongs to the AEAD modes this envelope does not use, and the reader on
+    // the other side expects the key to be there and to hold nothing.
+    expect($envelope['tag'])->toBe('');
+});
+
+it('refuses an envelope whose vector is the wrong length', function () {
+    // Valid base64, correct MAC, twelve bytes where the cipher wants sixteen.
+    // Without the length check the vector reaches `openssl_decrypt`, which
+    // pads or truncates it silently depending on the build.
+    $key = OpensslEncrypter::generateKey(Cipher::Aes128Cbc);
+    $iv = base64_encode(random_bytes(12));
+    $value = base64_encode(random_bytes(16));
+
+    $envelope = base64_encode((string) json_encode([
+        'iv' => $iv,
+        'value' => $value,
+        'mac' => hash_hmac('sha256', $iv . $value, $key),
+        'tag' => '',
+    ], JSON_UNESCAPED_SLASHES));
+
+    expect(fn() => new OpensslEncrypter($key, Cipher::Aes128Cbc)->decryptString($envelope))
+        ->toThrow(EncryptionException::class, 'malformed initialisation vector');
+});
+
+it('refuses a ciphertext the cipher cannot read, after the mac has passed', function () {
+    // The one path where the key is right and the payload is not, which is why
+    // the envelope is built here with the real key rather than tampered with.
+    $key = OpensslEncrypter::generateKey(Cipher::Aes128Cbc);
+    $iv = base64_encode(random_bytes(16));
+    $value = base64_encode('not a whole cipher block');
+
+    $envelope = base64_encode((string) json_encode([
+        'iv' => $iv,
+        'value' => $value,
+        'mac' => hash_hmac('sha256', $iv . $value, $key),
+        'tag' => '',
+    ], JSON_UNESCAPED_SLASHES));
+
+    expect(fn() => new OpensslEncrypter($key, Cipher::Aes128Cbc)->decryptString($envelope))
+        ->toThrow(EncryptionException::class, 'the cipher refused the payload');
+});
+
+it('refuses an envelope missing a field it needs', function () {
+    $envelope = base64_encode((string) json_encode(['iv' => 'AAAA', 'value' => 'BBBB'], JSON_UNESCAPED_SLASHES));
+
+    expect(fn() => new OpensslEncrypter(LEGACY_KEY, Cipher::Aes128Cbc)->decryptString($envelope))
+        ->toThrow(EncryptionException::class, 'missing a required field');
+});
+
+it('refuses a payload that is base64 and is not an envelope', function () {
+    expect(fn() => new OpensslEncrypter(LEGACY_KEY, Cipher::Aes128Cbc)->decryptString(base64_encode('"a string"')))
+        ->toThrow(EncryptionException::class, 'not a valid envelope');
 });
