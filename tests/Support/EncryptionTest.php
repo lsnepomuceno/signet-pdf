@@ -270,3 +270,12 @@ it('refuses a payload that is base64 and is not an envelope', function () {
     expect(fn() => new OpensslEncrypter(LEGACY_KEY, Cipher::Aes128Cbc)->decryptString(base64_encode('"a string"')))
         ->toThrow(EncryptionException::class, 'not a valid envelope');
 });
+
+it('names a payload that is not base64 rather than decoding what it can', function () {
+    // Non-strict base64 skips characters outside the alphabet and returns
+    // whatever is left, so the failure would surface two steps later as "not a
+    // valid envelope" and send the reader looking for a corrupted field rather
+    // than at the string they passed in.
+    expect(fn() => new OpensslEncrypter(LEGACY_KEY, Cipher::Aes128Cbc)->decryptString('!!!!'))
+        ->toThrow(EncryptionException::class, 'the payload is not valid base64');
+});
