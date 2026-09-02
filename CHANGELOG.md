@@ -250,6 +250,35 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A real ICP-Brasil certificate did not fit the space reserved for the
+  signature.** An RFB e-CPF A1 signing at `pades-b-t` produces a 10501-byte CMS,
+  and 8192 bytes were reserved, so three of the four profiles were unreachable
+  for the audience the regional layer exists to serve:
+
+  ```
+  the 10501-byte signature does not fit the 8192-byte reserved space
+  ```
+
+  Both placeholders double, to 16 KB of CMS. Overflowing is a hard failure, so
+  being generous costs 8 KB of zeroes per signature and being tight costs a
+  document that cannot be signed at all. **The suite could not see this**:
+  `Testing\DebugCertificate` issues a self-signed certificate with no chain, so
+  every measurement the width was checked against was of the smallest possible
+  CMS.
+
+  **And widening it exposed a reading defect that was already costing other
+  producers.** `Validation\PdfSignatureExtractor` read `/M`, the signing time,
+  from a 32 KB window scanned forward from the `/ByteRange`, wide enough to
+  clear a 16 KB placeholder and no wider. A document reserving more than this
+  package does lost its signing time silently, and its sub-filter with it. The
+  signature dictionary is read with its own payload cut out of the middle now,
+  using the `/ByteRange`'s own offsets, so it does not depend on how much
+  anybody reserved
+  ([0126](docs/decisions/0126-the-placeholder-fits-a-real-certificate.md)).
+
+  `Data\PreparedSignature::$reservedBytes` reports 16384 rather than 8192, and
+  every signed document grows by 8 KB.
+
 - **The ICP-Brasil policy attribute declared the wrong hash of the right
   policy.** A document signed with an RFB e-CPF A1 at AD-RB v1.3 was rejected by
   ITI's Verificador, with one attribute invalid out of five and everything else

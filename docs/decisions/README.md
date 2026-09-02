@@ -101,3 +101,4 @@ guarantee two records with the same number within a release or two.
 | [0123](0123-a-legacy-bundle-is-named-not-guessed-at.md) | A legacy bundle is named, not guessed at |
 | [0124](0124-the-policy-digest-has-an-offline-witness.md) | The policy digest has an offline witness |
 | [0125](0125-the-seal-renders-on-intervention-image-4.md) | The seal renders on Intervention Image 4 |
+| [0126](0126-the-placeholder-fits-a-real-certificate.md) | The placeholder fits a real certificate |
