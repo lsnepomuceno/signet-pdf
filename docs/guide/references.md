@@ -119,7 +119,7 @@ actually exercised.
 | [qpdf](https://qpdf.readthedocs.io/) | not pinned, see below | structural soundness, and reading back what was encrypted | `tests/Conformance/StructureTest.php`, `tests/Signing/EncryptedDocumentTest.php` |
 | [pyHanko](https://pyhanko.readthedocs.io/) | 0.36.2, CLI 0.4.2, pinned | `/DocMDP` enforcement, and signing the foreign document this package's validator is read against | `tests/Validation/ForeignSignatureTest.php`, `tests/Certification/CertificationEnforcementTest.php` |
 | [Arlington PDF Model](https://github.com/pdf-association/arlington-pdf-model) `testgrammar` | pinned by commit | whether the emitted objects match the specification's own grammar | `tests/Conformance/ArlingtonTest.php` |
-| [EU DSS](https://github.com/esig/dss) | 6.5, pinned | whether the digest a signature declares for its policy is the digest that policy carries | `tests/Conformance/PolicyDigestTest.php` |
+| [EU DSS](https://github.com/esig/dss) | 6.5, pinned | whether the digest a signature declares for its policy is the digest that policy carries, and which PAdES baseline level the output actually reaches | `tests/Conformance/PolicyDigestTest.php` |
 
 **The last one is there because the other five could not see a defect that
 shipped.** Every ICP-Brasil policy digest this package carried was the hash of
@@ -128,6 +128,16 @@ the policy *file* rather than the hash the policy declares for itself, and
 correctly: none of them resolves the policy document, so none of them ever
 compares. DSS does
 ([0124](https://github.com/lsnepomuceno/signet-pdf/blob/main/docs/decisions/0124-the-policy-digest-has-an-offline-witness.md)).
+
+**It has to be told what to trust, and that is not a detail.** DSS decides a
+document's baseline level by asking whether the file carries validation material
+for every certificate in every chain, excluding trust anchors because a trust
+anchor needs none. Given none, it cannot answer above `PAdES-BASELINE-T` whatever
+the document holds, and it reported this package's B-LT and B-LTA output that way
+for a month while nothing was wrong with it
+([0133](https://github.com/lsnepomuceno/signet-pdf/blob/main/docs/decisions/0133-the-witness-has-to-trust-something.md)).
+`dss-policy-check` takes `--trust=<certificate>` for that reason, and the
+conformance test passes one.
 
 ### Why four are pinned and two are not
 
