@@ -297,6 +297,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **AD-RC was mapped onto `pades-b-lt`, and ITI refuses that document.** Every
+  AD-RC version names `/DocTimeStamp` among the dictionaries it requires, which
+  is what `pades-b-lta` adds, so the family that looks like the B-LT policy is
+  not one. The mapping followed ETSI EN 319 142-1 exactly, where complete
+  references sit on that rung, and ICP-Brasil does not use it.
+
+  ```
+  Nome do atributo: DocTimeStamp
+  Corretude: Invalid
+  Mensagem de erro: Atributo DocTimeStamp obrigatório ausente na assinatura
+  ```
+
+  **`SignaturePolicy::forProfile(SignatureProfile::PadesBLT)` now answers
+  null**, because ITI publishes no policy a B-LT signature satisfies. Code that
+  passed that answer into `SigningConfig` declared AD-RC and produced documents
+  the authority refused, so what it loses is a false positive rather than a
+  capability. `forProfile(PadesBLTA)` answers AD-RA, and the tie between the two
+  families that now land there is broken by the arc ITI numbers them with rather
+  than by the order the cases are declared in.
+
+  The mapping is gated by the committed policy documents from here on: the suite
+  asks each artefact whether it names the dictionary and requires that to agree,
+  case by case
+  ([0131](docs/decisions/0131-ad-rc-wants-a-document-timestamp.md)).
+
 - **The security store named the signature by the wrong hash, and every
   Brazilian verifier said so.** A `/VRI` entry is keyed by the SHA-1 of the
   signature's `/Contents`, and that value is a fixed-width placeholder: the CMS

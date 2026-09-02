@@ -267,6 +267,14 @@ $config = new SignetConfig(new SigningConfig(
 PDF, superseded versions included, each with its URI, its validity window, the
 profile that satisfies it, and `digest()`.
 
+**`forProfile()` answers null for `pades-b-lt`**, and that is a fact about what
+ITI publishes rather than a gap here. AD-RC looks like the B-LT policy and
+requires a `/DocTimeStamp`, so it is satisfied by `pades-b-lta` alongside AD-RA
+and nothing is satisfied by B-LT
+([0131](../decisions/0131-ad-rc-wants-a-document-timestamp.md)). A caller that
+passes the answer straight through declares no policy, which is the honest
+outcome: declaring one the signature does not meet is what a verifier refuses.
+
 **`digest()` is the policy's own `signPolicyHash`, not the hash of the policy
 file.** The two are different values of the same policy: the file hash is what
 `LPA_PAdES.der` records, so a fetch can be checked, and the policy's own hash

@@ -170,27 +170,39 @@ enum SignaturePolicy: string
      *
      * A declaration a signature does not live up to is worse than none,
      * which is what `IcpBrasil\PolicyConformance` reports on.
+     *
+     * **AD-RC is `pades-b-lta`, not `pades-b-lt`, and the difference cost a
+     * rejection.** ETSI EN 319 142-1 puts the document timestamp at B-LTA, so
+     * mapping the complete-references family onto B-LT follows the European
+     * ladder exactly. ICP-Brasil does not use that rung: all five AD-RC
+     * versions name `/DocTimeStamp` among the dictionaries they require, and
+     * ITI answered a `pades-b-lt` document declaring AD-RC v1.4 with
+     * `Atributo DocTimeStamp obrigatorio ausente na assinatura`
+     * (docs/decisions/0131-ad-rc-wants-a-document-timestamp.md).
+     *
+     * So no policy here is satisfied by `pades-b-lt`, and `forProfile()`
+     * answers null for it.
      */
     public function profile(): SignatureProfile
     {
         return match ($this) {
             self::AdRbV1_0 => SignatureProfile::PadesBB,
             self::AdRtV1_0 => SignatureProfile::PadesBT,
-            self::AdRcV1_0 => SignatureProfile::PadesBLT,
+            self::AdRcV1_0 => SignatureProfile::PadesBLTA,
             self::AdRaV1_0 => SignatureProfile::PadesBLTA,
-            self::AdRcV1_1 => SignatureProfile::PadesBLT,
+            self::AdRcV1_1 => SignatureProfile::PadesBLTA,
             self::AdRaV1_1 => SignatureProfile::PadesBLTA,
             self::AdRbV1_1 => SignatureProfile::PadesBB,
             self::AdRtV1_1 => SignatureProfile::PadesBT,
-            self::AdRcV1_2 => SignatureProfile::PadesBLT,
+            self::AdRcV1_2 => SignatureProfile::PadesBLTA,
             self::AdRaV1_2 => SignatureProfile::PadesBLTA,
             self::AdRbV1_2 => SignatureProfile::PadesBB,
             self::AdRtV1_2 => SignatureProfile::PadesBT,
-            self::AdRcV1_3 => SignatureProfile::PadesBLT,
+            self::AdRcV1_3 => SignatureProfile::PadesBLTA,
             self::AdRaV1_3 => SignatureProfile::PadesBLTA,
             self::AdRbV1_3 => SignatureProfile::PadesBB,
             self::AdRtV1_3 => SignatureProfile::PadesBT,
-            self::AdRcV1_4 => SignatureProfile::PadesBLT,
+            self::AdRcV1_4 => SignatureProfile::PadesBLTA,
             self::AdRaV1_4 => SignatureProfile::PadesBLTA,
         };
     }
@@ -316,7 +328,10 @@ enum SignaturePolicy: string
     /**
      * The policy to declare for a profile, which is the newest one in force.
      *
-     * Null when ITI has published none for that profile.
+     * Null when ITI has published none a signature at that profile satisfies,
+     * **which includes `pades-b-lt`**: the family that looks like it belongs
+     * there wants a document timestamp, so it is answered for `pades-b-lta`
+     * instead (docs/decisions/0131-ad-rc-wants-a-document-timestamp.md).
      */
     public static function forProfile(SignatureProfile $profile, ?int $at = null): ?self
     {
@@ -327,11 +342,30 @@ enum SignaturePolicy: string
                 continue;
             }
 
-            if ($newest === null || $policy->validFrom() >= $newest->validFrom()) {
+            if ($newest === null
+                || $policy->validFrom() > $newest->validFrom()
+                || ($policy->validFrom() === $newest->validFrom() && $policy->family() > $newest->family())) {
                 $newest = $policy;
             }
         }
 
         return $newest;
+    }
+
+    /**
+     * The arc ITI numbers the family with, 11 basic through 14 archival.
+     *
+     * **It is the tie-break, and it needs one.** Two families are satisfied by
+     * the same profile now that AD-RC asks for a document timestamp, and both
+     * came into force on the same day, so `forProfile()` had a pair to choose
+     * between and was choosing by declaration order. ITI numbers the families
+     * in increasing order of what they demand, so the later arc is the
+     * stronger policy and is the one a new signature should declare
+     * (docs/decisions/0131-ad-rc-wants-a-document-timestamp.md).
+     */
+    private function family(): int
+    {
+        // '2.16.76.1.7.1.<family>.<version>', so the seventh component.
+        return (int) explode('.', $this->value)[6];
     }
 }

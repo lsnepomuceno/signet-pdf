@@ -137,9 +137,8 @@ are what they were, and `Contracts\SignatureTransport` is the seam this rides on
 
 ### What an accredited authority still would not fix
 
-Two limits below are about what this package writes rather than about who
-stamped it, so they survive the change: AD-RA needs the `PBAD_` entries, and
-AD-RC needs the profile mapping.
+One limit below is about what this package writes rather than about who stamped
+it, so it survives the change: an AD-RA signature needs the `PBAD_` entries.
 
 ## The security store is missing the ICP-Brasil entries
 
@@ -168,27 +167,10 @@ AD-RB, AD-RT and AD-RC require none of them, and AD-RC's store is reported
 `Valid` as it stands.
 
 **What to do meanwhile:** declare AD-RC rather than AD-RA where the policy is
-yours to choose. AD-RC asks for the validation material and the archive
-timestamp and not for these three entries.
-
-## AD-RC is mapped onto `pades-b-lt`
-
-`IcpBrasil\Enums\SignaturePolicy::forProfile(SignatureProfile::PadesBLT)` returns
-AD-RC, and `IcpBrasil\PolicyConformance` therefore reports an AD-RC declaration
-as satisfied by a `pades-b-lt` signature. **The policy artefacts say it is not:**
-all five AD-RC versions require a `/DocTimeStamp`, which is what `pades-b-lta`
-adds.
-
-The mapping follows the European ladder exactly, where the document timestamp
-sits at B-LTA and not at B-LT. ICP-Brasil's AD-RC does not sit on that rung.
-Tracked in [#158](https://github.com/lsnepomuceno/signet-pdf/issues/158).
-
-**What to do meanwhile:** sign at `pades-b-lta` when declaring AD-RC, rather
-than taking the profile the mapping suggests.
-
-```php
-->profile(SignatureProfile::PadesBLTA)
-```
+yours to choose. Both are satisfied by `pades-b-lta`
+([0131](../decisions/0131-ad-rc-wants-a-document-timestamp.md)), and AD-RC asks
+for the validation material and the archive timestamp without asking for these
+three entries.
 
 ## EU DSS reads the B-LT and B-LTA samples as BASELINE-T
 
