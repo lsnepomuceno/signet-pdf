@@ -155,8 +155,9 @@ lines are archived at [/v2/](https://lsnepomuceno.github.io/signet-pdf/v2/) and
 
 | Package | PHP | Notes |
 |---|---|---|
-| **^2** | 8.4.1 – 8.5 | the current line, and what this page documents |
-| **^1** | 8.4.1 – 8.5 | the previous line; [UPGRADE.md](UPGRADE.md) is the path across |
+| **^3** | 8.4.1 – 8.5 | the current line, and what this page documents |
+| **^2** | 8.4.1 – 8.5 | the previous line; [UPGRADE.md](UPGRADE.md) is the path across |
+| **^1** | 8.4.1 – 8.5 | archived; upgrading crosses 2.x first |
 
 `ext-openssl`, `ext-sodium`, `ext-gd`, `ext-mbstring`, `ext-zlib`,
 `ext-fileinfo` and `ext-json` are required. The `openssl` **binary** on `PATH` is
