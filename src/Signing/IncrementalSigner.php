@@ -15,6 +15,7 @@ use LSNepomuceno\Signet\Data\SealPlacement;
 use LSNepomuceno\Signet\Data\SignatureField;
 use LSNepomuceno\Signet\Data\SignatureInfo;
 use LSNepomuceno\Signet\Data\SignedPdf;
+use LSNepomuceno\Signet\Data\SigningReceipt;
 use LSNepomuceno\Signet\Enums\CertificationLevel;
 use LSNepomuceno\Signet\Enums\SignatureProfile;
 use LSNepomuceno\Signet\Enums\SigningEvent;
@@ -22,6 +23,7 @@ use LSNepomuceno\Signet\Exceptions\CertificationException;
 use LSNepomuceno\Signet\Exceptions\FieldLockException;
 use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Exceptions\SignatureFieldException;
+use LSNepomuceno\Signet\IcpBrasil\Reader as IcpBrasilReader;
 use LSNepomuceno\Signet\Signing\Incremental\ByteRangeCalculator;
 use LSNepomuceno\Signet\Signing\Incremental\CertificationReader;
 use LSNepomuceno\Signet\Signing\Incremental\DocTimeStampWriter;
@@ -192,6 +194,13 @@ final readonly class IncrementalSigner implements PdfSigner
         // signable document from about 27 MB to about 36 MB (issue #274).
         $fieldName = $target === null ? $this->uniqueFieldName($pdfContents, $fieldName) : $target->name;
 
+        // Read before the handover below empties it, and passed to the writer
+        // rather than read again there, so the /M in the document and the time
+        // the receipt reports come from one value
+        // (docs/decisions/0127-a-signature-comes-with-a-receipt.md).
+        $originalSize = strlen($pdfContents);
+        $signedAt = time();
+
         $revision = $this->writer->revision(
             $pdfContents,
             $document,
@@ -204,6 +213,7 @@ final readonly class IncrementalSigner implements PdfSigner
             $target,
             $certification,
             $lock,
+            $signedAt,
         );
 
         // **The document is handed over, not copied.** The caller passed it by
@@ -234,6 +244,9 @@ final readonly class IncrementalSigner implements PdfSigner
             $this->byteRange->digestOfSpan($signed->bytes, $open, $close, $trailing, $digest),
             $fieldName,
             $certification,
+            $originalSize,
+            $document->id,
+            $signedAt,
         );
     }
 
@@ -278,7 +291,34 @@ final readonly class IncrementalSigner implements PdfSigner
             'signer' => $certificate?->commonName(),
         ]);
 
-        return new SignedPdf($signed->bytes);
+        return new SignedPdf($signed->bytes, signing: $this->receipt($prepared, $certificate));
+    }
+
+    /**
+     * What signing knew, minus anything that costs a pass over the document.
+     *
+     * The digests are not taken here: `Data\SignedPdf::receipt()` takes them
+     * when somebody asks, because on a large document they are the expensive
+     * part and a caller who never reads a receipt should not pay for one
+     * (docs/decisions/0127-a-signature-comes-with-a-receipt.md).
+     */
+    private function receipt(PreparedSignature $prepared, ?Certificate $certificate): SigningReceipt
+    {
+        return new SigningReceipt(
+            fieldName: $prepared->fieldName,
+            profile: $prepared->profile,
+            signedAt: $prepared->signedAt,
+            originalSize: $prepared->originalSize,
+            documentId: $prepared->documentId,
+            signerName: $certificate?->commonName(),
+            // Read rather than decided: the core knows nothing regional, and
+            // this is the one place a Brazilian certificate's own identity is
+            // worth carrying out to the caller
+            // (docs/decisions/0104-the-regional-layer-is-its-own-namespace.md).
+            icpBrasil: $certificate === null
+                ? null
+                : new IcpBrasilReader()->read($certificate->original),
+        );
     }
 
     /**

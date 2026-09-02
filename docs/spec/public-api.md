@@ -212,7 +212,13 @@ for anything that is not a local file
 
 Everything else is optional: `info()`, `seal()`, `sealFrom()`, `profile()`,
 `timestamp()`, `fieldName()`. `sign()` closes the chain and returns a
-`Data\SignedPdf`.
+`Data\SignedPdf`, whose `receipt()` reports what signing did: the digests of the
+signed document and of the one it was given, both sizes, the PDF's own `/ID`,
+the signing time, the field, the profile, the signer and the ICP-Brasil identity
+when there is one. **It carries no PDF**, because it is what an application
+stores rather than what it shows, and it is a method rather than a property
+because it hashes
+([0127](../decisions/0127-a-signature-comes-with-a-receipt.md)).
 
 ## The entry point
 

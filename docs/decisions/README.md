@@ -102,3 +102,4 @@ guarantee two records with the same number within a release or two.
 | [0124](0124-the-policy-digest-has-an-offline-witness.md) | The policy digest has an offline witness |
 | [0125](0125-the-seal-renders-on-intervention-image-4.md) | The seal renders on Intervention Image 4 |
 | [0126](0126-the-placeholder-fits-a-real-certificate.md) | The placeholder fits a real certificate |
+| [0127](0127-a-signature-comes-with-a-receipt.md) | A signature comes with a receipt |
