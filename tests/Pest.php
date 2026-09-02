@@ -539,19 +539,7 @@ function dssPolicyVerdict(string $path, LSNepomuceno\Signet\IcpBrasil\Enums\Sign
         $arguments[] = escapeshellarg($policy->uri()) . '=' . $document;
     }
 
-    // stderr is dropped rather than merged: SLF4J finds no provider on this
-    // classpath and says so three times, and stdout has to stay parseable.
-    $output = resolve(LSNepomuceno\Signet\Contracts\ProcessRunner::class)->run(
-        'dss-policy-check ' . implode(' ', $arguments) . ' 2>/dev/null',
-    );
-
-    $report = json_decode($output, true);
-    $signatures = is_array($report) ? ($report['signatures'] ?? null) : null;
-    $signature = is_array($signatures) ? ($signatures[0] ?? null) : null;
-
-    if (! is_array($signature)) {
-        throw new RuntimeException("EU DSS reported no signature for {$path}: {$output}");
-    }
+    $signature = dssSignature($path, $arguments);
 
     $format = $signature['format'] ?? null;
     $policyId = $signature['policyId'] ?? null;
@@ -566,6 +554,65 @@ function dssPolicyVerdict(string $path, LSNepomuceno\Signet\IcpBrasil\Enums\Sign
         'algorithmsEqual' => ($signature['algorithmsEqual'] ?? null) === true,
         'error' => is_string($error) ? $error : null,
     ];
+}
+
+/**
+ * The baseline level EU DSS reads a document at, given what to trust.
+ *
+ * **The anchors are not decoration, and leaving them out is what made this
+ * question look like a defect for a month.** DSS decides the level by asking
+ * whether the document carries validation material for every certificate in
+ * every chain, and excludes trust anchors because a trust anchor needs none.
+ * Told to trust nothing, it cannot read any document as LT or LTA whatever the
+ * document carries, and it read this package's B-LT and B-LTA samples as
+ * `PAdES-BASELINE-T` for exactly that reason
+ * (docs/decisions/0133-the-witness-has-to-trust-something.md).
+ *
+ * One certificate per anchor, PEM or DER.
+ *
+ * @param  string  ...$anchors  Paths to certificates to treat as trusted.
+ *
+ * @throws RuntimeException When DSS reported no signature at all.
+ */
+function dssBaselineLevel(string $path, string ...$anchors): string
+{
+    $arguments = [escapeshellarg($path)];
+
+    foreach ($anchors as $anchor) {
+        $arguments[] = '--trust=' . escapeshellarg($anchor);
+    }
+
+    $format = dssSignature($path, $arguments)['format'] ?? null;
+
+    return is_string($format) ? $format : '';
+}
+
+/**
+ * The first signature EU DSS reports on, as it reports it.
+ *
+ * @param  list<string>  $arguments  Already escaped, the document first.
+ * @return array<string, mixed>
+ *
+ * @throws RuntimeException When DSS reported no signature at all.
+ */
+function dssSignature(string $path, array $arguments): array
+{
+    // stderr is dropped rather than merged: SLF4J finds no provider on this
+    // classpath and says so three times, and stdout has to stay parseable.
+    $output = resolve(LSNepomuceno\Signet\Contracts\ProcessRunner::class)->run(
+        'dss-policy-check ' . implode(' ', $arguments) . ' 2>/dev/null',
+    );
+
+    $report = json_decode($output, true);
+    $signatures = is_array($report) ? ($report['signatures'] ?? null) : null;
+    $signature = is_array($signatures) ? ($signatures[0] ?? null) : null;
+
+    if (! is_array($signature)) {
+        throw new RuntimeException("EU DSS reported no signature for {$path}: {$output}");
+    }
+
+    /** @var array<string, mixed> */
+    return $signature;
 }
 
 /**

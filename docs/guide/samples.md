@@ -60,6 +60,21 @@ ICP-Brasil chain, and testing there needs a real ICP-Brasil certificate. This is
 the distinction [Trust](./trust.md) exists to make.
 :::
 
+::: warning `pades-b-lt.pdf` and `pades-b-lta.pdf` read as BASELINE-T
+And they are right to. The certificate has no OCSP responder and no CRL
+distribution point, so there is no revocation material to gather and the store
+carries the chain and nothing else. ETSI EN 319 142-1 puts that material in what
+the LT level requires, so a verifier declines to raise the document, EU DSS
+included.
+
+**It is a limit of the sample, not of the package.** The same profiles signed
+with an identity that publishes a distribution point are read as
+`PAdES-BASELINE-LT` and `PAdES-BASELINE-LTA`, which the suite asserts on every
+run ([0133](../decisions/0133-the-witness-has-to-trust-something.md)). What
+these two files demonstrate is the structure: the `/DSS`, the `/VRI` and, for
+B-LTA, the `/DocTimeStamp` over the lot.
+:::
+
 ## Verifying one yourself
 
 ```bash

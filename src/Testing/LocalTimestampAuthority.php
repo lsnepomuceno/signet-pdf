@@ -6,6 +6,7 @@ namespace LSNepomuceno\Signet\Testing;
 
 use LSNepomuceno\Signet\Contracts\ProcessRunner;
 use LSNepomuceno\Signet\Contracts\SignatureTransport;
+use LSNepomuceno\Signet\Exceptions\FileNotFoundException;
 use LSNepomuceno\Signet\Exceptions\ProcessRunTimeException;
 use LSNepomuceno\Signet\Support\Files;
 use LSNepomuceno\Signet\Support\TemporaryFile;
@@ -90,6 +91,28 @@ final class LocalTimestampAuthority implements SignatureTransport
     public function crl(): callable
     {
         return static fn(string $url): false => false;
+    }
+
+    /**
+     * The certificate this authority stamps with, as PEM.
+     *
+     * **It is here so a verifier can be told to trust it**, which sounds like a
+     * convenience and is not. A tool that decides a document's baseline level
+     * asks whether the file carries validation material for every certificate
+     * in every chain, and excludes trust anchors because a trust anchor needs
+     * none. Told to trust nothing, it can never read a document as B-LT
+     * whatever the document carries, and the timestamp's own chain is half of
+     * what it looks at (docs/decisions/0133-the-witness-has-to-trust-something.md).
+     *
+     * Building the authority is what generates it, so asking costs a key pair
+     * the first time and nothing afterwards.
+     *
+     * @throws ProcessRunTimeException
+     * @throws FileNotFoundException
+     */
+    public function certificate(): string
+    {
+        return Files::read($this->authority() . 'tsa.pem');
     }
 
     /**

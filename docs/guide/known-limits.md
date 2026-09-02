@@ -135,19 +135,6 @@ Nothing else changes: the profile, the policy and the rest of the configuration
 are what they were, and `Contracts\SignatureTransport` is the seam this rides on
 ([0027](../decisions/0027-the-transport-is-a-seam.md)).
 
-## EU DSS reads the B-LT and B-LTA samples as BASELINE-T
-
-The offline witness reads `samples/pades-b-b.pdf` and `samples/pades-b-t.pdf` as
-`PAdES-BASELINE-B` and `PAdES-BASELINE-T`, and reads both higher samples as
-`PAdES-BASELINE-T` as well. Whether that is this package's fault or the sample
-certificate's is open, so
-`tests/Conformance/PolicyDigestTest.php` asserts the two settled levels and
-deliberately asserts nothing about the other two.
-Tracked in [#152](https://github.com/lsnepomuceno/signet-pdf/issues/152).
-
-Asserting the current answer would bless it before it is understood, which is
-the failure mode a gate is least able to recover from.
-
 ## Signing needs the document in memory
 
 **About the size of the document, and `pades-b-lta` needs twice it.** Measured

@@ -328,9 +328,15 @@ application with its own container should register those classes and ignore this
 entirely ([0100](../decisions/0100-the-core-is-framework-agnostic.md)).
 
 Its constructor is also the substitution point: `processes`, `transport`,
-`signer` and `certificateReader` all accept a replacement, which is how
-`Testing\FakePdfSigner` and `Testing\LocalTimestampAuthority` are installed
-without a container.
+`signer`, `certificateReader`, `verifier`, `signingKey` and `storeContributor`
+all accept a replacement, which is how `Testing\FakePdfSigner` and
+`Testing\LocalTimestampAuthority` are installed without a container.
+
+`Testing\LocalTimestampAuthority::certificate()` hands back the certificate the
+authority stamps with, as PEM. It is there so a verifier can be told to trust
+it: a tool that decides a document's baseline level excludes trust anchors from
+the material it requires, so one told to trust nothing cannot read any document
+above B-T ([0133](../decisions/0133-the-witness-has-to-trust-something.md)).
 
 ## Output
 
