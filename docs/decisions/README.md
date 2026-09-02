@@ -103,3 +103,4 @@ guarantee two records with the same number within a release or two.
 | [0125](0125-the-seal-renders-on-intervention-image-4.md) | The seal renders on Intervention Image 4 |
 | [0126](0126-the-placeholder-fits-a-real-certificate.md) | The placeholder fits a real certificate |
 | [0127](0127-a-signature-comes-with-a-receipt.md) | A signature comes with a receipt |
+| [0128](0128-the-chain-is-built-not-taken-in-order.md) | The chain is built, not taken in order |

@@ -279,6 +279,38 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **`pades-b-lt` and `pades-b-lta` embedded nothing when signed with a real
+  certificate authority.** No exception and no finding: `sign()` returned a
+  document reporting itself as `pades-b-lt` and carrying no Document Security
+  Store at all.
+
+  The chain was there and it was in the wrong order.
+  `Signing\Incremental\DssWriter` passed the bundle to the collector as read,
+  and the collector pairs each certificate with the next one as its issuer. A
+  real PKCS#12 is not leaf-first: an RFB e-CPF A1 reads back as holder, AC RFB
+  v4, AC Raiz, AC SERPRORFB, so the leaf was paired with a certificate that did
+  not issue it and every piece of material gathered was then correctly refused.
+  The chain is built with `Validation\ChainBuilder` now, which is what the
+  two-phase path has always done
+  ([0128](docs/decisions/0128-the-chain-is-built-not-taken-in-order.md)).
+
+  **Nothing could see it.** `Testing\DebugCertificate` issues a two-certificate
+  bundle, leaf then issuer, and two elements in the right order are also two
+  elements in an order the old code happened to handle.
+
+  Measured with the certificate that found it: 4 certificates and 2 CRLs
+  embedded, and `IcpBrasil\PolicyConformance` conformant at AD-RT v1.3, AD-RC
+  v1.4 and AD-RA v1.4. **A B-LT document from a Brazilian authority is measured
+  in megabytes**: the same document is 42 KB at `pades-b-t` and 2.3 MB at
+  `pades-b-lt`, and signing takes about ten seconds instead of one, nearly all
+  of it fetching revocation lists.
+
+- **The EU DSS gate could not read a document carrying a CRL**, which is every
+  B-LT and B-LTA document from a real authority. DSS ships the CRL interface and
+  picks an implementation off the classpath, and none was there, so it died with
+  `No implementation found for ICRLUtils`. The same shape as the colour-profile
+  library: blind to a category of document rather than failing on one.
+
 - **The signing time said UTC and wrote local time.** `/M` was `date('YmdHis')`
   followed by a literal `+00'00'`, so a signature made at 10:00 in São Paulo
   declared 10:00 UTC, three hours before it happened, and every reader that

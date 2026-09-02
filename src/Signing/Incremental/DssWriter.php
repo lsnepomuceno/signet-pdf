@@ -12,6 +12,7 @@ use LSNepomuceno\Signet\Exceptions\InvalidPdfFileException;
 use LSNepomuceno\Signet\Signing\Encryption\ObjectCipher;
 use LSNepomuceno\Signet\Support\DocumentBuffer;
 use LSNepomuceno\Signet\Support\Pem;
+use LSNepomuceno\Signet\Validation\ChainBuilder;
 use Throwable;
 
 /**
@@ -34,6 +35,9 @@ final readonly class DssWriter
         private SignatureTransport $transport,
         private Signer $signer = new Signer(),
         private Dss $dss = new Dss(),
+        // Appended with a default, so the arity a hand-built writer relies on
+        // does not move (docs/decisions/0128-the-chain-is-built-not-taken-in-order.md).
+        private ChainBuilder $chain = new ChainBuilder(),
     ) {}
 
     /**
@@ -50,7 +54,20 @@ final readonly class DssWriter
         #[\SensitiveParameter]
         string $documentPassword = '',
     ): void {
-        $this->write($pdf, $this->collect(Pem::certificates($certificate->original)), $documentPassword);
+        // **Built, not taken in the order the bundle happens to be in.** The
+        // collector pairs each certificate with the next one as its issuer, so
+        // an out-of-order pool asks a responder about the wrong pair and
+        // verifies nothing. A real PKCS#12 is out of order: an RFB e-CPF A1
+        // reads back leaf, AC RFB, AC Raiz, SERPRORFB, and the leaf's issuer is
+        // the last of those
+        // (docs/decisions/0128-the-chain-is-built-not-taken-in-order.md).
+        //
+        // `refresh()` below has done this since it was written, because a CMS
+        // carries its certificates as a set and nobody expected an order there.
+        // The expectation lived here instead.
+        $chain = $this->chain->build(Pem::certificates($certificate->original));
+
+        $this->write($pdf, $this->collect($chain), $documentPassword);
     }
 
     /**
