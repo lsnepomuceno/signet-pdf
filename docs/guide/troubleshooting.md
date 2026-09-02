@@ -1,5 +1,10 @@
 # Troubleshooting
 
+Something went wrong and you want to know what. If instead the package did what
+it was built to do and that is not enough, [Known limits](./known-limits.md) is
+the other half: what is not implemented yet, what it costs, and where each one
+is tracked.
+
 ## Start with `check`
 
 ```bash

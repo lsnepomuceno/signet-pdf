@@ -174,6 +174,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   caller used to get was `error:0308010C:digital envelope routines::unsupported`
   and nothing else.
 
+- **[Known limits](docs/guide/known-limits.md), a page for what the package does
+  not do yet.** The limits were on issues and in commit messages, which is where
+  a maintainer looks and not where somebody deciding whether to use this looks.
+  Each entry says what fails, what the instrument reported in its own words,
+  what to do meanwhile, and where it is tracked.
+
+  The one worth reading before choosing a profile: **every level above
+  `pades-b-b` is refused by ITI's Verificador today, and for a reason that
+  belongs to the timestamp authority rather than to the document.** Signing for
+  ICP-Brasil above the baseline needs an accredited ACT, those are contracted
+  rather than public, and they authenticate by client certificate rather than by
+  the username and password `Config\TimestampConfig` carries. The page shows how
+  to reach one anyway, through the injectable HTTP client, and states the cost of
+  the private key that puts on disk.
+
+  A signature carrying no timestamp is untouched by all of it, which is stated
+  there too, because it is the first question anybody reading the rest will ask.
+
 ### Changed
 
 - **Signing no longer holds the document twice.** The peak was a multiple of the

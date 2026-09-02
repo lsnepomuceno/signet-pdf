@@ -176,7 +176,9 @@ what stands where.** Submitted the same way, at `pades-b-lta`:
 The last two rows are the same fact twice: **the timestamps came from
 freetsa.org, which is not an ICP-Brasil accredited authority**, and the report
 says so in those words. Everything above them is this package's own work and it
-is accepted.
+is accepted. [Known limits](./known-limits.md) carries the reports in full,
+including the second reason freetsa's token is refused, which accreditation
+alone would not remove.
 
 **The offline check and the authority agree**, which is the strongest statement
 available about either: EU DSS approved both documents before they were
@@ -186,7 +188,9 @@ Two limits on what that establishes, and neither is hidden anywhere else:
 
 - **`pades-b-b` and the AD-RB family only.** AD-RT, AD-RC and AD-RA declare more
   than a baseline signature carries, and submitting for those needs a timestamp
-  authority ICP-Brasil accredits rather than the one the suite uses.
+  authority ICP-Brasil accredits rather than the one the suite uses. What that
+  authority is, what it costs, and how to point this package at one is
+  [Known limits](./known-limits.md#an-icp-brasil-timestamp-needs-an-accredited-authority).
 - **A verdict is about a document, not about a release.** The Verificador is an
   online service, so it cannot be a gate
   ([0026](../decisions/0026-verification-tools-are-instruments.md)); what runs on
