@@ -432,6 +432,15 @@ the plain install, and the step ends by running both binaries, because a missing
 tool becomes a skip and `--fail-on-skipped` reports that as a failure somewhere
 unrelated.
 
+**`composer audit` retries the advisory database, and nothing else.** It exits
+non-zero both when it finds an advisory and when it cannot reach Packagist, so
+the exit status cannot tell a verdict about this tree from somebody else's
+outage. The step tries three times and waits 5 then 20 seconds, on the message
+`could not be downloaded` alone: an advisory is reported on the first attempt,
+and a sustained outage is still red about 25 seconds later. It is not
+`--ignore-unreachable`, which would turn an outage into an audit that silently
+did not happen ([0134](../decisions/0134-the-audit-retries-a-transient-outage.md)).
+
 Tests in the `network` group hit a live timestamp authority (freetsa.org) and
 fail offline. Exclude them with `--exclude-group=network`.
 

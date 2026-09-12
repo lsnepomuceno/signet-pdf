@@ -109,3 +109,4 @@ guarantee two records with the same number within a release or two.
 | [0131](0131-ad-rc-wants-a-document-timestamp.md) | AD-RC wants a document timestamp |
 | [0132](0132-the-store-carries-the-policy-artefacts.md) | The store carries the policy artefacts |
 | [0133](0133-the-witness-has-to-trust-something.md) | The witness has to trust something |
+| [0134](0134-the-audit-retries-a-transient-outage.md) | The audit retries a transient outage, and nothing else |
