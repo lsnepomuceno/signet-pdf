@@ -358,6 +358,50 @@ arrives at that state, and it is the general case of the argument above about
 the scratch directory: a gate that reports a number it did not measure is the
 failure this file cares about most.
 
+### A filter that names two groups names neither
+
+`.docker/mutate.sh` excludes two groups from the run. `network` reaches
+freetsa.org, so it would score somebody else's outage as a surviving mutant, and
+`dss` starts a JVM per invocation against a run that repeats the covering tests
+once per mutant.
+
+It read `--exclude-group=network,dss` and excluded neither. The option takes one
+group name, so the comma is part of it, and a group called `network,dss` matches
+nothing. Measured in the container on 2026-09-11, over `tests/Timestamps`:
+
+| Filter | Tests run |
+|---|---|
+| none | 51 |
+| `--exclude-group=network,dss` | 51 |
+| `--exclude-group=network --exclude-group=dss` | 46 |
+
+**Nothing reports it.** The run is a few tests longer than intended and
+otherwise identical, the score moves by whatever those tests killed, and there
+is no message anywhere. It survived being written, reviewed, and read back twice
+while this file described the exclusion as working.
+
+It was found by the failure it caused rather than by anything watching for it.
+On the nightly of 2026-09-05 two legs reached freetsa.org during the initial
+suite run, freetsa answered a rejection, and the suite failed before a single
+mutant existed, so `Certificates` and `IcpBrasil` were filed as runs that
+crashed rather than scored (#177, #178). The exclusion existed to keep exactly
+that outage out of the score, and the flag meant to apply it is what let it in.
+
+`tests/Project/MutationMatrixTest.php` now fails on a comma inside any group
+filter in `.docker/mutate.sh` or a workflow, and separately on a filter naming a
+group no test declares, which is the same failure by rename rather than by
+punctuation. Both checks assert that the filters were found at all: a regex that
+stops matching would leave two tests passing over an empty list.
+
+**Every score in the table above was measured with those tests in the run.** The
+scores are comparable to each other and the floors were calibrated from them, so
+nothing is invalidated, but the first nightly after this fix measures a slightly
+different suite. The `network` tests duplicate offline coverage rather than
+extend it, since `Testing\LocalTimestampAuthority` gates B-T, B-LT, B-LTA and
+the archive chain without a connection, so a leg losing more than a point to
+this is a leg whose offline cover is thinner than it was believed to be, which
+is worth knowing on its own.
+
 ### `phpunit/php-code-coverage` is held below 14.2.4
 
 **`>=14.2 <14.2.4` in `require-dev`. Remove it once `pest-plugin-mutate` can

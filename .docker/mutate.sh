@@ -169,12 +169,35 @@ trap sweep EXIT INT TERM
 # offline by `tests/IcpBrasil/SignaturePolicyTest.php`, which is what the
 # mutants there are actually scored against
 # (docs/decisions/0124-the-policy-digest-has-an-offline-witness.md).
+#
+# **One flag per group, and that is not a style preference.** This read
+# `--exclude-group=network,dss` for a month and excluded neither: the option
+# takes a single group name, the comma is part of it, and a group called
+# `network,dss` matches nothing. Nothing says so. The run is one test longer
+# than it should be and otherwise identical, which is why the arrangement
+# survived being written, reviewed and read back twice.
+#
+# Measured in the container on 2026-09-11, over `tests/Timestamps`:
+#
+#   --exclude-group=network,dss             51 tests, the whole directory
+#   --exclude-group=network --exclude-group=dss   46 tests
+#
+# It cost the nightly of 2026-09-05. Two legs reached freetsa.org during the
+# initial suite run, freetsa answered a rejection, and the suite failed before a
+# single mutant existed: `Certificates` and `IcpBrasil` filed as runs that
+# crashed rather than scored (#177, #178). That is exactly the outage this
+# exclusion was written to keep out of the score, arriving through the flag that
+# was meant to keep it out.
+#
+# `tests/Project/MutationMatrixTest.php` now fails on a comma inside either
+# group filter, here or in a workflow.
 {
     if vendor/bin/pest \
         --mutate \
         --path="$paths" \
         ${ignore:+--ignore="$ignore"} \
-        --exclude-group=network,dss \
+        --exclude-group=network \
+        --exclude-group=dss \
         --min="$min"
     then
         echo 0 > "$status"
