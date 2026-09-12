@@ -70,8 +70,53 @@ jobs:
       # checked. For a signing package a known vulnerability in the tree is
       # worth blocking on, and --abandoned=ignore keeps the gate about
       # vulnerabilities rather than about maintenance status.
+      #
+      # **Retried, and only for the one failure that is not about this tree.**
+      # `composer audit` exits non-zero both when it finds an advisory and when
+      # it cannot reach the advisory database, and those deserve opposite
+      # answers. Packagist answered 502 three times on 2026-09-02, on three
+      # unrelated pull requests, one of them the release (#175), and every one
+      # cleared on a rerun with nothing changed. A gate that blocks unrelated
+      # work on somebody else's outage teaches everybody to rerun a red check
+      # without reading it, which is the habit that lets a real failure through.
+      #
+      # The retry is conditioned on the message rather than on the exit status,
+      # because the two failures share one. An advisory fails on the first
+      # attempt and says so; only "could not be downloaded" is tried again, so
+      # the gate still means what it means and a sustained outage still turns
+      # the build red, about 25 seconds later
+      # (docs/decisions/0134-the-audit-retries-a-transient-outage.md).
+      #
+      # Deliberately not `--ignore-unreachable`: Composer documents that flag
+      # for exactly this shape, and it turns an outage into an audit that
+      # silently did not happen. A dependency tree nobody managed to audit is
+      # the case this gate exists for.
       - name: Audit dependencies
-        run: composer audit --abandoned=ignore
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          log=$(mktemp)
+
+          for delay in 5 20 0; do
+            composer audit --abandoned=ignore 2>&1 | tee "$log"
+
+            [ "${PIPESTATUS[0]}" -eq 0 ] && exit 0
+
+            # Anything else is an answer about this tree, so it is reported
+            # rather than asked again.
+            if ! grep -q 'could not be downloaded' "$log"; then
+              exit 1
+            fi
+
+            [ "$delay" -eq 0 ] && break
+
+            echo "The advisory database did not answer. Trying again in ${delay}s."
+            sleep "$delay"
+          done
+
+          echo '::error::composer audit could not reach the advisory database in three attempts.'
+          exit 1
 
       # qpdf checks the structure of what the revision writer emits, and
       # poppler's pdfsig is the independent cross-check that has caught bugs
