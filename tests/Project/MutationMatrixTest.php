@@ -48,9 +48,15 @@ function unscoredFiles(): array
 }
 
 /**
- * Every path the matrix names, expanded to files.
+ * Every file the matrix mutates, with the mutator filter the leg applies to it.
  *
- * @return list<string> Relative to src/, in the shape the matrix writes them.
+ * A file appears once per leg that names it. That is normally once, and twice
+ * for the one file split by mutator rather than by path, which is what
+ * `mutators` is here to tell apart from a file two legs are paying for
+ * (docs/decisions/0135-a-leg-that-cannot-be-split-by-path-is-split-by-mutator.md).
+ *
+ * @return list<array{file: string, mutators: string}> Paths relative to src/,
+ *          in the shape the matrix writes them.
  */
 function mutatedFiles(): array
 {
@@ -63,7 +69,9 @@ function mutatedFiles(): array
     // first thing this test got wrong, which is worth leaving written down.
     foreach (matrixLegs() as $leg) {
         foreach (explode(',', $leg['target']) as $path) {
-            $files = [...$files, ...expandedTarget(trim($path), $leg['ignore'])];
+            foreach (expandedTarget(trim($path), $leg['ignore']) as $file) {
+                $files[] = ['file' => $file, 'mutators' => $leg['mutators']];
+            }
         }
     }
 
@@ -71,9 +79,19 @@ function mutatedFiles(): array
 }
 
 /**
+ * Just the paths, for the checks that ask what is covered rather than how.
+ *
+ * @return list<string>
+ */
+function mutatedPaths(): array
+{
+    return array_values(array_unique(array_column(mutatedFiles(), 'file')));
+}
+
+/**
  * The matrix, one entry per leg.
  *
- * @return list<array{target: string, ignore: list<string>}>
+ * @return list<array{target: string, ignore: list<string>, mutators: string}>
  */
 function matrixLegs(): array
 {
@@ -89,7 +107,12 @@ function matrixLegs(): array
 
         $ignore = preg_match('/^\s+ignore: (.+)$/m', $block, $found) === 1 ? [trim($found[1])] : [];
 
-        $legs[] = ['target' => trim($target[1]), 'ignore' => $ignore];
+        // `'!SetNumber'` is quoted in the YAML, because a bare `!` opens a tag.
+        $mutators = preg_match('/^\s+mutators: (.+)$/m', $block, $filter) === 1
+            ? trim(trim($filter[1]), "'\"")
+            : '';
+
+        $legs[] = ['target' => trim($target[1]), 'ignore' => $ignore, 'mutators' => $mutators];
     }
 
     return $legs;
@@ -151,7 +174,7 @@ function mutableFilesUnder(string $directory): array
 }
 
 it('scores every file of every namespace it claims to score', function () {
-    $covered = mutatedFiles();
+    $covered = mutatedPaths();
     $missing = [];
 
     foreach (scoredNamespaces() as $namespace) {
@@ -170,8 +193,34 @@ it('scores every file of every namespace it claims to score', function () {
 it('scores no file twice, so a leg cannot be paying for another leg', function () {
     // Two legs naming the same file would double its cost and hide the
     // duplication behind a score that still looks right.
-    $covered = mutatedFiles();
-    $duplicated = array_keys(array_filter(array_count_values($covered), static fn(int $times): bool => $times > 1));
+    //
+    // **Unless they divide it by mutator**, which is how the one file too
+    // expensive for a leg of its own is split, there being no second path to
+    // move anything to. A pair is legitimate when it reads `X` and `!X`: the
+    // two sets are disjoint and together they are the whole set, which is the
+    // same property a pair of paths has. Anything else naming a file twice is
+    // the duplication this check is for, including two legs that both filter on
+    // `SetNumber` and therefore measure it twice while leaving the rest of the
+    // file unmutated.
+    $byFile = [];
+
+    foreach (mutatedFiles() as $entry) {
+        $byFile[$entry['file']][] = $entry['mutators'];
+    }
+
+    $duplicated = [];
+
+    foreach ($byFile as $file => $filters) {
+        if (count($filters) === 1) {
+            continue;
+        }
+
+        sort($filters);
+
+        if ($filters !== ['!' . $filters[1], $filters[1]] || $filters[1] === '') {
+            $duplicated[] = $file;
+        }
+    }
 
     expect($duplicated)->toBe([]);
 });
@@ -182,7 +231,7 @@ it('names no file the tree does not have', function () {
     // than here.
     $absent = [];
 
-    foreach (mutatedFiles() as $file) {
+    foreach (mutatedPaths() as $file) {
         if (! Files::exists(packageRoot() . '/src/' . $file)) {
             $absent[] = $file;
         }

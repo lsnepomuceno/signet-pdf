@@ -167,9 +167,36 @@ jobs:
           # hours on 2026-08-21, leaving the other eight to share about fifty
           # minutes between them (#117). It gets a leg of its own on the same
           # reasoning that gave one to `RevisionWriter.php`.
-          - name: Signing/Incremental (document)
+          # **Split by mutator, because it cannot be split by anything else.**
+          # A leg of this one file took 5h54 on 2026-09-05 and was killed six
+          # lines from the end of a 523-line file, having processed 292 mutants
+          # (#176). There is no second path to move anything to, so the division
+          # is the other axis the run has. It is not `--shard`: each leg mutates
+          # a disjoint set and still runs the whole suite against every mutant it
+          # makes, which is the property `--shard` breaks
+          # (docs/decisions/0135-a-leg-that-cannot-be-split-by-path-is-split-by-mutator.md).
+          #
+          # **The cut follows the clock, read from that run's log.**
+          # `DecrementInteger` and `IncrementInteger` are 8,922 of the 21,240
+          # seconds and 120 of the 292 mutants, and both belong to `SetNumber`,
+          # so it is the one set that halves the leg on its own:
+          #
+          #   SetNumber    ~2h32, 122 mutants
+          #   everything else  ~3h25, 170 mutants
+          #
+          # **Both floors are provisional at the 60 the undivided leg carried**,
+          # which it never reached a score to justify either. A mutator set is a
+          # different population from the whole file, so neither number is
+          # inherited from the other: calibrate each from two nightlies, and
+          # docs/spec/quality-policy.md forbids lowering either.
+          - name: Signing/Incremental (document numbers)
             target: Signing/Incremental/DocumentReader.php
-            min: 60                   # provisional, unmeasured. 3h03 on 2026-08-21
+            mutators: SetNumber
+            min: 60                   # provisional, unmeasured. ~2h32 of the 5h54
+          - name: Signing/Incremental (document rest)
+            target: Signing/Incremental/DocumentReader.php
+            mutators: '!SetNumber'
+            min: 60                   # provisional, unmeasured. ~3h25 of the 5h54
           - name: Signing/Incremental (readers)
             target: Signing/Incremental/CertificationReader.php,Signing/Incremental/DocumentInfo.php,Signing/Incremental/FieldLockReader.php,Signing/Incremental/FormFieldReader.php,Signing/Incremental/ObjectStreamReader.php,Signing/Incremental/SignatureFieldReader.php,Signing/Incremental/XrefStreamReader.php,Signing/Incremental/XrefSubsections.php
             min: 60                   # provisional, unmeasured. 51 min for eight of the nine
@@ -198,9 +225,39 @@ jobs:
           # six, which is the headroom an unmeasured shape gets here. Calibrate
           # after two nightlies; docs/spec/quality-policy.md forbids lowering
           # either.
-          - name: Validation (reading)
-            target: Validation/Asn1Node.php,Validation/Asn1Reader.php,Validation/ChainBuilder.php,Validation/DerReader.php,Validation/PdfSignatureExtractor.php,Validation/Pkcs7Reader.php,Validation/RevocationReader.php,Validation/SecurityStoreReader.php,Validation/TimestampTokenReader.php
-            min: 69                   # provisional, unmeasured
+          # Split again, and by file for the same reason: `src/Validation` is
+          # flat. The `reading` leg was cancelled at six hours on 2026-09-02 and
+          # again on 2026-09-05, with its last file still running both times
+          # (#176). The second run's log says where the time went:
+          #
+          #   Asn1Reader.php              2h06
+          #   PdfSignatureExtractor.php   1h45
+          #   Pkcs7Reader.php               45 min
+          #   ChainBuilder.php              23 min
+          #   DerReader.php                 21 min
+          #   TimestampTokenReader.php      18 min, and still running
+          #   SecurityStoreReader.php        9 min
+          #   RevocationReader.php           4 min
+          #   Asn1Node.php                  14 s
+          #
+          # Two files are 3h51 of the 5h54, so each takes a leg, exactly as
+          # `RevisionWriter.php` and `PageGeometry.php` did. `Asn1Node.php` goes
+          # with the reader it is the node type of.
+          #
+          # **`TimestampTokenReader.php` is the one file here nobody has
+          # measured**, and it is named rather than folded into an estimate,
+          # which is the lesson #117 cost. It sits in the cheapest leg, which is
+          # where an unmeasured tail has the most room: the other five of that
+          # leg are 1h42 together.
+          - name: Validation (asn1)
+            target: Validation/Asn1Node.php,Validation/Asn1Reader.php
+            min: 69                   # provisional, unmeasured. 2h06 on 2026-09-05
+          - name: Validation (extractor)
+            target: Validation/PdfSignatureExtractor.php
+            min: 69                   # provisional, unmeasured. 1h45 on 2026-09-05
+          - name: Validation (structures)
+            target: Validation/ChainBuilder.php,Validation/DerReader.php,Validation/Pkcs7Reader.php,Validation/RevocationReader.php,Validation/SecurityStoreReader.php,Validation/TimestampTokenReader.php
+            min: 69                   # provisional, unmeasured. 1h42 for five of the six
           - name: Validation (verdicts)
             target: Validation/CertificationEvaluator.php,Validation/NativeSignatureVerifier.php,Validation/OpenSslCliSignatureVerifier.php,Validation/PdfSignatureValidator.php,Validation/RevisionAnalyzer.php,Validation/RevocationChecker.php,Validation/TrustStore.php,Validation/TrustVerifier.php
             min: 69                   # provisional, unmeasured
@@ -461,7 +518,7 @@ jobs:
         id: mutate
         shell: bash
         run: >
-          .docker/mutate.sh '${{ matrix.target }}' '${{ matrix.min }}' '${{ matrix.ignore }}'
+          .docker/mutate.sh '${{ matrix.target }}' '${{ matrix.min }}' '${{ matrix.ignore }}' '${{ matrix.mutators }}'
           | tee mutation.log
 
       # The score lives nowhere but the log, so a red job cannot tell a

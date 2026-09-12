@@ -110,3 +110,4 @@ guarantee two records with the same number within a release or two.
 | [0132](0132-the-store-carries-the-policy-artefacts.md) | The store carries the policy artefacts |
 | [0133](0133-the-witness-has-to-trust-something.md) | The witness has to trust something |
 | [0134](0134-the-audit-retries-a-transient-outage.md) | The audit retries a transient outage, and nothing else |
+| [0135](0135-a-leg-that-cannot-be-split-by-path-is-split-by-mutator.md) | A leg that cannot be split by path is split by mutator |
