@@ -82,11 +82,14 @@ one runner per leg, each with its own floor. Measured on the nightly runs of
 | `Certificates` | 68.07 x4, 72.40 x2 | 68.07 | 64 | 4.07 |
 | `Signing/Incremental (revision)` | none yet | | 60 | provisional |
 | `Signing/Incremental (geometry)` | none yet | | 60 | provisional |
-| `Signing/Incremental (document)` | none yet | | 60 | provisional |
+| `Signing/Incremental (document numbers)` | none yet | | 60 | provisional |
+| `Signing/Incremental (document rest)` | none yet | | 60 | provisional |
 | `Signing/Incremental (readers)` | none yet | | 60 | provisional |
 | `Signing/Incremental (writers)` | none yet | | 60 | provisional |
 | `Signing (rest)` | 73.80, 73.65 | 73.65 | 60 | provisional |
-| `Validation (reading)` | 81.03 | 81.03 | 69 | provisional |
+| `Validation (asn1)` | none yet | | 69 | provisional |
+| `Validation (extractor)` | none yet | | 69 | provisional |
+| `Validation (structures)` | none yet | | 69 | provisional |
 | `Validation (verdicts)` | 74.57 | 74.57 | 69 | provisional |
 | `Support (bytes)` | none yet | | 68 | provisional |
 | `Support (runtime)` | 58.02, 58.40 | 58.02 | 54 | 4.02 |
@@ -264,6 +267,79 @@ identical runs are not evidence the next one cannot be lower, and it is not
 lowered, because that is what the second rule below forbids. It is written down
 so the night it fires is not the night somebody first learns the margin was that
 thin.
+
+### Two legs that still did not finish, and the axis left to split them on
+
+`Validation (reading)` and `Signing/Incremental (document)` were cancelled at
+six hours on 2026-09-02 and again on 2026-09-05
+([#176](https://github.com/lsnepomuceno/signet-pdf/issues/176)). Both were
+already the product of a split, which is the point: splitting once is not a
+property a leg keeps.
+
+`Validation (reading)` divides again the way it divided the first time, by file,
+and the second run's log says where its 5h54 went:
+
+| File | Time on 2026-09-05 |
+|---|---|
+| `Asn1Reader.php` | 2h06 |
+| `PdfSignatureExtractor.php` | 1h45 |
+| `Pkcs7Reader.php` | 45 min |
+| `ChainBuilder.php` | 23 min |
+| `DerReader.php` | 21 min |
+| `TimestampTokenReader.php` | 18 min, and still running when the job was killed |
+| `SecurityStoreReader.php` | 9 min |
+| `RevocationReader.php` | 4 min |
+| `Asn1Node.php` | 14 s |
+
+Two files are 3h51 of the six hours, so each takes a leg, exactly as
+`RevisionWriter.php` and `PageGeometry.php` did. **`TimestampTokenReader.php` is
+the one file here nobody has measured**, and it is named rather than folded into
+an estimate, which is what #117 cost. It goes in the cheapest leg, where an
+unmeasured tail has the most room: the other five of that leg are 1h42 together.
+The 81.03 the undivided leg once scored belongs to none of the three.
+
+**`Signing/Incremental (document)` is one file, and that is where splitting by
+path runs out.** `DocumentReader.php` is 523 lines, and the leg processed 292
+mutants in 5h54 before being killed six lines from the end. There is no second
+path to move anything to.
+
+It is split by **mutator** instead, which divides the same way a path does: each
+leg mutates a disjoint set, together they are the whole set, and every leg still
+runs the whole suite against every mutant it makes. That last clause is the
+difference from `--shard`, which is forbidden below for breaking exactly it.
+
+The cut again follows the clock. Of the 21,240 seconds that run spent,
+`DecrementInteger` and `IncrementInteger` are 8,922, and 120 of the 292 mutants.
+Both belong to `SetNumber`, so one set halves the leg:
+
+| Leg | Mutants | Time |
+|---|---|---|
+| `SetNumber` | 122 | ~2h32 |
+| everything else | 170 | ~3h25 |
+
+`.docker/mutate.sh` takes the filter as a fourth argument, where a bare name
+selects and a leading `!` selects everything else, so the two legs of such a
+split read as a pair. `tests/Project/MutationMatrixTest.php` allows a file in
+two legs only when the pair reads `X` and `!X`, and treats anything else naming
+a file twice as the duplication it has always treated it as
+([0135](../decisions/0135-a-leg-that-cannot-be-split-by-path-is-split-by-mutator.md)).
+
+**A mutator set is a different population from the whole file**, so neither new
+floor inherits a measurement from the other, and both stay at the 60 the
+undivided leg carried without ever justifying it either.
+
+### An unknown option is an exit status of 0
+
+`vendor/bin/pest --mutate --mutators=SetNumber` prints
+`INFO Unknown option "--mutators"`, runs no test, mutates nothing, and exits 0.
+The option is `--mutator`, singular. Nothing else about the run says so: the
+script's existing check looks for `No mutations created`, which such a run never
+prints either, so it reported a clean pass for a leg that measured nothing.
+
+`.docker/mutate.sh` now requires the run to have printed a score. It is the same
+question the `No mutations created` check asks, put positively, which is what
+makes it cover the ways of arriving at an empty run that nobody has met yet
+rather than the two that have been met.
 
 Four rules govern this, and each cost something to learn:
 

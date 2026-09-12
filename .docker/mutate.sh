@@ -8,6 +8,8 @@
 #   .docker/mutate.sh Signing/Incremental 60          a directory inside one
 #   .docker/mutate.sh Signing 60 Signing/Incremental  the rest of that namespace
 #   .docker/mutate.sh Support/Files.php,Support/Probe.php 60   named files
+#   .docker/mutate.sh Validation/DerReader.php 60 '' SetNumber   one mutator set
+#   .docker/mutate.sh Validation/DerReader.php 60 '' '!SetNumber'   all the rest
 #
 # Mutation testing rewrites `src/` on purpose, and `Support\TempDirectory` builds
 # the path a temporary file is written to by concatenation. A mutant that drops
@@ -112,6 +114,35 @@ if [ -n "$3" ]; then
     ignore=$(resolve "$3")
 fi
 
+# Which mutators to apply, for the one leg that cannot be divided any other way.
+#
+# **Splitting by mutated path is the rule, and one file is where it runs out.**
+# `Signing/Incremental/DocumentReader.php` is a single 523-line file that took
+# 5h54 on 2026-09-05 and was killed six lines from the end, so there is no
+# second path to move anything to. A mutator is the other axis the run has, and
+# it divides the same way a path does: each leg mutates a disjoint set, together
+# they are the whole set, and every leg still runs the whole suite against every
+# mutant it makes. That last part is what `--shard` breaks and this does not
+# (docs/decisions/0135-a-leg-that-cannot-be-split-by-path-is-split-by-mutator.md).
+#
+# A bare name selects, a leading `!` selects everything else, so the two legs of
+# a split read as a pair and cannot silently overlap:
+#
+#   .docker/mutate.sh Signing/Incremental/DocumentReader.php 60 '' SetNumber
+#   .docker/mutate.sh Signing/Incremental/DocumentReader.php 60 '' '!SetNumber'
+#
+# Not validated here, unlike the paths above: the plugin raises
+# InvalidMutatorException on a name it does not know, which fails the run with
+# the name in the message. A path had to be checked because `--path=src/Typo`
+# is not an error to it, only an empty run.
+mutators=''
+
+case "${4:-}" in
+    '') ;;
+    '!'*) mutators="--except=${4#!}" ;;
+    *) mutators="--mutator=$4" ;;
+esac
+
 # Deliberately narrow: a bare UUIDv7, optionally carrying one extension, the
 # twelve directories named after an extension that a truncated path produces,
 # and the probes in tests/Support/TempDirectoryTest.php. That last one is not
@@ -196,6 +227,7 @@ trap sweep EXIT INT TERM
         --mutate \
         --path="$paths" \
         ${ignore:+--ignore="$ignore"} \
+        ${mutators:+"$mutators"} \
         --exclude-group=network \
         --exclude-group=dss \
         --min="$min"
@@ -228,4 +260,23 @@ fi
 if grep -q 'No mutations created' "$log"; then
     echo "mutate.sh: no mutation was created for $paths, so nothing was measured" >&2
     exit 3
+fi
+
+# And the same question asked the other way round, because the check above is a
+# list of known wordings and this one is not.
+#
+# **An option pest does not recognise is an INFO and an exit status of 0.** It
+# prints `Unknown option "--mutators". Most similar options are ...`, runs no
+# test, mutates nothing, says nothing about `No mutations created`, and leaves
+# with the status of a clean run. `--mutator` is singular and this script was
+# written with the plural for the length of one commit, which is how the state
+# was found: a leg that measures nothing and reports success is worse than the
+# same leg failing, because a nightly full of them reads as a quiet week.
+#
+# A finished run always prints its score, so requiring one turns every way of
+# arriving at an empty run into the same failure, including the ones nobody has
+# met yet.
+if ! grep -q 'Score:' "$log"; then
+    echo "mutate.sh: the run ended without a score, so nothing was measured" >&2
+    exit 4
 fi

@@ -46,6 +46,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
   Nothing in the package changes. This is the nightly.
 
+- **Two mutation legs that were being cancelled at six hours now finish.**
+  `Validation (reading)` and `Signing/Incremental (document)` were killed at the
+  limit on two consecutive scored nights, and a leg that does not finish is
+  reported as cancelled rather than failed, so the night reads as a clean one
+  while its floor gates nothing.
+
+  The first divides by file again, into `asn1`, `extractor` and `structures`,
+  from the timings of the run that did not finish. The second is one 523-line
+  file with no second path to move anything to, so it divides by **mutator**:
+  `SetNumber` was 8,922 of that run's 21,240 seconds. That is not `--shard`,
+  which is still forbidden. Each leg mutates a disjoint set and still runs the
+  whole suite against every mutant it makes
+  ([0135](docs/decisions/0135-a-leg-that-cannot-be-split-by-path-is-split-by-mutator.md)).
+
+  `.docker/mutate.sh` also refuses a run that ended without printing a score.
+  An option pest does not recognise is an `INFO` and an exit status of 0, so a
+  leg that measured nothing was reporting a clean pass.
+
+  Nothing in the package changes. This is the nightly.
+
 ## [3.0.0] - 2026-09-02
 
 The release that made the package usable on a document nobody can hold in
