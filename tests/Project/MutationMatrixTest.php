@@ -202,3 +202,114 @@ it('excludes nothing it has not written down', function () {
             ->and($workflow)->toContain(basename($file));
     }
 });
+
+/**
+ * Every place a group filter is written, with the value it filters on.
+ *
+ * `.docker/mutate.sh` and the workflows, which is everywhere one is written
+ * outside a docblock that only shows a reader what to type.
+ *
+ * **Comment lines are skipped**, and the reason is the first thing this check
+ * found: `.docker/mutate.sh` documents the broken form beside the working one,
+ * so a check reading the whole file fails on the sentence explaining why it
+ * exists. What is gated is the filter that runs.
+ *
+ * @return list<array{file: string, flag: string, value: string}>
+ */
+function groupFilters(): array
+{
+    $workflows = glob(packageRoot() . '/.github/workflows/*.yml');
+
+    $files = [
+        '.docker/mutate.sh',
+        ...array_map(
+            static fn(string $path): string => '.github/workflows/' . basename($path),
+            $workflows === false ? [] : $workflows,
+        ),
+    ];
+
+    $found = [];
+
+    foreach ($files as $file) {
+        $executable = array_filter(
+            explode("\n", Files::read(packageRoot() . '/' . $file)),
+            static fn(string $line): bool => preg_match('/^\s*#/', $line) !== 1,
+        );
+
+        preg_match_all(
+            '/--(exclude-group|group)=([^\s\'"\\\\]+)/',
+            implode("\n", $executable),
+            $matches,
+            PREG_SET_ORDER,
+        );
+
+        foreach ($matches as $match) {
+            $found[] = ['file' => $file, 'flag' => $match[1], 'value' => $match[2]];
+        }
+    }
+
+    return $found;
+}
+
+/**
+ * Every group name the suite actually declares.
+ *
+ * @return list<string>
+ */
+function declaredGroups(): array
+{
+    $found = [];
+
+    /** @var SplFileInfo $file */
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(packageRoot() . '/tests')) as $file) {
+        if (! $file->isFile() || $file->getExtension() !== 'php') {
+            continue;
+        }
+
+        preg_match_all("/->group\('([^']+)'\)/", Files::read($file->getPathname()), $matches);
+
+        $found = [...$found, ...$matches[1]];
+    }
+
+    return array_values(array_unique($found));
+}
+
+it('names one group per filter, because a comma is part of the name', function () {
+    // `--exclude-group=network,dss` excludes neither. The option takes a single
+    // group name, so the comma is part of it and a group called `network,dss`
+    // matches nothing, silently: the run is one test longer and otherwise
+    // identical. `.docker/mutate.sh` carried it for a month, which put every
+    // mutation run back on freetsa.org, and the nightly of 2026-09-05 lost two
+    // legs to a rejection from it before a single mutant existed (#177, #178).
+    $joined = array_values(array_filter(
+        groupFilters(),
+        static fn(array $filter): bool => str_contains($filter['value'], ','),
+    ));
+
+    expect($joined)->toBe([]);
+});
+
+it('filters on groups the suite declares, so a filter cannot match nothing', function () {
+    // The same failure by another route: a group renamed in the tests leaves
+    // the filter naming one nothing carries, and an exclusion that excludes
+    // nothing reads exactly like one that works.
+    $declared = declaredGroups();
+
+    $unknown = array_values(array_filter(
+        groupFilters(),
+        static fn(array $filter): bool => ! in_array($filter['value'], $declared, true),
+    ));
+
+    // Asserted rather than assumed: both checks above pass on an empty list,
+    // so a regex that stops matching would turn this file into two tests that
+    // gate nothing, which is the failure the whole file is about.
+    $excluded = array_column(array_filter(
+        groupFilters(),
+        static fn(array $filter): bool => $filter['file'] === '.docker/mutate.sh',
+    ), 'value');
+
+    expect($unknown)->toBe([])
+        ->and($declared)->toContain('network')
+        ->and($declared)->toContain('dss')
+        ->and($excluded)->toBe(['network', 'dss']);
+});

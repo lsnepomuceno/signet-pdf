@@ -32,6 +32,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
   Nothing in the package changes. This is the build.
 
+- **The nightly mutation run really does leave the live timestamp authority
+  out.** `.docker/mutate.sh` excluded its two groups with
+  `--exclude-group=network,dss`, which excludes neither: the option takes one
+  group name, so the comma is part of it and a group by that name matches
+  nothing. Every mutation run since the exclusion was written has been reaching
+  freetsa.org, and on 2026-09-05 freetsa answered a rejection and two legs
+  failed before a single mutant existed.
+
+  It is one flag per group now, and `tests/Project/MutationMatrixTest.php` fails
+  on a comma inside a group filter, or on a filter naming a group no test
+  declares.
+
+  Nothing in the package changes. This is the nightly.
+
 ## [3.0.0] - 2026-09-02
 
 The release that made the package usable on a document nobody can hold in
