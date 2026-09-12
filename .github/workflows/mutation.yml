@@ -357,7 +357,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/apt-packages
-          # Keyed per leg rather than once for the matrix, so eight jobs
+          # Keyed per leg rather than once for the matrix, so fifteen jobs
           # starting together do not race to save the same entry. The packages
           # are a few megabytes; the warning would be the expensive part.
           key: apt-qpdf-poppler-${{ env.ImageOS }}-${{ env.ImageVersion }}-leg${{ strategy.job-index }}-v1
@@ -653,7 +653,7 @@ jobs:
   # (#118).
   #
   # `if: always()` and nothing else, because the matrix result is one value for
-  # eight legs: a night where one leg was cancelled at the limit and another
+  # fifteen legs: a night where one leg was cancelled at the limit and another
   # scored below its floor reports `failure`, and a condition naming
   # `cancelled` never fires. That happened on the first night this job existed.
   # The step below asks each job for its own conclusion and returns quietly when

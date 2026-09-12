@@ -241,11 +241,14 @@ can be pointed at them
   PHPUnit installs one. `tests/Project/ArchTest.php` fails on any `@` in `src/`.
 - **Mutation testing** covers `src/Certificates`, `src/IcpBrasil`,
   `src/Signing`, `src/Support` and `src/Validation`, nightly rather than on pull
-  requests. `Signing` and `Support` run as two legs each: a job is killed at six
-  hours and reports as cancelled rather than failed, so an over-long leg gates
-  nothing while looking green.
+  requests. Those five namespaces are **fifteen legs**, because a job is killed
+  at six hours and reports as cancelled rather than failed, so an over-long leg
+  gates nothing while looking green. `src/Signing` is seven of them and
+  `src/Validation` four, and both reached that count by being split twice.
 - **Do not split mutation runs with `--shard`.** It divides the test suite, and
-  every mutation needs the whole suite.
+  every mutation needs the whole suite. Split by mutated path, and where one
+  file is the whole leg, by mutator
+  ([0135](docs/decisions/0135-a-leg-that-cannot-be-split-by-path-is-split-by-mutator.md)).
 - **Mutation runs through `.docker/mutate.sh`**, which `composer test:mutate`
   and the nightly both call. A mutant of `Support\TempDirectory::file()` returns
   a path with no directory in it, and a relative path lands in the working

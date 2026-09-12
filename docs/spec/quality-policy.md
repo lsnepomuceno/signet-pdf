@@ -69,13 +69,17 @@ pointed at `src/` would flag `docs/spec/public-api.md` in its entirety.
 
 ## Mutation testing
 
-Covers `src/Certificates`, `src/Signing`, `src/Validation` and `src/Support`,
-the namespaces where a test that only asserts "it did not throw" would keep
-passing with broken cryptography.
+Covers `src/Certificates`, `src/IcpBrasil`, `src/Signing`, `src/Validation` and
+`src/Support`, the namespaces where a test that only asserts "it did not throw"
+would keep passing with broken cryptography.
+`tests/Project/MutationMatrixTest.php` holds that list and fails on a file in
+one of them that no leg covers, so the sentence above cannot drift from the
+matrix the way it had: it read as four namespaces while the matrix scored five.
 
 **It runs nightly, not on pull requests** (`.github/workflows/mutation.yml`),
-one runner per leg, each with its own floor. Measured on the nightly runs of
-2026-08-09 through 2026-08-20, read from the job logs:
+one runner per leg, each with its own floor, and the five namespaces are fifteen
+legs. Measured on the nightly runs of 2026-08-09 through 2026-08-20, read from
+the job logs:
 
 | Leg | Measured | Lowest | Floor | Margin |
 |---|---|---|---|---|
