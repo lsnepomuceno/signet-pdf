@@ -10,7 +10,7 @@
     "build:current": "vitepress build .."
   },
   "devDependencies": {
-    "mermaid": "^11.17.0",
+    "mermaid": "^12.2.0",
     "vitepress": "1.6.4",
     "vitepress-plugin-mermaid": "^2.0.17"
   },
