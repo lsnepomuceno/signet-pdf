@@ -20,6 +20,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **PHPStan 2.3 no longer fails the build.** It reads the in-place scaling of
+  the sRGB matrix in `Support\SrgbProfile::rgbToXyz()` as a write that may leave
+  a row's keys missing, and reported every pull request red on
+  `offsetAccess.notFound` from 2026-10-14, the first run to resolve 2.3.1. The
+  scaled matrix is now built row by row rather than written into the one being
+  read.
+
+  The profile is byte for byte the same: its SHA-256 before and after is
+  `01f81d6c…50a02622`. Nothing in the package changes. This is the build.
+
 - **A Packagist outage no longer blocks an unrelated pull request.**
   `composer audit` failed on three unrelated branches on 2026-09-02, one of them
   the release, every time because the advisory database answered 502 and every

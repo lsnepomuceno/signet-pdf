@@ -170,13 +170,10 @@ final readonly class SrgbProfile
             $this->tristimulus(self::WHITE_POINT[0], self::WHITE_POINT[1]),
         );
 
-        for ($row = 0; $row < 3; $row++) {
-            for ($column = 0; $column < 3; $column++) {
-                $matrix[$row][$column] *= $scale[$column];
-            }
-        }
-
-        return $matrix;
+        return array_map(
+            fn(array $row): array => [$row[0] * $scale[0], $row[1] * $scale[1], $row[2] * $scale[2]],
+            $matrix,
+        );
     }
 
     /**
